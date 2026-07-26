@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Mic, Maximize2, Minimize2, Volume2, VolumeX } from 'lucide-react';
-import { INTERPRET_LANGUAGES, HEARTBEAT_INTERVAL_MS, languageLabel } from '@sotong/shared/constants';
+import {
+  INTERPRET_LANGUAGES,
+  HEARTBEAT_INTERVAL_MS,
+  TRANSLATE_TARGET_LANGS,
+  TRIAL_CHAR_LIMIT,
+  languageLabel,
+} from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import type { EngineSegment } from '@sotong/shared/engine';
 import {
@@ -22,7 +28,9 @@ type ErrorKey =
   | 'startFailed'
   | 'keyMissing'
   | 'connectionLost'
-  | 'unsupportedPair';
+  | 'unsupportedPair'
+  | 'guestQuota'
+  | 'authRequired';
 
 const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.35, xl: 1.75 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
@@ -34,8 +42,9 @@ function fmtSec(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function LiveInterpreter() {
+export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const t = useTranslations('live');
+  const tTry = useTranslations('try');
 
   const [phase, setPhase] = useState<Phase>('setup');
   const [error, setError] = useState<ErrorKey | null>(null);
@@ -58,6 +67,8 @@ export function LiveInterpreter() {
   const [summary, setSummary] = useState<{ billedSeconds: number; segmentCount: number } | null>(
     null,
   );
+  const [trialUsedChars, setTrialUsedChars] = useState(0);
+  const [trialBudget, setTrialBudget] = useState(TRIAL_CHAR_LIMIT);
 
   const sessionRef = useRef<BrowserTranslationSession | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -67,6 +78,9 @@ export function LiveInterpreter() {
   const maxDurationRef = useRef(0);
   /** 하트비트에 실어 보낼 확정 세그먼트 배치 (docs/01 §4.1 — 개별 쓰기 금지) */
   const pendingFinalsRef = useRef(new Map<number, EngineSegment>());
+  /** 체험 모드 번역 글자수 — seq별 최신 길이를 합산한다(부분 전사가 덮어써도 중복 계수 안 되게) */
+  const charsBySeqRef = useRef(new Map<number, number>());
+  const charBudgetRef = useRef(TRIAL_CHAR_LIMIT);
   const segmentsLenRef = useRef(0);
   const audioElRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -156,7 +170,7 @@ export function LiveInterpreter() {
       const res = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'inperson', sourceLang, targetLang, audioOut }),
+        body: JSON.stringify({ mode: 'inperson', sourceLang, targetLang, audioOut, trial }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -165,7 +179,11 @@ export function LiveInterpreter() {
             ? 'keyMissing'
             : body.error === 'unsupported_pair'
               ? 'unsupportedPair'
-              : 'startFailed',
+              : body.error === 'guest_quota_exhausted'
+                ? 'guestQuota'
+                : body.error === 'auth_required'
+                  ? 'authRequired'
+                  : 'startFailed',
         );
         setPhase('setup');
         return;
@@ -179,6 +197,11 @@ export function LiveInterpreter() {
 
     sessionIdRef.current = grant.sessionId;
     maxDurationRef.current = grant.maxDurationSec;
+    // 서버가 내려준 예산(월 잔여 반영)을 따른다 — 클라이언트 상수보다 우선
+    charBudgetRef.current = grant.charBudget ?? TRIAL_CHAR_LIMIT;
+    charsBySeqRef.current.clear();
+    setTrialBudget(charBudgetRef.current);
+    setTrialUsedChars(0);
 
     try {
       const session = await connectBrowserSession(
@@ -199,6 +222,14 @@ export function LiveInterpreter() {
               return next;
             });
             if (seg.isFinal) pendingFinalsRef.current.set(seg.seq, seg);
+            if (trial) {
+              // 부분 전사도 즉시 계수한다 — 한도를 넘긴 뒤에 끊으면 이미 돈이 나간 뒤다
+              charsBySeqRef.current.set(seg.seq, seg.targetText.length);
+              let used = 0;
+              for (const n of charsBySeqRef.current.values()) used += n;
+              setTrialUsedChars(used);
+              if (used >= charBudgetRef.current) void doEnd('cap');
+            }
           },
           onAudioTrack: (stream) => {
             if (audioElRef.current) {
@@ -256,7 +287,7 @@ export function LiveInterpreter() {
         const res = await fetch('/api/session/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, segments: batch }),
+          body: JSON.stringify({ sessionId, segments: batch, trial }),
         });
         if (res.ok) {
           const json = (await res.json()) as { terminate: boolean; remainingSec: number };
@@ -306,6 +337,43 @@ export function LiveInterpreter() {
   const [confirmEnd, setConfirmEnd] = useState(false);
 
   // ─────────────────────── 렌더 ───────────────────────
+
+  if (phase === 'ended' && summary && trial) {
+    // 체험 종료 — 여기가 가입 전환 지점이다
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-6 py-16 text-center">
+        <h1 className="text-[28px] font-bold">{tTry('ended.title')}</h1>
+        <p className="text-text-muted">{tTry('ended.body')}</p>
+        <dl className="flex w-full flex-col gap-2 rounded-lg border border-border bg-bg-raised p-6">
+          <div className="flex items-center justify-between">
+            <dt className="text-sm text-text-muted">{t('ended.duration')}</dt>
+            <dd className="tabular font-semibold">{fmtSec(summary.billedSeconds)}</dd>
+          </div>
+          <div className="flex items-center justify-between">
+            <dt className="text-sm text-text-muted">
+              {t('ended.segments', { count: summary.segmentCount })}
+            </dt>
+            <dd />
+          </div>
+        </dl>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/login"
+            className="flex h-12 items-center justify-center rounded-md bg-accent px-6 font-semibold text-accent-text"
+          >
+            {tTry('ended.signup')}
+          </Link>
+          <Link
+            href="/#pricing"
+            className="flex h-12 items-center justify-center rounded-md border border-border px-6 font-semibold"
+          >
+            {tTry('ended.pricing')}
+          </Link>
+        </div>
+        <p className="text-[13px] text-text-faint">{tTry('ended.freeNote')}</p>
+      </div>
+    );
+  }
 
   if (phase === 'ended' && summary) {
     return (
@@ -421,11 +489,14 @@ export function LiveInterpreter() {
               onChange={(e) => setTargetLang(e.target.value as LangCode)}
               className="h-11 rounded-md border border-border bg-bg-sunken px-3"
             >
-              {langOptions.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
+              {/* 출력 언어는 엔진 지원 목록만 노출 — 선택 불가 조합은 애초에 못 고르게 (docs/04 §2) */}
+              {langOptions
+                .filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code))
+                .map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -480,7 +551,14 @@ export function LiveInterpreter() {
           {' → '}
           {languageLabel(targetLang)}
         </span>
-        <span className="tabular ml-auto text-sm font-medium">{fmtSec(elapsedSec)}</span>
+        {trial ? (
+          <span className="tabular ml-auto rounded-sm bg-bg-sunken px-2 py-0.5 text-[13px] text-text-muted">
+            {tTry('counter', { used: Math.min(trialUsedChars, trialBudget), max: trialBudget })}
+          </span>
+        ) : null}
+        <span className={`tabular text-sm font-medium ${trial ? '' : 'ml-auto'}`}>
+          {fmtSec(elapsedSec)}
+        </span>
       </div>
 
       {capWarning ? (

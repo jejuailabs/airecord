@@ -76,6 +76,13 @@ export function grossMarginAtFullUsage(plan: PlanDef, blendedCostKrwPerMin: numb
   return (plan.monthlyKrw - cost) / plan.monthlyKrw;
 }
 
-/** 비회원 체험 제한 — 문장(확정 세그먼트) 수 + 시간 이중 캡 */
-export const TRIAL_MAX_FINAL_SEGMENTS = 10;
+/**
+ * 비회원 체험 제한 — 번역된 글자수 기준.
+ * 유저에게 "몇 자 남았는지"가 바로 보이고, 우리 원가와도 대략 비례한다.
+ */
+/** 체험 1회당 번역 글자수 */
+export const TRIAL_CHAR_LIMIT = 500;
+/** 비회원 월 누적 글자수 (체험을 반복해도 이 선을 넘지 못한다) */
+export const GUEST_MONTHLY_CHAR_LIMIT = 2_000;
+/** 체험 세션 시간 상한 (글자수와 별개의 안전장치) */
 export const TRIAL_MAX_DURATION_SEC_DEFAULT = 120;

@@ -33,6 +33,15 @@ export const INTERPRET_LANGUAGES: readonly InterpretLanguage[] = [
 /** 소스 언어 자동 감지 센티널 */
 export const AUTO_SOURCE: SourceLangSetting = 'auto';
 
+/**
+ * gpt-realtime-translate 출력(목적) 언어 13개 — 2026-07 조사값.
+ * 입력은 70+ 자동 감지라 제한 없음. 이 목록은 engine.supports()와 UI 선택지 양쪽에서 쓴다.
+ * 출처: OpenAI realtime translation guide (분기마다 재확인 — core.md §3-7)
+ */
+export const TRANSLATE_TARGET_LANGS: readonly LangCode[] = [
+  'en', 'ko', 'ja', 'zh', 'es', 'fr', 'de', 'pt', 'it', 'ru', 'vi', 'id', 'hi',
+] as const;
+
 export function languageLabel(code: SourceLangSetting): string {
   if (code === 'auto') return 'auto';
   return INTERPRET_LANGUAGES.find((l) => l.code === code)?.label ?? code;

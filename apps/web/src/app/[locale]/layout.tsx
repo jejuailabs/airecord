@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
-import { AppHeader } from '@/components/AppHeader';
 import '../globals.css';
 
 export function generateStaticParams() {
@@ -63,10 +62,7 @@ export default async function LocaleLayout({
         />
       </head>
       <body className="min-h-screen bg-bg text-text antialiased">
-        <NextIntlClientProvider messages={messages}>
-          <AppHeader />
-          <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-6">{children}</main>
-        </NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

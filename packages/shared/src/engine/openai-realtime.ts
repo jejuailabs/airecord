@@ -1,9 +1,13 @@
 /**
- * OpenAI Realtime 어댑터.
+ * OpenAI 통역 전용 모델 어댑터 — `gpt-realtime-translate` (2026-05-07 출시).
  *
- * 모델명은 하드코딩하지 않는다 (core.md §3-7). 기본값 'gpt-realtime'은
- * 2026-07-26 조사 기준 docs/04 §2의 번역 전용 모델(`gpt-realtime-translate`)이
- * 계정에서 열려 있으면 TRANSLATION_MODEL_OPENAI 환경변수로 교체한다.
+ * 선택 근거 (2026-07 조사·비교 후 결정):
+ * - 분당 $0.034 정액 → 원가 모델(docs/07)과 일치
+ * - 소스 언어 자동 감지 내장(입력 70+), 출력 13개 언어
+ * - 턴 없는 연속 스트림 → 드리프트 최소화 (core.md §3-2)
+ * - 번역만 출력하도록 학습됨 → 범용 모델의 "질문에 대답" 리스크 제거
+ *
+ * 모델명·전사 모델은 환경변수로 교체 가능 (core.md §3-7).
  */
 import type {
   EphemeralGrant,
@@ -13,48 +17,41 @@ import type {
   EngineSegment,
   EngineError,
 } from './types';
-import { buildInterpreterInstructions } from './types';
 import { createSegmentAssembler } from './segment-assembler';
-import { INTERPRET_LANGUAGES, languageLabel } from '../constants';
+import { TRANSLATE_TARGET_LANGS } from '../constants';
 import type { LangCode, SourceLangSetting } from '../types';
 
 const env = (k: string): string | undefined =>
   typeof process !== 'undefined' ? process.env?.[k] : undefined;
 
 const baseUrl = () => env('OPENAI_BASE_URL') ?? 'https://api.openai.com';
-const modelName = () => env('TRANSLATION_MODEL_OPENAI') ?? 'gpt-realtime';
+const modelName = () => env('TRANSLATION_MODEL_OPENAI') ?? 'gpt-realtime-translate';
 const apiKey = () => {
   const k = env('OPENAI_API_KEY');
   if (!k) throw new Error('OPENAI_API_KEY is not set');
   return k;
 };
 
-/** 세션 설정 — mint 시점에 서버가 굽는다. 브라우저는 지시문을 만지지 않는다. */
-export function buildRealtimeSessionConfig(opts: OpenOpts) {
+/**
+ * 번역 전용 세션 설정.
+ * 소스 언어는 지정하지 않는다 — 모델이 발화마다 자동 감지한다.
+ * 커스텀 지시문·음성 선택은 지원하지 않는다(전용 모델 특성).
+ */
+export function buildTranslateSessionConfig(opts: OpenOpts) {
   return {
-    type: 'realtime',
     model: modelName(),
-    instructions: buildInterpreterInstructions(
-      opts.sourceLang,
-      opts.targetLang,
-      languageLabel(opts.targetLang),
-    ),
-    output_modalities: opts.audioOut ? ['audio'] : ['text'],
     audio: {
+      output: { language: opts.targetLang },
       input: {
-        transcription: { model: env('TRANSCRIPTION_MODEL') ?? 'gpt-4o-mini-transcribe' },
-        turn_detection: {
-          type: 'server_vad',
-          silence_duration_ms: 400, // 짧게 — 자막 체감 지연을 줄인다 (docs/01 §5)
-        },
+        // 원문 자막용 입력 전사 — 실청구에 별도 가산되는지 실측 시 확인 (docs/07 §6)
+        transcription: { model: env('TRANSCRIPTION_MODEL') ?? 'gpt-realtime-whisper' },
       },
-      output: { voice: env('TRANSLATION_VOICE') ?? 'marin' },
     },
   };
 }
 
 async function mintEphemeralKey(opts: OpenOpts): Promise<EphemeralGrant> {
-  const res = await fetch(`${baseUrl()}/v1/realtime/client_secrets`, {
+  const res = await fetch(`${baseUrl()}/v1/realtime/translations/client_secrets`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey()}`,
@@ -63,12 +60,12 @@ async function mintEphemeralKey(opts: OpenOpts): Promise<EphemeralGrant> {
     body: JSON.stringify({
       // 수명 짧게, 세션 1회용 (docs/08 §3)
       expires_after: { anchor: 'created_at', seconds: 600 },
-      session: buildRealtimeSessionConfig(opts),
+      session: buildTranslateSessionConfig(opts),
     }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`OpenAI client_secrets failed: ${res.status} ${body.slice(0, 300)}`);
+    throw new Error(`OpenAI translate client_secrets failed: ${res.status} ${body.slice(0, 300)}`);
   }
   const json = (await res.json()) as { value: string; expires_at: number };
   return {
@@ -76,20 +73,17 @@ async function mintEphemeralKey(opts: OpenOpts): Promise<EphemeralGrant> {
     expiresAt: json.expires_at * 1000,
     model: modelName(),
     provider: 'openai',
-    callUrl: `${baseUrl()}/v1/realtime/calls`,
+    callUrl: `${baseUrl()}/v1/realtime/translations/calls`,
   };
 }
 
 /**
  * 서버 릴레이 세션 (모드 A — 워커 전용).
- * Node 22+ 전역 WebSocket 사용. 커스텀 헤더 불가 → 서브프로토콜 인증.
+ * Node 22+ 전역 WebSocket. 커스텀 헤더 불가 → 서브프로토콜 인증.
  */
 async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
-  const url = `${baseUrl().replace(/^http/, 'ws')}/v1/realtime?model=${encodeURIComponent(modelName())}`;
-  const ws = new WebSocket(url, [
-    'realtime',
-    `openai-insecure-api-key.${apiKey()}`,
-  ]);
+  const url = `${baseUrl().replace(/^http/, 'ws')}/v1/realtime/translations?model=${encodeURIComponent(modelName())}`;
+  const ws = new WebSocket(url, ['realtime', `openai-insecure-api-key.${apiKey()}`]);
 
   const segmentCbs: Array<(s: EngineSegment) => void> = [];
   const audioCbs: Array<(c: ArrayBuffer) => void> = [];
@@ -101,17 +95,21 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
 
   await new Promise<void>((resolve, reject) => {
     ws.addEventListener('open', () => resolve(), { once: true });
-    ws.addEventListener('error', () => reject(new Error('OpenAI realtime WS connect failed')), { once: true });
+    ws.addEventListener('error', () => reject(new Error('OpenAI translate WS connect failed')), {
+      once: true,
+    });
   });
 
-  const { model: _m, type: _t, ...sessionPatch } = buildRealtimeSessionConfig(opts);
-  ws.send(JSON.stringify({ type: 'session.update', session: { type: 'realtime', ...sessionPatch } }));
+  const { model: _m, ...sessionPatch } = buildTranslateSessionConfig(opts);
+  ws.send(JSON.stringify({ type: 'session.update', session: sessionPatch }));
 
   ws.addEventListener('message', (ev) => {
     try {
       const evt = JSON.parse(String(ev.data));
       if (
-        (evt.type === 'response.output_audio.delta' || evt.type === 'response.audio.delta') &&
+        (evt.type === 'response.output_audio.delta' ||
+          evt.type === 'session.output_audio.delta' ||
+          evt.type === 'response.audio.delta') &&
         typeof evt.delta === 'string'
       ) {
         const bin = Uint8Array.from(atob(evt.delta), (ch) => ch.charCodeAt(0));
@@ -154,19 +152,20 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
   };
 }
 
-const SUPPORTED = new Set<string>(INTERPRET_LANGUAGES.map((l) => l.code));
+const TARGETS = new Set<string>(TRANSLATE_TARGET_LANGS);
 
 export const openaiRealtimeEngine: TranslationEngine = {
   provider: 'openai',
   capabilities: {
     audioOut: true,
     browserDirect: true,
-    autoDetectSource: true,
+    autoDetectSource: true, // 모델 내장 — 프롬프트 불필요
     maxSessionSec: Number(env('SESSION_MAX_DURATION_SEC') ?? 7200),
   },
   supports(source: SourceLangSetting, target: LangCode) {
-    // ⚠ 조사값(docs/04 §2): 출력 언어가 입력보다 적다. 실측 후 목록을 좁힐 것.
-    return (source === 'auto' || SUPPORTED.has(source)) && SUPPORTED.has(target);
+    // 입력은 70+ 자동 감지라 사실상 제한 없음. 출력만 13개 (2026-07 조사값)
+    void source;
+    return TARGETS.has(target);
   },
   mintEphemeralKey,
   openServerSession,

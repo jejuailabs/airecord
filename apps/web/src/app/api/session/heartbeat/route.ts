@@ -4,6 +4,7 @@ import {
   type SessionHeartbeatResponse,
 } from '@sotong/shared/schemas';
 import { heartbeat } from '@/lib/server/session-store';
+import { consumeChars, guestKey } from '@/lib/server/guest-quota';
 
 export const runtime = 'nodejs';
 
@@ -17,7 +18,13 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 });
   }
-  const { sessionId, segments } = parsed.data;
+  const { sessionId, segments, trial } = parsed.data;
+
+  if (trial) {
+    // 비회원 월 한도에 번역 글자수를 누적한다 (클라이언트 카운터만 믿지 않는다)
+    const chars = segments.reduce((sum, s) => sum + s.targetText.length, 0);
+    consumeChars(guestKey(req), chars);
+  }
 
   const result = heartbeat(sessionId, segments.length);
   if (!result) {

@@ -1,10 +1,18 @@
 {
   "common": {
-    "appName": "Sotong",
+    "appName": "InterLive",
     "nav": {
       "dashboard": "Dashboard",
       "live": "In-person",
-      "meeting": "Meeting"
+      "meeting": "Meeting",
+      "sessions": "Sessions",
+      "pricing": "Pricing",
+      "settings": "Settings",
+      "help": "Help",
+      "soon": "Soon"
+    },
+    "shell": {
+      "manage": "Manage"
     },
     "actions": {
       "start": "Start",
@@ -24,22 +32,193 @@
     "language": {
       "label": "Display language"
     },
+    "auth": {
+      "login": "Sign in",
+      "logout": "Sign out"
+    },
     "phaseBadge": "Phase 1 preview"
+  },
+  "landing": {
+    "hero": {
+      "badge": "Real-time AI interpretation",
+      "title": "Live interpretation,\nmade effortless",
+      "subtitle": "One meeting link, one mic button.\nEverything else is handled automatically.",
+      "orbInPerson": {
+        "title": "Start in-person",
+        "subtitle": "Start with your mic"
+      },
+      "orbMeeting": {
+        "title": "Start meeting",
+        "subtitle": "Paste a meeting link"
+      },
+      "badgeRecord": "Auto records",
+      "badgeCaption": "Live captions",
+      "badgeSecure": "Secure storage",
+      "tryCta": "Try it now",
+      "signupCta": "Start free",
+      "pricingCta": "See pricing →",
+      "trialNote": "Try 500 translated characters without signing in. Sign up and get 30 free minutes every month."
+    },
+    "captionDemo": {
+      "title": "Mixed languages in,\none language out",
+      "body": "Korean, English and Japanese are detected per utterance and streamed straight into captions. Turn on the AI interpreter voice and it sounds like an interpreter sitting next to you."
+    },
+    "preview": {
+      "title": "Manage · Dashboard",
+      "live": "Live",
+      "chart": "Daily usage",
+      "recent": "Recent sessions",
+      "viewAll": "View all",
+      "nav": {
+        "dashboard": "Dashboard",
+        "sessions": "Sessions",
+        "users": "Members",
+        "inperson": "In-person",
+        "meeting": "Meeting",
+        "settings": "Settings"
+      },
+      "stats": {
+        "remaining": "Minutes left",
+        "month": "This month",
+        "meeting": "Meeting",
+        "inperson": "In-person",
+        "minute": "min"
+      },
+      "rows": {
+        "r1": "Product review meeting",
+        "r2": "Supplier call",
+        "r3": "Weekly marketing sync"
+      }
+    },
+    "demo": {
+      "langPair": "Auto-detect → 한국어 · English",
+      "voiceToggle": "AI interpreter voice",
+      "autoDetectNote": "Korean, English and Japanese mixed — each utterance is detected automatically. This is exactly how the product works."
+    },
+    "zoom": {
+      "title": "For Zoom calls, the interpreter bot joins for you",
+      "body": "Paste a meeting link and the bot joins, interprets the conversation in real time, and posts a caption link into the chat that anyone can open. Nothing to install, nothing to configure.",
+      "point1": "Works with Zoom · Teams · Meet · Webex",
+      "point2": "Live captions and voice matched to each participant's language",
+      "point3": "A side-by-side transcript remains after the meeting",
+      "windowTitle": "Weekly Sync — video meeting",
+      "botName": "InterLive Interpreter",
+      "chatMessage": "Live interpreted captions:",
+      "voiceToggle": "AI interpreter voice"
+    },
+    "features": {
+      "autoDetect": {
+        "title": "Automatic language detection",
+        "body": "Even meetings mixing three languages are detected per utterance. You only pick the display language."
+      },
+      "voiceOut": {
+        "title": "Captions and voice, together",
+        "body": "Captions stream instantly, and an AI voice can read them aloud like a live interpreter."
+      },
+      "records": {
+        "title": "Records, automatically",
+        "body": "A side-by-side transcript remains when you finish. There is no record button to remember."
+      }
+    },
+    "finalCta": {
+      "title": "Just turn on your mic",
+      "body": "Try it without signing in. 500 characters is all it takes."
+    }
+  },
+  "login": {
+    "title": "Get started",
+    "subtitle": "Start in 3 seconds with your Google account. No separate sign-up flow.",
+    "google": "Continue with Google",
+    "busy": "Signing in…",
+    "freeNote": "30 free minutes every month. No card required.",
+    "failed": {
+      "title": "Sign-in failed",
+      "action": "Allow popups for this site or try again in a moment."
+    }
+  },
+  "try": {
+    "banner": "Trial mode — experience the real interpretation quality for 500 translated characters, no sign-in needed.",
+    "counter": "Trial {used}/{max} chars",
+    "ended": {
+      "title": "That's the end of the trial",
+      "body": "What you just saw is the real performance. Sign up for 30 free minutes every month.",
+      "signup": "Start free",
+      "pricing": "See pricing",
+      "freeNote": "Starts instantly with your Google account — no card required."
+    }
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Pay for what you use. Honest included minutes instead of fake unlimited.",
+    "perMonth": "/mo",
+    "popular": "Most popular",
+    "cta": "Start with this plan",
+    "freeNote": "Every paid plan comes after a free 30 min/month tier. Prices exclude VAT.",
+    "includedMinutes": "{minutes} minutes / month included",
+    "retention": "Records kept for {days} days",
+    "meetingMode": "Meeting interpreter bot (Zoom · Teams · Meet · Webex)",
+    "unlimitedMembers": "Unlimited team members",
+    "overage": "Overage ₩{krw}/min (only if you enable it)",
+    "noOverage": "No overage billing — we notify you when minutes run out",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "for": "Individuals with occasional international meetings"
+      },
+      "pro": {
+        "name": "Pro",
+        "for": "Individuals and freelancers who interpret weekly"
+      },
+      "business": {
+        "name": "Business",
+        "for": "Companies where the whole team joins"
+      }
+    }
+  },
+  "checkout": {
+    "title": "Checkout",
+    "submit": "Proceed to payment",
+    "busy": "Processing…",
+    "pgNote": "Payments activate once our payment provider review completes. Apply now to reserve your spot — we'll email you the moment it opens.",
+    "reserved": {
+      "title": "Your request is in",
+      "body": "We'll email you as soon as payments open. Your free 30 minutes keep working in the meantime.",
+      "toDashboard": "Go to dashboard →"
+    },
+    "failed": {
+      "title": "Could not save your request",
+      "action": "Check your network and try again."
+    }
   },
   "dashboard": {
     "title": "Start interpreting",
+    "stats": {
+      "remaining": "Minutes left",
+      "month": "Used this month",
+      "meeting": "Meeting",
+      "inperson": "In-person",
+      "minute": "min",
+      "minuteOf": "min / {total}min"
+    },
+    "chart": {
+      "title": "Daily usage",
+      "legendMeeting": "Meeting",
+      "legendInPerson": "In-person",
+      "empty": "Start interpreting and daily usage piles up here."
+    },
     "startInPerson": {
-      "title": "In-person",
+      "title": "Start in-person",
       "subtitle": "Start right away with your mic"
     },
     "startMeeting": {
-      "title": "Video meeting",
+      "title": "Start meeting",
       "subtitle": "Paste a meeting link"
     },
     "recent": {
       "title": "Recent sessions",
+      "viewAll": "View all",
       "emptyTitle": "No sessions yet",
-      "emptyHint": "Start an in-person session and captions will pile up here. Saved history arrives with accounts (Phase 2)."
+      "emptyHint": "Start an in-person session and it shows up here. Saved history arrives in Phase 2."
     }
   },
   "live": {
@@ -109,6 +288,14 @@
       "unsupportedPair": {
         "title": "This language pair is not supported yet",
         "action": "Pick a different display language."
+      },
+      "guestQuota": {
+        "title": "You've used all your free trial characters this month",
+        "action": "Sign up for 30 free minutes every month, then continue where you left off."
+      },
+      "authRequired": {
+        "title": "Sign-in required",
+        "action": "Sign in with your Google account and start again."
       }
     }
   },

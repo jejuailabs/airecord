@@ -60,6 +60,20 @@ export function createSegmentAssembler(
     return current ?? openSegment();
   }
 
+  /** 턴 없는 연속 스트림(translate 엔드포인트): 확정된 세그먼트 뒤에 델타가 오면 새로 연다 */
+  function openIfFinalized(): EngineSegment {
+    if (!current || current.isFinal) return openSegment();
+    return current;
+  }
+
+  function finalizeCurrent() {
+    if (current && !current.isFinal) {
+      current.endMs = Date.now() - startedAt;
+      current.isFinal = true;
+      emit(current);
+    }
+  }
+
   return {
     handle(evt) {
       switch (evt.type) {
@@ -68,7 +82,7 @@ export function createSegmentAssembler(
           break;
         }
 
-        // ── 원문(입력 전사) ──────────────────────────
+        // ── 원문(입력 전사) — 범용 엔드포인트 이벤트명 ──
         case 'conversation.item.input_audio_transcription.delta': {
           const seg = segmentFor(evt.item_id);
           seg.sourceText += evt.delta ?? '';
@@ -83,7 +97,37 @@ export function createSegmentAssembler(
           break;
         }
 
-        // ── 번역문(응답) — GA/구 이벤트명 모두 수용 ───
+        // ── 원문(입력 전사) — translate 전용 엔드포인트 ──
+        case 'session.input_transcript.delta': {
+          const seg = openIfFinalized();
+          seg.sourceText += evt.delta ?? '';
+          emit(seg);
+          break;
+        }
+        case 'session.input_transcript.done':
+        case 'session.input_transcript.completed': {
+          const seg = openIfFinalized();
+          seg.sourceText = evt.transcript ?? seg.sourceText;
+          if (evt.language) seg.detectedLang = evt.language;
+          emit(seg);
+          break;
+        }
+
+        // ── 번역문 — translate 전용 엔드포인트 ──────────
+        case 'session.output_transcript.delta': {
+          const seg = openIfFinalized();
+          seg.targetText += evt.delta ?? '';
+          emit(seg);
+          break;
+        }
+        case 'session.output_transcript.done':
+        case 'session.output_transcript.completed': {
+          if (current && evt.transcript) current.targetText = evt.transcript;
+          finalizeCurrent();
+          break;
+        }
+
+        // ── 번역문 — 범용 엔드포인트 이벤트명(폴백 호환) ──
         case 'response.output_text.delta':
         case 'response.text.delta':
         case 'response.output_audio_transcript.delta':
@@ -95,11 +139,7 @@ export function createSegmentAssembler(
         }
 
         case 'response.done': {
-          if (current) {
-            current.endMs = Date.now() - startedAt;
-            current.isFinal = true;
-            emit(current);
-          }
+          finalizeCurrent();
           break;
         }
 

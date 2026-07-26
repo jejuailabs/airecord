@@ -16,6 +16,8 @@ export const sessionStartRequestSchema = z.object({
   targetLang: langCodeSchema,
   audioOut: z.boolean(),
   title: z.string().max(200).optional(),
+  /** 비회원 체험 세션 — 서버가 더 짧은 하드 캡을 적용한다 */
+  trial: z.boolean().optional().default(false),
 });
 export type SessionStartRequest = z.infer<typeof sessionStartRequestSchema>;
 
@@ -27,6 +29,8 @@ export const sessionStartResponseSchema = z.object({
   callUrl: z.string(),
   keyExpiresAt: z.number(),
   maxDurationSec: z.number(),
+  /** 체험 세션에 허용된 번역 글자수. 비체험이면 null */
+  charBudget: z.number().nullable().default(null),
 });
 export type SessionStartResponse = z.infer<typeof sessionStartResponseSchema>;
 
@@ -44,6 +48,8 @@ export const sessionHeartbeatRequestSchema = z.object({
   sessionId: z.string(),
   /** 확정 세그먼트 배치 — 개별 쓰기 금지 (docs/01 §4.1) */
   segments: z.array(heartbeatSegmentSchema).max(100).default([]),
+  /** 체험 세션이면 서버가 비회원 월 한도에 글자수를 누적한다 */
+  trial: z.boolean().optional().default(false),
 });
 export type SessionHeartbeatRequest = z.infer<typeof sessionHeartbeatRequestSchema>;
 

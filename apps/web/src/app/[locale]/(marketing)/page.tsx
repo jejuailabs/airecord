@@ -1,0 +1,158 @@
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Check, Languages, Link2, Mic, ScrollText } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
+import { LiveCaptionDemo } from '@/components/landing/LiveCaptionDemo';
+import { ZoomMockup } from '@/components/landing/ZoomMockup';
+import { DashboardPreview } from '@/components/landing/DashboardPreview';
+import { PricingSection } from '@/components/landing/PricingSection';
+
+/**
+ * 랜딩 (docs/06 라우트 트리의 (marketing) 루트).
+ * 원칙: 내용을 늘어놓지 않는다 — 제품이 돌아가는 모습(자막 데모·줌 목업)이 곧 설명이다.
+ */
+export default async function LandingPage({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations('landing');
+
+  return (
+    <div className="flex flex-col">
+      {/* ── 히어로: InterLive 시안 — 그라데이션 패널 + 원형 CTA + 대시보드 목업 ── */}
+      <section className="brand-panel grid items-center gap-8 overflow-hidden rounded-lg p-6 py-10 md:p-10 lg:grid-cols-[5fr_6fr]">
+        <div className="flex flex-col gap-6 text-white">
+          <span className="w-fit rounded-sm bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-white/90">
+            {t('hero.badge')}
+          </span>
+          <h1 className="whitespace-pre-line text-[40px] font-bold leading-[1.15] tracking-tight">
+            {t('hero.title')}
+          </h1>
+          <p className="max-w-md whitespace-pre-line text-white/70">{t('hero.subtitle')}</p>
+
+          {/* 원형 CTA 2개 (시안) */}
+          <div className="flex flex-wrap gap-6 pt-2">
+            <Link href="/live" className="group flex w-32 flex-col items-center gap-3 text-center">
+              <span className="cta-orb-violet flex h-24 w-24 items-center justify-center rounded-full text-white shadow-token transition-transform duration-150 group-hover:scale-105">
+                <Mic size={30} aria-hidden />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">{t('hero.orbInPerson.title')}</span>
+                <span className="block text-[12px] text-white/60">
+                  {t('hero.orbInPerson.subtitle')}
+                </span>
+              </span>
+            </Link>
+            <Link href="/meeting" className="group flex w-32 flex-col items-center gap-3 text-center">
+              <span className="cta-orb-teal flex h-24 w-24 items-center justify-center rounded-full text-white shadow-token transition-transform duration-150 group-hover:scale-105">
+                <Link2 size={30} aria-hidden />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold">{t('hero.orbMeeting.title')}</span>
+                <span className="block text-[12px] text-white/60">
+                  {t('hero.orbMeeting.subtitle')}
+                </span>
+              </span>
+            </Link>
+          </div>
+
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Link
+              href="/try"
+              className="flex h-11 items-center rounded-md bg-white px-5 text-sm font-semibold text-[#171243]"
+            >
+              {t('hero.tryCta')}
+            </Link>
+            <Link
+              href="/login"
+              className="flex h-11 items-center rounded-md border border-white/25 px-5 text-sm font-semibold text-white hover:border-white/50"
+            >
+              {t('hero.signupCta')}
+            </Link>
+            <a
+              href="#pricing"
+              className="flex h-11 items-center px-2 text-sm font-semibold text-white/70 hover:text-white"
+            >
+              {t('hero.pricingCta')}
+            </a>
+          </div>
+
+          {/* 하단 배지 3 (시안) */}
+          <div className="flex flex-wrap gap-4 border-t border-white/10 pt-4 text-[13px] text-white/70">
+            {(['badgeRecord', 'badgeCaption', 'badgeSecure'] as const).map((k) => (
+              <span key={k} className="flex items-center gap-1.5">
+                <Check size={13} aria-hidden className="text-accent-2" />
+                {t(`hero.${k}`)}
+              </span>
+            ))}
+          </div>
+        </div>
+        <DashboardPreview />
+      </section>
+
+      {/* ── 살아있는 자막 데모 ── */}
+      <section className="grid items-center gap-10 py-16 lg:grid-cols-2">
+        <div className="flex flex-col gap-4">
+          <h2 className="text-[28px] font-bold leading-tight">{t('captionDemo.title')}</h2>
+          <p className="max-w-md text-text-muted">{t('captionDemo.body')}</p>
+          <p className="text-[13px] text-text-faint">{t('hero.trialNote')}</p>
+        </div>
+        <LiveCaptionDemo />
+      </section>
+
+      {/* ── 줌 회의 실시간 번역 — 체험하기 어려운 장면을 눈앞에 ── */}
+      <section className="grid items-center gap-10 border-t border-border py-16 lg:grid-cols-2">
+        <div className="order-2 lg:order-1">
+          <ZoomMockup />
+        </div>
+        <div className="order-1 flex flex-col gap-4 lg:order-2">
+          <h2 className="text-[28px] font-bold leading-tight">{t('zoom.title')}</h2>
+          <p className="max-w-md text-text-muted">{t('zoom.body')}</p>
+          <ul className="flex flex-col gap-2 text-sm text-text-muted">
+            <li>· {t('zoom.point1')}</li>
+            <li>· {t('zoom.point2')}</li>
+            <li>· {t('zoom.point3')}</li>
+          </ul>
+        </div>
+      </section>
+
+      {/* ── 핵심 기능 3 ── */}
+      <section className="grid gap-4 border-t border-border py-16 md:grid-cols-3">
+        {(
+          [
+            { icon: <Languages size={20} aria-hidden />, key: 'autoDetect' },
+            { icon: <Mic size={20} aria-hidden />, key: 'voiceOut' },
+            { icon: <ScrollText size={20} aria-hidden />, key: 'records' },
+          ] as const
+        ).map((f) => (
+          <div key={f.key} className="flex flex-col gap-3 rounded-lg border border-border bg-bg-raised p-6">
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-weak text-accent">
+              {f.icon}
+            </span>
+            <h3 className="font-semibold">{t(`features.${f.key}.title`)}</h3>
+            <p className="text-sm text-text-muted">{t(`features.${f.key}.body`)}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* ── 요금제 ── */}
+      <div className="border-t border-border">
+        <PricingSection />
+      </div>
+
+      {/* ── 마지막 CTA ── */}
+      <section className="flex flex-col items-center gap-4 border-t border-border py-16 text-center">
+        <h2 className="text-[28px] font-bold">{t('finalCta.title')}</h2>
+        <p className="text-sm text-text-muted">{t('finalCta.body')}</p>
+        <Link
+          href="/try"
+          className="flex h-12 items-center rounded-md bg-accent px-8 font-semibold text-accent-text"
+        >
+          {t('hero.tryCta')}
+        </Link>
+      </section>
+    </div>
+  );
+}

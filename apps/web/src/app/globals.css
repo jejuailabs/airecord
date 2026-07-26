@@ -2,61 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-/* docs/05 §2 색 토큰 — 여기 없는 색을 새로 만들지 않는다 */
+/*
+ * InterLive 브랜드 토큰 — 시안(딥 네이비 + 인디고/바이올렛 + 틸 보조) 기준.
+ * docs/05의 구조(시맨틱 토큰만 사용)는 유지하되 팔레트를 브랜드 시안으로 교체.
+ */
 :root {                                   /* ── LIGHT ── */
-  --bg:            #F6F5F2;   /* 종이. 순백 아님 — 형광등 아래 눈부심 억제 */
+  --bg:            #F5F6FA;
   --bg-raised:     #FFFFFF;
-  --bg-sunken:     #EDECE8;
-  --border:        #DCDAD4;
-  --border-strong: #C2BFB7;
+  --bg-sunken:     #EDEFF6;
+  --border:        #E2E5F0;
+  --border-strong: #C6CBDE;
 
-  --text:          #14181F;
-  --text-muted:    #5C636E;
-  --text-faint:    #8A9099;
+  --text:          #14172B;
+  --text-muted:    #5A6079;
+  --text-faint:    #8A90A8;
 
-  --accent:        #0E9384;   /* 신호색 — 라이브 상태 전용 */
-  --accent-weak:   #E0F2EF;
+  --accent:        #6D5AE8;   /* 브랜드 바이올렛 */
+  --accent-weak:   #EDEAFD;
   --accent-text:   #FFFFFF;
+  --accent-2:      #14B8A6;   /* 보조 틸 — 회의 통역 계열 */
+  --accent-2-weak: #DFF6F3;
+  --accent-2-text: #FFFFFF;
+
+  --chart-1:       #6366F1;   /* 회의 통역 막대 */
+  --chart-2:       #A78BFA;   /* 대면 통역 막대 */
 
   --warn:          #B26A12;
   --warn-weak:     #FBF0DE;
-  --danger:        #B23B32;
+  --danger:        #C0392B;
   --danger-weak:   #FBE9E7;
 
-  --caption-bg:    #101720;   /* 자막 패널은 라이트 모드에서도 어둡다 (docs/05 §4) */
-  --caption-target:#F3F6F8;
-  --caption-source:#7E8A97;
+  --caption-bg:    #0B0E23;   /* 자막·사이드바·목업 — 테마 무관 항상 딥 네이비 */
+  --caption-target:#F3F5FC;
+  --caption-source:#8189AD;
 
-  --focus:         #0E9384;
-  --shadow: 0 1px 2px rgb(20 24 31 / .06), 0 8px 24px rgb(20 24 31 / .06);
+  --focus:         #6D5AE8;
+  --shadow: 0 1px 2px rgb(20 23 43 / .06), 0 8px 24px rgb(20 23 43 / .08);
 }
 
 .dark {                                   /* ── DARK (기본) ── */
-  --bg:            #0B1220;
-  --bg-raised:     #131C2C;
-  --bg-sunken:     #070D18;
-  --border:        #223047;
-  --border-strong: #33445F;
+  --bg:            #0B0E23;   /* 딥 네이비 잉크 */
+  --bg-raised:     #151A38;
+  --bg-sunken:     #080B1C;
+  --border:        #262D52;
+  --border-strong: #3A4272;
 
-  --text:          #E8ECF2;
-  --text-muted:    #9AA6B8;
-  --text-faint:    #66748A;
+  --text:          #EAECF7;
+  --text-muted:    #9AA1C2;
+  --text-faint:    #656D93;
 
-  --accent:        #2DD4BF;
-  --accent-weak:   #0D2E2C;
-  --accent-text:   #04211E;
+  --accent:        #8B7BFF;
+  --accent-weak:   #221E4E;
+  --accent-text:   #0E0A2E;
+  --accent-2:      #2DD4BF;
+  --accent-2-weak: #0D2E2C;
+  --accent-2-text: #04211E;
+
+  --chart-1:       #6366F1;
+  --chart-2:       #A78BFA;
 
   --warn:          #E0A340;
   --warn-weak:     #2C220E;
   --danger:        #E4685C;
   --danger-weak:   #2E1512;
 
-  --caption-bg:    #070D18;
-  --caption-target:#F3F6F8;
-  --caption-source:#78879B;
+  --caption-bg:    #080B1C;
+  --caption-target:#F3F5FC;
+  --caption-source:#7A82A8;
 
-  --focus:         #2DD4BF;
-  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .3);
+  --focus:         #8B7BFF;
+  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
 }
 
 html,
@@ -77,6 +92,20 @@ body {
 :focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* 히어로·CTA 그라데이션 (브랜드 시안) */
+.brand-panel {
+  background:
+    radial-gradient(120% 140% at 85% -10%, rgb(109 90 232 / .45) 0%, transparent 55%),
+    radial-gradient(120% 120% at -10% 110%, rgb(45 212 191 / .18) 0%, transparent 50%),
+    linear-gradient(160deg, #171243 0%, #0B0E23 70%);
+}
+.cta-orb-violet {
+  background: linear-gradient(145deg, #8B5CF6 0%, #6D28D9 100%);
+}
+.cta-orb-teal {
+  background: linear-gradient(145deg, #2DD4BF 0%, #0D9488 100%);
 }
 
 /* 라이브 인디케이터 — 2초 주기 밝기 변화. reduce 설정 시 정지 (docs/05 §6) */
