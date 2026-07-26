@@ -3,7 +3,7 @@ import {
   sessionHeartbeatRequestSchema,
   type SessionHeartbeatResponse,
 } from '@sotong/shared/schemas';
-import { heartbeat } from '@/lib/server/session-store';
+import { heartbeat, saveSegments } from '@/lib/server/session-store';
 import { consumeChars, guestKey } from '@/lib/server/guest-quota';
 
 export const runtime = 'nodejs';
@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 /**
  * 10초 주기 하트비트 (docs/01 §4.1, docs/07 §5.1).
  * 서버 자체 시계로 누적하고, 캡 초과 시 terminate를 내려보낸다.
- * 확정 세그먼트 배치가 함께 온다 — Phase 1은 개수만 계수, Phase 2에서 Firestore 배치 기록.
+ * 확정 세그먼트 배치를 함께 저장한다 (개별 쓰기 금지 — docs/03 §3).
  */
 export async function POST(req: Request) {
   const parsed = sessionHeartbeatRequestSchema.safeParse(await req.json().catch(() => null));
@@ -24,6 +24,9 @@ export async function POST(req: Request) {
     // 비회원 월 한도에 번역 글자수를 누적한다 (클라이언트 카운터만 믿지 않는다)
     const chars = segments.reduce((sum, s) => sum + s.targetText.length, 0);
     consumeChars(guestKey(req), chars);
+  } else {
+    // 저장 실패가 통역을 멈추면 안 된다 — 내부에서 삼킨다 (docs/01 §6)
+    await saveSegments(sessionId, segments);
   }
 
   const result = heartbeat(sessionId, segments.length);

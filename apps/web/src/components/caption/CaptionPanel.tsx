@@ -80,21 +80,21 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-caption-bg">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-caption-bg">
       <div
         ref={scrollRef}
         onScroll={onScroll}
         aria-live="polite"
-        className="min-h-0 flex-1 overflow-y-auto px-6 py-4"
+        className="min-h-0 flex-1 overflow-y-auto px-8 py-6"
       >
-        <div className="relative ml-6 border-l border-[color:var(--caption-source)]/30 pl-4">
+        <div className="relative ml-6 border-l border-[color:var(--caption-source)]/30 pl-6">
           {omitted > 0 ? (
-            <p className="py-2 text-[11px] text-caption-source">{t('omitted', { count: omitted })}</p>
+            <p className="py-2 text-[13px] text-caption-source">{t('omitted', { count: omitted })}</p>
           ) : null}
           {rows.length > 0 ? (
             rows
           ) : (
-            <p className="py-10 text-[15px] text-caption-source">{t('waitingSpeech')}</p>
+            <p className="py-12 text-[22px] text-caption-source">{t('waitingSpeech')}</p>
           )}
           {/* 라이브 중 타임 레일 현재 위치 점 (docs/05 §1) */}
           {live ? (

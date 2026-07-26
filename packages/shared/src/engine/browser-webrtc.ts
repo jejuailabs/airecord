@@ -17,8 +17,6 @@ export interface BrowserSessionCallbacks {
 }
 
 export interface BrowserTranslationSession {
-  /** 음성 출력 on/off — 세션 재수립 없이 전환 */
-  setAudioOut(on: boolean): void;
   close(): void;
   readonly model: string;
 }
@@ -46,6 +44,9 @@ export async function connectBrowserSession(
   for (const track of micStream.getAudioTracks()) {
     pc.addTrack(track, micStream);
   }
+
+  // 번역 오디오를 받기 위한 수신 전용 트랜시버 — 마이크 트랙만으로는 협상되지 않을 수 있다
+  pc.addTransceiver('audio', { direction: 'recvonly' });
 
   const dc = pc.createDataChannel('oai-events');
   const assembler = createSegmentAssembler(
@@ -80,16 +81,11 @@ export async function connectBrowserSession(
 
   return {
     model: grant.model,
-    setAudioOut(on) {
-      if (dc.readyState !== 'open') return;
-      dc.send(
-        JSON.stringify({
-          type: 'session.update',
-          session: { type: 'realtime', output_modalities: on ? ['audio'] : ['text'] },
-        }),
-      );
-    },
+    // ⚠ 음성 on/off를 session.update로 바꾸지 않는다.
+    // 번역 엔드포인트는 output_modalities를 모르며, 잘못된 session.update를 보내면
+    // 세션 설정(출력 언어)이 깨져 번역이 멈춘다 — 재생 측에서 음소거로만 제어한다.
     close() {
+      assembler.dispose();
       try {
         dc.close();
       } catch {

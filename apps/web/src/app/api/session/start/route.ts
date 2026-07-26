@@ -3,8 +3,17 @@ import { cookies } from 'next/headers';
 import { getEngine } from '@sotong/shared/engine';
 import { sessionStartRequestSchema, type SessionStartResponse } from '@sotong/shared/schemas';
 import { createSession, maxDurationSecFromEnv } from '@/lib/server/session-store';
-import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { adminDb, SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { grantCharBudget, guestKey } from '@/lib/server/guest-quota';
+
+async function lookupWorkspaceId(uid: string): Promise<string | undefined> {
+  try {
+    const snap = await adminDb().collection('users').doc(uid).get();
+    return (snap.get('lastWorkspaceId') as string | undefined) ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export const runtime = 'nodejs';
 
@@ -21,6 +30,8 @@ export async function POST(req: Request) {
   const { sourceLang, targetLang, audioOut, trial } = parsed.data;
 
   let charBudget: number | null = null;
+  let uid: string | undefined;
+  let workspaceId: string | undefined;
   if (trial) {
     // 비회원: 이번 달 남은 글자수 안에서만 체험을 연다
     charBudget = grantCharBudget(guestKey(req));
@@ -33,6 +44,8 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'auth_required' }, { status: 401 });
     }
+    uid = user.uid;
+    workspaceId = await lookupWorkspaceId(user.uid);
   }
 
   const engine = getEngine();
@@ -44,7 +57,15 @@ export async function POST(req: Request) {
   const trialCapSec = Number(process.env.TRIAL_MAX_DURATION_SEC ?? 120);
   const baseCapSec = Math.min(maxDurationSecFromEnv(), engine.capabilities.maxSessionSec);
   const maxDurationSec = trial ? Math.min(trialCapSec, baseCapSec) : baseCapSec;
-  const record = createSession('inperson', maxDurationSec);
+  const record = createSession({
+    mode: 'inperson',
+    maxDurationSec,
+    sourceLang,
+    targetLang,
+    uid,
+    workspaceId,
+    title: parsed.data.title,
+  });
 
   try {
     const grant = await engine.mintEphemeralKey({

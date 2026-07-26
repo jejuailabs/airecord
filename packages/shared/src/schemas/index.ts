@@ -63,12 +63,16 @@ export type SessionHeartbeatResponse = z.infer<typeof sessionHeartbeatResponseSc
 export const sessionEndRequestSchema = z.object({
   sessionId: z.string(),
   reason: z.enum(['user', 'cap', 'error']).default('user'),
+  /** 아직 하트비트로 못 보낸 마지막 확정 세그먼트 */
+  segments: z.array(heartbeatSegmentSchema).max(200).optional(),
 });
 export type SessionEndRequest = z.infer<typeof sessionEndRequestSchema>;
 
 export const sessionEndResponseSchema = z.object({
   billedSeconds: z.number(),
   segmentCount: z.number(),
+  /** 기록이 저장되었는지 (비회원 체험은 저장하지 않는다) */
+  saved: z.boolean().default(false),
 });
 export type SessionEndResponse = z.infer<typeof sessionEndResponseSchema>;
 

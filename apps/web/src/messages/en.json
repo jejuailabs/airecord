@@ -225,7 +225,10 @@
     "title": "In-person interpreting",
     "consentNotice": "This conversation is processed for interpretation and records.",
     "setup": {
+      "lead": "Turn on your mic and pick a display language. The AI detects the spoken language itself.",
       "micTitle": "Check your microphone",
+      "micNeed": "Allow microphone access to start interpreting.",
+      "targetHint": "Captions and voice come out in this language.",
       "micRequest": "Allow microphone",
       "micReady": "Microphone input detected",
       "micSilent": "No sound detected. Check your microphone position.",
@@ -266,6 +269,7 @@
       "duration": "Duration",
       "segments": "{count, plural, =0 {No captions} other {# captions}}",
       "again": "Start again",
+      "viewRecord": "View record · AI summary",
       "toDashboard": "Go to dashboard"
     },
     "errors": {
@@ -307,8 +311,11 @@
     "urlInvalid": "Check the meeting link. Zoom, Teams, Meet and Webex addresses are supported.",
     "sourceLang": "Spoken language",
     "autoDetect": "Auto-detect",
+    "sourceHint": "Detected automatically even when participants mix languages.",
     "targetLang": "Display language",
+    "targetHint": "Captions appear in this language.",
     "send": "Send bot",
+    "sending": "Sending the bot…",
     "detected": "Recognized as a {platform} meeting",
     "consentNotice": "When the bot joins, an interpretation notice is posted in the meeting chat.",
     "unavailable": {
@@ -316,6 +323,33 @@
       "body": "The structure (bot join → server relay → caption link) is in place. Once RECALL_API_KEY and the Realtime Worker are connected, this screen goes live.",
       "docs": "See docs/01 §4.2 · docs/04 §4"
     }
+  },
+  "sessions": {
+    "title": "Sessions",
+    "subtitle": "Every interpreted conversation is saved with its transcript and AI summary.",
+    "untitled": "Untitled session",
+    "segments": "{count, plural, =0 {No captions} other {# captions}}",
+    "emptyTitle": "No saved sessions yet",
+    "emptyHint": "Start interpreting and the transcript plus an AI summary are saved automatically.",
+    "emptyCta": "Start in-person"
+  },
+  "sessionDetail": {
+    "back": "Sessions",
+    "untitled": "Untitled session",
+    "minute": "min",
+    "segments": "{count, plural, =0 {No captions} other {# captions}}",
+    "downloadPdf": "Download PDF",
+    "summaryTitle": "AI summary",
+    "summaryRunning": "The AI is writing up the meeting. This takes a moment.",
+    "summaryFailed": {
+      "title": "Could not generate a summary",
+      "action": "The full transcript below is saved. Start a new session if you need the summary again."
+    },
+    "keyPoints": "Key points",
+    "decisions": "Decisions",
+    "actionItems": "Action items",
+    "transcript": "Full transcript (source · translation)",
+    "noTranscript": "No captions were saved."
   },
   "viewer": {
     "consentNotice": "This conversation is recorded for interpretation.",

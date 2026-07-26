@@ -48,19 +48,19 @@ export function AppTopbar() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 items-center gap-3 border-b border-border bg-bg/90 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-10 flex h-20 items-center gap-3 border-b border-border bg-bg/90 px-5 backdrop-blur md:px-8">
       {/* 모바일: 사이드바 대신 브랜드 표시 */}
-      <Link href="/" className="flex items-center gap-2 font-bold md:hidden">
+      <Link href="/" className="flex items-center gap-2 font-bold lg:hidden">
         <span
           aria-hidden
-          className="cta-orb-violet inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold text-white"
+          className="cta-orb-violet inline-flex h-8 w-8 items-center justify-center rounded-md text-[13px] font-bold text-white"
         >
           IL
         </span>
       </Link>
-      <span className="text-sm font-semibold">
+      <span className="text-[19px] font-semibold">
         <span className="text-text-muted">{t('shell.manage')}</span>
-        <span className="mx-1.5 text-text-faint">·</span>
+        <span className="mx-2 text-text-faint">·</span>
         {section}
       </span>
       <div className="ml-auto flex items-center gap-2">

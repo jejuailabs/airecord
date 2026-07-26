@@ -225,7 +225,10 @@
     "title": "대면 통역",
     "consentNotice": "이 대화는 통역과 기록을 위해 처리됩니다.",
     "setup": {
+      "lead": "마이크를 켜고 표시 언어만 고르면 됩니다. 입력 언어는 AI가 알아서 감지합니다.",
       "micTitle": "마이크 확인",
+      "micNeed": "통역을 시작하려면 마이크 사용을 허용해 주세요.",
+      "targetHint": "이 언어로 자막과 음성이 나옵니다.",
       "micRequest": "마이크 사용 허용",
       "micReady": "마이크 입력이 들어오고 있습니다",
       "micSilent": "소리가 감지되지 않습니다. 마이크 위치를 확인해 주세요.",
@@ -266,6 +269,7 @@
       "duration": "통역 시간",
       "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
       "again": "다시 시작",
+      "viewRecord": "기록 · AI 요약 보기",
       "toDashboard": "대시보드로"
     },
     "errors": {
@@ -307,8 +311,11 @@
     "urlInvalid": "회의 링크를 다시 확인해 주세요. Zoom·Teams·Meet·Webex 주소를 지원합니다.",
     "sourceLang": "입력 언어",
     "autoDetect": "자동 감지",
+    "sourceHint": "참가자들이 여러 언어를 섞어 써도 자동으로 감지합니다.",
     "targetLang": "표시 언어",
+    "targetHint": "이 언어로 자막이 표시됩니다.",
     "send": "봇 보내기",
+    "sending": "봇을 보내는 중…",
     "detected": "{platform} 회의로 인식됨",
     "consentNotice": "봇이 입장하면 회의 채팅에 통역 처리 사실이 고지됩니다.",
     "unavailable": {
@@ -316,6 +323,33 @@
       "body": "구조(봇 입장 → 서버 릴레이 → 자막 링크)는 준비되어 있습니다. RECALL_API_KEY와 Realtime Worker 배포가 연결되면 이 화면에서 바로 시작됩니다.",
       "docs": "docs/01 §4.2 · docs/04 §4 참조"
     }
+  },
+  "sessions": {
+    "title": "세션 기록",
+    "subtitle": "통역한 대화의 원본과 AI 요약이 모두 저장됩니다.",
+    "untitled": "제목 없는 통역",
+    "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
+    "emptyTitle": "아직 저장된 세션이 없습니다",
+    "emptyHint": "통역을 시작하면 원문·번역 스크립트와 AI 요약이 자동으로 저장됩니다.",
+    "emptyCta": "대면 통역 시작"
+  },
+  "sessionDetail": {
+    "back": "세션 기록",
+    "untitled": "제목 없는 통역",
+    "minute": "분",
+    "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
+    "downloadPdf": "PDF 다운로드",
+    "summaryTitle": "AI 요약",
+    "summaryRunning": "AI가 회의 내용을 정리하고 있습니다. 잠시만 기다려 주세요.",
+    "summaryFailed": {
+      "title": "요약을 만들지 못했습니다",
+      "action": "아래 전체 스크립트는 그대로 저장되어 있습니다. 다시 필요하면 통역을 새로 시작해 주세요."
+    },
+    "keyPoints": "핵심 내용",
+    "decisions": "결정 사항",
+    "actionItems": "액션 아이템",
+    "transcript": "전체 스크립트 (원문 · 번역 대조)",
+    "noTranscript": "저장된 자막이 없습니다."
   },
   "viewer": {
     "consentNotice": "이 대화는 통역을 위해 기록됩니다.",

@@ -1,17 +1,17 @@
 /**
- * 벤더 실시간 이벤트 스트림 → EngineSegment 조립.
+ * gpt-realtime-translate 이벤트 스트림 → EngineSegment 조립.
  * 모드 B(브라우저 데이터 채널)와 모드 A(워커 WebSocket)가 같은 조립기를 쓴다
  * — 번역 코어는 하나 (core.md §3-3).
  *
- * 원문(입력 전사)과 번역문(응답)은 별개 이벤트 스트림으로 오므로,
- * 발화 시작(speech_started)마다 세그먼트를 열고 양쪽 텍스트를 같은 seq에 모은다.
- * 부분 상태도 매번 emit한다 — 자막은 부분 전사를 즉시 그린다 (docs/01 §5).
+ * ⚠ 실측(2026-07-26)으로 확인한 사실:
+ *   서버 이벤트는 `session.input_transcript.delta` / `session.output_transcript.delta`
+ *   / `session.output_audio.delta` 세 가지뿐이고, **종료(done/completed) 이벤트가 없다.**
+ *   턴 개념이 없는 연속 스트림이므로, 자막 덩어리는 "발화 사이 공백"으로 우리가 끊는다.
  */
 import type { EngineSegment } from './types';
 
 interface RealtimeEvent {
   type: string;
-  item_id?: string;
   delta?: string;
   transcript?: string;
   language?: string;
@@ -20,126 +20,108 @@ interface RealtimeEvent {
 }
 
 export interface SegmentAssembler {
-  /** 벤더 이벤트(JSON 파싱된 것) 하나를 소화한다 */
   handle(evt: RealtimeEvent): void;
+  /** 타이머 정리 — 세션 종료 시 반드시 호출 */
+  dispose(): void;
 }
+
+export interface AssemblerOptions {
+  /** 이 시간 동안 델타가 없으면 현재 세그먼트를 확정한다 */
+  pauseMs?: number;
+  /** 번역문이 이 길이를 넘고 문장부호로 끝나면 확정한다 (한 덩어리가 너무 길어지지 않게) */
+  softMaxChars?: number;
+}
+
+const SENTENCE_END = /[.!?。！？…]\s*$/;
 
 export function createSegmentAssembler(
   onSegment: (s: EngineSegment) => void,
   onError?: (code: string, message: string) => void,
+  options: AssemblerOptions = {},
 ): SegmentAssembler {
+  const pauseMs = options.pauseMs ?? 1_200;
+  const softMaxChars = options.softMaxChars ?? 24;
+
   const startedAt = Date.now();
   let nextSeq = 0;
-  /** item_id → 세그먼트 (입력 전사 이벤트 매칭용) */
-  const byItem = new Map<string, EngineSegment>();
-  /** 응답 델타가 붙을 가장 최근 세그먼트 */
   let current: EngineSegment | null = null;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  /** 번역이 아직 안 온 원문 — 다음 세그먼트로 넘긴다 (번역은 원문보다 늦게 온다) */
+  let carriedSource = '';
 
-  const emit = (s: EngineSegment) => onSegment({ ...s });
+  const emit = () => {
+    if (current) onSegment({ ...current });
+  };
 
-  function openSegment(itemId?: string): EngineSegment {
-    const seg: EngineSegment = {
-      seq: nextSeq++,
-      startMs: Date.now() - startedAt,
-      sourceText: '',
-      targetText: '',
-      isFinal: false,
-    };
-    if (itemId) byItem.set(itemId, seg);
-    current = seg;
-    return seg;
-  }
-
-  function segmentFor(itemId?: string): EngineSegment {
-    if (itemId) {
-      const found = byItem.get(itemId);
-      if (found) return found;
-      // speech_started를 놓친 경우(재연결 등) — 새로 연다
-      return openSegment(itemId);
+  function finalize() {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
     }
-    return current ?? openSegment();
+    if (!current) return;
+    // 아무 내용 없이 열린 세그먼트는 버린다
+    if (!current.sourceText && !current.targetText) {
+      current = null;
+      return;
+    }
+    // 번역이 아직 도착하지 않았으면 확정하지 않고 원문을 다음으로 넘긴다.
+    // 빈 번역칸이 화면에 남는 것을 막는다.
+    if (!current.targetText.trim()) {
+      carriedSource = `${carriedSource}${current.sourceText}`;
+      current = null;
+      return;
+    }
+    current.endMs = Date.now() - startedAt;
+    current.isFinal = true;
+    emit();
+    current = null;
   }
 
-  /** 턴 없는 연속 스트림(translate 엔드포인트): 확정된 세그먼트 뒤에 델타가 오면 새로 연다 */
-  function openIfFinalized(): EngineSegment {
-    if (!current || current.isFinal) return openSegment();
+  function armPauseTimer() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(finalize, pauseMs);
+  }
+
+  function ensureSegment(): EngineSegment {
+    if (!current) {
+      current = {
+        seq: nextSeq++,
+        startMs: Date.now() - startedAt,
+        sourceText: carriedSource,
+        targetText: '',
+        isFinal: false,
+      };
+      carriedSource = '';
+    }
     return current;
-  }
-
-  function finalizeCurrent() {
-    if (current && !current.isFinal) {
-      current.endMs = Date.now() - startedAt;
-      current.isFinal = true;
-      emit(current);
-    }
   }
 
   return {
     handle(evt) {
       switch (evt.type) {
-        case 'input_audio_buffer.speech_started': {
-          openSegment(evt.item_id);
-          break;
-        }
-
-        // ── 원문(입력 전사) — 범용 엔드포인트 이벤트명 ──
+        // ── 원문 (발화 언어 자동 감지) ──────────────
+        case 'session.input_transcript.delta':
         case 'conversation.item.input_audio_transcription.delta': {
-          const seg = segmentFor(evt.item_id);
+          const seg = ensureSegment();
           seg.sourceText += evt.delta ?? '';
-          emit(seg);
-          break;
-        }
-        case 'conversation.item.input_audio_transcription.completed': {
-          const seg = segmentFor(evt.item_id);
-          seg.sourceText = evt.transcript ?? seg.sourceText;
           if (evt.language) seg.detectedLang = evt.language;
-          emit(seg);
+          emit();
+          armPauseTimer();
           break;
         }
 
-        // ── 원문(입력 전사) — translate 전용 엔드포인트 ──
-        case 'session.input_transcript.delta': {
-          const seg = openIfFinalized();
-          seg.sourceText += evt.delta ?? '';
-          emit(seg);
-          break;
-        }
-        case 'session.input_transcript.done':
-        case 'session.input_transcript.completed': {
-          const seg = openIfFinalized();
-          seg.sourceText = evt.transcript ?? seg.sourceText;
-          if (evt.language) seg.detectedLang = evt.language;
-          emit(seg);
-          break;
-        }
-
-        // ── 번역문 — translate 전용 엔드포인트 ──────────
-        case 'session.output_transcript.delta': {
-          const seg = openIfFinalized();
-          seg.targetText += evt.delta ?? '';
-          emit(seg);
-          break;
-        }
-        case 'session.output_transcript.done':
-        case 'session.output_transcript.completed': {
-          if (current && evt.transcript) current.targetText = evt.transcript;
-          finalizeCurrent();
-          break;
-        }
-
-        // ── 번역문 — 범용 엔드포인트 이벤트명(폴백 호환) ──
+        // ── 번역문 ──────────────────────────────────
+        case 'session.output_transcript.delta':
         case 'response.output_text.delta':
-        case 'response.text.delta':
-        case 'response.output_audio_transcript.delta':
-        case 'response.audio_transcript.delta': {
-          const seg = current ?? openSegment();
+        case 'response.output_audio_transcript.delta': {
+          const seg = ensureSegment();
           seg.targetText += evt.delta ?? '';
-          emit(seg);
-          break;
-        }
-
-        case 'response.done': {
-          finalizeCurrent();
+          emit();
+          if (seg.targetText.length >= softMaxChars && SENTENCE_END.test(seg.targetText)) {
+            finalize();
+          } else {
+            armPauseTimer();
+          }
           break;
         }
 
@@ -149,7 +131,14 @@ export function createSegmentAssembler(
         }
 
         default:
-          break; // 관심 없는 이벤트는 무시
+          break; // 오디오 델타 등 나머지는 여기서 다루지 않는다
+      }
+    },
+    dispose() {
+      finalize();
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
       }
     },
   };

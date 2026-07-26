@@ -102,6 +102,7 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
 
   const { model: _m, ...sessionPatch } = buildTranslateSessionConfig(opts);
   ws.send(JSON.stringify({ type: 'session.update', session: sessionPatch }));
+  const dispose = () => assembler.dispose();
 
   ws.addEventListener('message', (ev) => {
     try {
@@ -131,7 +132,9 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
     pushAudio(chunk) {
       if (ws.readyState !== WebSocket.OPEN) return;
       const b64 = btoa(String.fromCharCode(...new Uint8Array(chunk)));
-      ws.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: b64 }));
+      // ⚠ 번역 엔드포인트는 클라이언트 이벤트에 session. 접두사가 붙는다 (실측 확인).
+      // 접두사 없이 보내면 서버가 invalid_value로 거부하고 오디오가 전달되지 않는다.
+      ws.send(JSON.stringify({ type: 'session.input_audio_buffer.append', audio: b64 }));
     },
     onSegment(cb) {
       segmentCbs.push(cb);
@@ -143,6 +146,7 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
       errorCbs.push(cb);
     },
     async close() {
+      dispose();
       try {
         ws.close();
       } catch {

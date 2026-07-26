@@ -24,27 +24,27 @@ export function AppSidebar() {
     { href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), ready: true },
     { href: '/live', icon: Mic, label: t('nav.live'), ready: true },
     { href: '/meeting', icon: Video, label: t('nav.meeting'), ready: true },
-    { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: false },
+    { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: true },
     { href: '/#pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
     { href: '/settings', icon: Settings, label: t('nav.settings'), ready: false },
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
   ] as const;
 
   return (
-    <aside className="hidden w-56 shrink-0 flex-col bg-caption-bg md:flex">
+    <aside className="hidden w-72 shrink-0 flex-col bg-caption-bg lg:flex xl:w-80">
       <Link
         href="/"
-        className="flex h-14 items-center gap-2 px-5 font-bold tracking-tight text-caption-target"
+        className="flex h-20 items-center gap-3 px-6 text-[22px] font-bold tracking-tight text-caption-target"
       >
         <span
           aria-hidden
-          className="cta-orb-violet inline-flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-bold text-white"
+          className="cta-orb-violet inline-flex h-10 w-10 items-center justify-center rounded-lg text-[15px] font-bold text-white"
         >
           IL
         </span>
         {t('appName')}
       </Link>
-      <nav className="flex flex-1 flex-col gap-0.5 px-3 py-3">
+      <nav className="flex flex-1 flex-col gap-1 px-4 py-4">
         {items.map((item) => {
           const active = item.ready && pathname.startsWith(item.href) && item.href !== '/#pricing';
           const Icon = item.icon;
@@ -52,11 +52,11 @@ export function AppSidebar() {
             return (
               <span
                 key={item.href}
-                className="flex h-10 cursor-default items-center gap-3 rounded-md px-3 text-sm text-caption-source/60"
+                className="flex h-14 cursor-default items-center gap-3.5 rounded-lg px-4 text-[17px] text-caption-source/50"
               >
-                <Icon size={16} aria-hidden />
+                <Icon size={22} aria-hidden />
                 {item.label}
-                <span className="ml-auto text-[10px]">{t('nav.soon')}</span>
+                <span className="ml-auto text-[12px]">{t('nav.soon')}</span>
               </span>
             );
           }
@@ -64,13 +64,13 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm transition-colors duration-150 ${
+              className={`flex h-14 items-center gap-3.5 rounded-lg px-4 text-[17px] transition-colors duration-150 ${
                 active
-                  ? 'bg-white/10 font-semibold text-caption-target'
-                  : 'text-caption-source hover:text-caption-target'
+                  ? 'bg-accent font-semibold text-white'
+                  : 'text-caption-source hover:bg-white/5 hover:text-caption-target'
               }`}
             >
-              <Icon size={16} aria-hidden />
+              <Icon size={22} aria-hidden />
               {item.label}
             </Link>
           );
