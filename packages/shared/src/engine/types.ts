@@ -14,6 +14,11 @@ export interface EngineSegment {
   speaker?: string;
   /** auto 모드에서 엔진이 감지한 발화 언어 (없을 수 있음) */
   detectedLang?: string;
+  /**
+   * 발화 언어가 표시 언어와 같아 번역이 생성되지 않은 자막.
+   * 이 경우 targetText에 원문을 그대로 넣는다 (화면에서 발화가 사라지지 않도록).
+   */
+  sameAsTarget?: boolean;
 }
 
 export interface EngineError {

@@ -153,6 +153,7 @@
     "ended": {
       "title": "체험이 끝났습니다",
       "body": "방금 보신 그대로가 실제 성능입니다. 가입하면 매달 30분을 무료로 쓸 수 있습니다.",
+      "backToMain": "메인으로",
       "signup": "무료로 시작하기",
       "pricing": "요금제 보기",
       "freeNote": "카드 등록 없이 Google 계정으로 바로 시작됩니다."
@@ -271,6 +272,9 @@
     },
     "running": {
       "live": "LIVE",
+      "paused": "일시정지",
+      "pause": "일시정지",
+      "resume": "다시 시작",
       "connecting": "연결 중",
       "reconnecting": "연결을 복구하는 중입니다. 자막은 남아 있습니다.",
       "end": "종료",
@@ -303,6 +307,7 @@
       "savedNote": "원문·번역 스크립트가 저장되었고 AI 요약을 만들고 있습니다.",
       "notSavedNote": "이번 세션은 저장되지 않았습니다.",
       "again": "다시 시작",
+      "backToMain": "메인으로",
       "viewRecord": "기록 · AI 요약 보기",
       "toDashboard": "대시보드로"
     },

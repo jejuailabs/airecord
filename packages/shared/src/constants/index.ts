@@ -34,6 +34,26 @@ export const INTERPRET_LANGUAGES: readonly InterpretLanguage[] = [
 export const AUTO_SOURCE: SourceLangSetting = 'auto';
 
 /**
+ * 문자 종류로 언어를 추정한다.
+ *
+ * ⚠ 번역 API는 감지한 언어 코드를 이벤트로 돌려주지 않는다(실측 확인).
+ * 그래서 화면에 언어를 표시하려면 텍스트에서 추정하는 수밖에 없다.
+ * 라틴 문자권(영어·스페인어 등)은 서로 구분되지 않으므로 'Latn'으로 묶는다.
+ */
+export function guessScript(text: string): string | undefined {
+  if (!text) return undefined;
+  if (/[가-힯ᄀ-ᇿ]/.test(text)) return 'KO';
+  if (/[぀-ゟ゠-ヿ]/.test(text)) return 'JA';
+  if (/[一-鿿]/.test(text)) return 'ZH';
+  if (/[Ѐ-ӿ]/.test(text)) return 'RU';
+  if (/[؀-ۿ]/.test(text)) return 'AR';
+  if (/[฀-๿]/.test(text)) return 'TH';
+  if (/[ऀ-ॿ]/.test(text)) return 'HI';
+  if (/[A-Za-z]/.test(text)) return 'ABC';
+  return undefined;
+}
+
+/**
  * gpt-realtime-translate 출력(목적) 언어 13개 — 2026-07 조사값.
  * 입력은 70+ 자동 감지라 제한 없음. 이 목록은 engine.supports()와 UI 선택지 양쪽에서 쓴다.
  * 출처: OpenAI realtime translation guide (분기마다 재확인 — core.md §3-7)

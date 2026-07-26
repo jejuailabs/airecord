@@ -23,6 +23,8 @@ import {
   CreditCard,
   ChevronRight,
   Loader2,
+  Pause,
+  ArrowLeft,
 } from 'lucide-react';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
@@ -94,6 +96,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const [summary, setSummary] = useState<{ billedSeconds: number; segmentCount: number } | null>(
     null,
   );
+  /** 일시정지 — 마이크 트랙만 끊는다. 세션은 살아 있어 재개가 즉시 된다. */
+  const [paused, setPaused] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
   const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
@@ -403,6 +407,24 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     }
   }, []);
 
+  /**
+   * 일시정지: 마이크 트랙을 비활성화한다.
+   * 세션을 닫지 않으므로 재개할 때 재연결 대기가 없다.
+   * ⚠ 세션이 열려 있는 동안은 계속 과금되므로 (core.md §3-6) 하드 캡·하트비트는 그대로 돈다.
+   */
+  const togglePause = useCallback(() => {
+    setPaused((prev) => {
+      const next = !prev;
+      micStream?.getAudioTracks().forEach((tr) => {
+        tr.enabled = !next;
+      });
+      // 일시정지 중에는 번역 음성도 멈춘다
+      const el = audioElRef.current;
+      if (el) el.muted = next ? true : !audioOutRef.current;
+      return next;
+    });
+  }, [micStream]);
+
   const toggleFullscreen = useCallback(async () => {
     if (document.fullscreenElement) {
       await document.exitFullscreen();
@@ -420,8 +442,18 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   if (phase === 'ended' && summary && trial) {
     // 체험 종료 — 여기가 가입 전환 지점이다
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-6">
-        <div className="flex flex-col items-center gap-5 pt-4 text-center">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-2">
+        <div className="w-full">
+          <Link
+            href="/"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-[15px] font-semibold text-text-muted hover:text-text"
+          >
+            <ArrowLeft size={17} aria-hidden />
+            {tTry('ended.backToMain')}
+          </Link>
+        </div>
+
+        <div className="flex flex-col items-center gap-5 text-center">
           <span
             className="hero-glow cta-orb-teal text-white"
             style={{ ['--glow-color' as string]: 'rgb(45 212 191 / .55)' }}
@@ -487,9 +519,20 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       setPhase('setup');
     };
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-2">
+        {/* 상단 좌측 — 메인으로 돌아가기 */}
+        <div className="w-full">
+          <Link
+            href="/dashboard"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-border px-4 text-[15px] font-semibold text-text-muted hover:text-text"
+          >
+            <ArrowLeft size={17} aria-hidden />
+            {t('ended.backToMain')}
+          </Link>
+        </div>
+
         {/* 완료 히어로 */}
-        <div className="flex flex-col items-center gap-5 pt-4 text-center">
+        <div className="flex flex-col items-center gap-5 text-center">
           <span
             className={`hero-glow ${error ? 'bg-danger' : 'cta-orb-teal'} text-white`}
             style={{
@@ -847,10 +890,17 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     >
       {/* 상태 바 (docs/05 §4) */}
       <div className="flex h-14 shrink-0 items-center gap-3 rounded-xl border border-border bg-bg-raised px-4">
-        <span className="flex items-center gap-2 text-[16px] font-bold text-accent">
-          <span aria-hidden className="live-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" />
-          {t('running.live')}
-        </span>
+        {paused ? (
+          <span className="flex items-center gap-2 text-[16px] font-bold text-warn">
+            <Pause size={15} aria-hidden fill="currentColor" />
+            {t('running.paused')}
+          </span>
+        ) : (
+          <span className="flex items-center gap-2 text-[16px] font-bold text-accent">
+            <span aria-hidden className="live-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" />
+            {t('running.live')}
+          </span>
+        )}
         <span className="hidden items-center gap-2 text-[16px] text-text-muted sm:flex">
           <span>{sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)}</span>
           <span aria-hidden className="text-text-faint">→</span>
@@ -904,10 +954,24 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       <div className="flex shrink-0 flex-wrap items-center gap-3">
         <button
           onClick={() => setConfirmEnd(true)}
-          className="flex h-14 items-center gap-2.5 rounded-xl bg-danger px-8 text-[17px] font-bold text-white"
+          className="flex h-14 items-center gap-2.5 rounded-xl bg-danger px-6 text-[17px] font-bold text-white"
         >
           <Square size={16} aria-hidden fill="currentColor" />
           {t('running.end')}
+        </button>
+        <button
+          onClick={togglePause}
+          aria-pressed={paused}
+          className={`flex h-14 items-center gap-2.5 rounded-xl border-2 px-6 text-[16px] font-semibold transition-colors duration-150 ${
+            paused ? 'border-warn bg-warn-weak text-warn' : 'border-border text-text'
+          }`}
+        >
+          {paused ? (
+            <Play size={19} aria-hidden fill="currentColor" />
+          ) : (
+            <Pause size={19} aria-hidden fill="currentColor" />
+          )}
+          {paused ? t('running.resume') : t('running.pause')}
         </button>
         <button
           onClick={() => toggleAudioOut(!audioOut)}

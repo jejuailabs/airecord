@@ -49,6 +49,10 @@ export function createSegmentAssembler(
   const pauseMs = options.pauseMs ?? 900;
   const softMaxChars = options.softMaxChars ?? 24;
   const hardMaxChars = options.hardMaxChars ?? 52;
+  /** 어떤 경우에도 이 길이를 넘기지 않는다 (단어 경계를 못 만나도 강제로 끊는다) */
+  const ceilingChars = hardMaxChars + 28;
+  /** 마지막으로 확정된 자막 — 남은 원문을 여기에 채워 넣는다 */
+  let lastFinal: EngineSegment | null = null;
 
   const startedAt = Date.now();
   let nextSeq = 0;
@@ -57,6 +61,12 @@ export function createSegmentAssembler(
 
   /** 아직 열린 자막이 없을 때 완성된 원문 문장을 잠시 들고 있는다 */
   let pendingSentences: string[] = [];
+  /**
+   * 원문 없이 확정돼 버린 자막들 — 원문이 늦게 도착하면 여기에 채워 넣고 다시 내보낸다.
+   * 원문 전사는 번역보다 1~2초 늦으므로, 짧은 발화는 번역이 먼저 확정된다.
+   */
+  const awaitingSource: EngineSegment[] = [];
+  const AWAITING_LIMIT = 6;
   /** 아직 문장이 끝나지 않은 원문 조각 */
   let sourcePartial = '';
   let detectedLang: string | undefined;
@@ -77,11 +87,21 @@ export function createSegmentAssembler(
     for (const raw of matches) {
       const s = raw.trim();
       if (!s) continue;
+
+      // 1) 원문을 기다리는 확정 자막이 있으면 그쪽부터 채운다 (오래된 것 먼저)
+      const waiting = awaitingSource.shift();
+      if (waiting) {
+        waiting.sourceText = s;
+        onSegment({ ...waiting });
+        continue;
+      }
+      // 2) 열려 있는 자막에 붙인다
       if (current && !current.isFinal) {
         current.sourceText = current.sourceText ? `${current.sourceText} ${s}` : s;
-      } else {
-        pendingSentences.push(s);
+        continue;
       }
+      // 3) 다음 자막이 이어받도록 들고 있는다
+      pendingSentences.push(s);
     }
   }
 
@@ -99,22 +119,57 @@ export function createSegmentAssembler(
       return;
     }
 
-    // 원문이 하나도 안 붙었으면 진행 중인 조각이라도 넣어 빈 칸을 만들지 않는다
-    if (!current.sourceText.trim() && sourcePartial.trim()) {
-      current.sourceText = sourcePartial.trim();
-      sourcePartial = '';
-    }
     // 앞 덩어리에서 밀려온 구두점이 문장 앞에 붙는 것을 정리한다
     current.targetText = current.targetText.replace(/^[\s.,!?。、！？]+/, '');
     current.endMs = Date.now() - startedAt;
     current.isFinal = true;
+
+    // 원문이 아직 안 왔으면 조각을 억지로 넣지 않는다.
+    // ("meant was he's" 같은 문장 중간 조각이 원문 자리에 남는 것을 막는다.)
+    // 대신 대기열에 넣어 두고, 원문 문장이 도착하면 채워서 다시 내보낸다.
+    if (!current.sourceText.trim()) {
+      awaitingSource.push(current);
+      while (awaitingSource.length > AWAITING_LIMIT) awaitingSource.shift();
+    }
+
+    lastFinal = current;
     emit();
     current = null;
   }
 
+  /**
+   * 표시 언어와 같은 언어로 말하면 모델이 번역을 만들지 않는다(문서화된 동작).
+   * 그대로 두면 그 발화는 화면에 아무것도 안 뜬다 —
+   * 원문만 도착하고 번역이 오지 않으면 원문을 그대로 자막으로 내보낸다.
+   */
+  function flushUntranslated() {
+    if (current) return;
+    const text = [...pendingSentences, sourcePartial.trim()].filter(Boolean).join(' ').trim();
+    if (!text || !/[\p{L}\p{N}]/u.test(text)) return;
+    pendingSentences = [];
+    sourcePartial = '';
+    const seg: EngineSegment = {
+      seq: nextSeq++,
+      startMs: Date.now() - startedAt,
+      sourceText: '',
+      targetText: text,
+      isFinal: true,
+      endMs: Date.now() - startedAt,
+      detectedLang,
+      sameAsTarget: true,
+    };
+    lastFinal = seg;
+    onSegment({ ...seg });
+  }
+
+  function onPause() {
+    if (current) finalize();
+    else flushUntranslated();
+  }
+
   function armPauseTimer() {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(finalize, pauseMs);
+    timer = setTimeout(onPause, pauseMs);
   }
 
   function ensureSegment(): EngineSegment {
@@ -160,8 +215,13 @@ export function createSegmentAssembler(
           emit();
           const long = seg.targetText.length;
           const endsSentence = SENTENCE_END.test(seg.targetText);
-          // 구두점이 있으면 문장 끝에서, 없으면 하드 상한에서 끊는다
-          if ((long >= softMaxChars && endsSentence) || long >= hardMaxChars) {
+          // 단어 중간에서 끊으면 "르게" 같은 토막 자막이 생긴다 — 경계에서만 끊는다
+          const atBoundary = /[\s.,!?。、！？]$/.test(seg.targetText);
+          if (
+            (long >= softMaxChars && endsSentence) ||
+            (long >= hardMaxChars && atBoundary) ||
+            long >= ceilingChars
+          ) {
             finalize();
           } else {
             armPauseTimer();
@@ -180,6 +240,24 @@ export function createSegmentAssembler(
     },
     dispose() {
       finalize();
+
+      // 세션이 끝날 때 아직 자막에 붙지 못한 원문을 정리한다.
+      // 그냥 버리면 짧은 대화에서 뒷부분 원문이 통째로 사라진다.
+      const leftovers = [...pendingSentences, sourcePartial.trim()].filter(Boolean);
+      pendingSentences = [];
+      sourcePartial = '';
+      for (const text of leftovers) {
+        const waiting = awaitingSource.shift();
+        if (waiting) {
+          waiting.sourceText = text;
+          onSegment({ ...waiting });
+        } else if (lastFinal) {
+          lastFinal.sourceText = lastFinal.sourceText
+            ? `${lastFinal.sourceText} ${text}`
+            : text;
+          onSegment({ ...lastFinal });
+        }
+      }
       if (timer) {
         clearTimeout(timer);
         timer = null;

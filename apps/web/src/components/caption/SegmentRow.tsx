@@ -2,6 +2,7 @@
 
 import { memo } from 'react';
 import type { EngineSegment } from '@sotong/shared/engine';
+import { guessScript } from '@sotong/shared/constants';
 
 export interface SegmentRowProps {
   seg: EngineSegment;
@@ -19,11 +20,13 @@ export interface SegmentRowProps {
  */
 export const SegmentRow = memo(
   function SegmentRow({ seg, scale, showSource }: SegmentRowProps) {
+    const langBadge = seg.detectedLang ?? guessScript(seg.sourceText || seg.targetText);
     return (
       <div className="flex flex-col gap-1.5 py-4">
-        {seg.detectedLang ? (
-          <span className="text-[12px] font-medium uppercase tracking-wide text-caption-source">
-            {seg.detectedLang}
+        {/* 엔진이 언어 코드를 주지 않으므로 원문 문자로 추정해 표시한다 */}
+        {langBadge ? (
+          <span className="text-[11px] font-medium uppercase tracking-wide text-caption-source">
+            {langBadge}
           </span>
         ) : null}
         <p
@@ -31,7 +34,7 @@ export const SegmentRow = memo(
             seg.isFinal ? '' : 'caption-caret'
           }`}
           style={{
-            fontSize: `calc(clamp(17px, 4.1vw, 25px) * ${scale})`,
+            fontSize: `calc(clamp(14px, 3.3vw, 20px) * ${scale})`,
             lineHeight: 1.4,
           }}
         >
@@ -41,7 +44,7 @@ export const SegmentRow = memo(
           <p
             className="text-caption-source"
             style={{
-              fontSize: `calc(clamp(13px, 3.1vw, 16px) * ${scale})`,
+              fontSize: `calc(clamp(12px, 2.7vw, 14px) * ${scale})`,
               lineHeight: 1.5,
             }}
           >
