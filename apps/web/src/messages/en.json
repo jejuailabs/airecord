@@ -5,6 +5,7 @@
       "dashboard": "Dashboard",
       "live": "In-person",
       "meeting": "Meeting",
+      "translate": "Text",
       "sessions": "Sessions",
       "pricing": "Pricing",
       "settings": "Settings",
@@ -363,6 +364,48 @@
       "title": "Meeting mode opens in Phase 4",
       "body": "The structure (bot join → server relay → caption link) is in place. Once RECALL_API_KEY and the Realtime Worker are connected, this screen goes live.",
       "docs": "See docs/01 §4.2 · docs/04 §4"
+    }
+  },
+  "translateText": {
+    "title": "Text translation",
+    "lead": "Paste and it translates. No button to press.",
+    "sourceLang": "Source language",
+    "targetLang": "Target language",
+    "autoDetect": "Detect language",
+    "detected": "{lang} detected",
+    "swap": "Swap languages",
+    "placeholder": "Type or paste what you want translated.",
+    "outputEmpty": "The translation appears here.",
+    "translating": "Translating",
+    "copy": "Copy",
+    "copied": "Copied",
+    "clear": "Clear",
+    "tone": "Tone",
+    "tones": {
+      "plain": "Neutral",
+      "formal": "Formal",
+      "casual": "Casual"
+    },
+    "notesTitle": "Worth double-checking",
+    "guestRemaining": "{chars} free characters left",
+    "errors": {
+      "signupCta": "Sign up free to continue →",
+      "keyMissing": {
+        "title": "Translation engine key is not configured",
+        "action": "Set OPENAI_API_KEY and try again."
+      },
+      "failed": {
+        "title": "Could not translate",
+        "action": "Try again in a moment. If it keeps failing, split the text into smaller parts."
+      },
+      "quota": {
+        "title": "You've used all your free characters this month",
+        "action": "Sign up and your monthly free allowance resets."
+      },
+      "tooLong": {
+        "title": "This text is longer than your remaining free characters",
+        "action": "Shorten it, or sign up and continue."
+      }
     }
   },
   "sessions": {

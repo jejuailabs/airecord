@@ -10,6 +10,7 @@ import {
   Settings,
   HelpCircle,
   ChevronDown,
+  Type,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { SidebarLink } from './SidebarLink';
@@ -37,6 +38,7 @@ export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?:
     { href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), ready: true },
     { href: '/live', icon: Mic, label: t('nav.live'), ready: true },
     { href: '/meeting', icon: Video, label: t('nav.meeting'), ready: true },
+    { href: '/translate', icon: Type, label: t('nav.translate'), ready: true },
     { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: true },
     { href: '/#pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
     { href: '/settings', icon: Settings, label: t('nav.settings'), ready: false },

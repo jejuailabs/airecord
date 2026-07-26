@@ -611,7 +611,11 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     const micActive = micLevel > 0.03;
     const micReady = Boolean(micStream);
 
-    // 입력 언어 단계는 없앴다 — 이 엔진은 입력 언어 지정을 받지 않고 항상 자동 감지한다(실측 확인).
+    /**
+     * 입력 언어 단계는 두지 않는다.
+     * 이 엔진은 입력 언어 파라미터를 받지 않고 항상 자동 감지하므로(실측 확인),
+     * 유저가 고르게 하면 "골랐는데 왜 반영이 안 되지?"라는 혼란만 생긴다.
+     */
     const steps: StepDef[] = [
       {
         id: 1,

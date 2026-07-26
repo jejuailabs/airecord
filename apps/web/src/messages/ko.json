@@ -5,6 +5,7 @@
       "dashboard": "대시보드",
       "live": "대면 통역",
       "meeting": "회의 통역",
+      "translate": "텍스트 번역",
       "sessions": "세션 기록",
       "pricing": "요금제",
       "settings": "설정",
@@ -368,6 +369,48 @@
       "title": "화상회의 모드는 Phase 4에서 열립니다",
       "body": "구조(봇 입장 → 서버 릴레이 → 자막 링크)는 준비되어 있습니다. RECALL_API_KEY와 Realtime Worker 배포가 연결되면 이 화면에서 바로 시작됩니다.",
       "docs": "docs/01 §4.2 · docs/04 §4 참조"
+    }
+  },
+  "translateText": {
+    "title": "텍스트 번역",
+    "lead": "붙여넣으면 바로 번역됩니다. 버튼을 누를 필요가 없습니다.",
+    "sourceLang": "입력 언어",
+    "targetLang": "번역 언어",
+    "autoDetect": "언어 감지",
+    "detected": "{lang} 감지됨",
+    "swap": "언어 바꾸기",
+    "placeholder": "번역할 내용을 입력하거나 붙여넣으세요.",
+    "outputEmpty": "번역 결과가 여기에 표시됩니다.",
+    "translating": "번역 중",
+    "copy": "복사",
+    "copied": "복사됨",
+    "clear": "지우기",
+    "tone": "문체",
+    "tones": {
+      "plain": "기본",
+      "formal": "격식",
+      "casual": "구어체"
+    },
+    "notesTitle": "확인해 보실 부분",
+    "guestRemaining": "무료 {chars}자 남음",
+    "errors": {
+      "signupCta": "무료로 가입하고 계속하기 →",
+      "keyMissing": {
+        "title": "번역 엔진 키가 설정되지 않았습니다",
+        "action": "OPENAI_API_KEY를 설정한 뒤 다시 시도해 주세요."
+      },
+      "failed": {
+        "title": "번역하지 못했습니다",
+        "action": "잠시 후 다시 시도해 주세요. 계속 실패하면 내용을 나눠서 넣어 보세요."
+      },
+      "quota": {
+        "title": "이번 달 무료 글자수를 모두 쓰셨습니다",
+        "action": "가입하면 매달 무료 사용량이 초기화됩니다."
+      },
+      "tooLong": {
+        "title": "남은 무료 글자수보다 내용이 깁니다",
+        "action": "내용을 줄이거나 가입 후 이어서 번역해 주세요."
+      }
     }
   },
   "sessions": {

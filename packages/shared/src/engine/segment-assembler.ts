@@ -48,6 +48,8 @@ export interface AssemblerOptions {
   softMaxChars?: number;
   /** 문장부호가 없어도 이 길이를 넘으면 끊는다 (모델이 구두점을 안 붙이는 경우가 있다) */
   hardMaxChars?: number;
+  /** 원문이 끝내 안 붙어도 이 길이에서는 강제로 끊는다 */
+  ceilingChars?: number;
 }
 
 const SENTENCE_END = /[.!?。！？…]\s*$/;
@@ -68,8 +70,11 @@ export function createSegmentAssembler(
   let lastOutputAt = 0;
   const softMaxChars = options.softMaxChars ?? 24;
   const hardMaxChars = options.hardMaxChars ?? 52;
-  /** 어떤 경우에도 이 길이를 넘기지 않는다 (단어 경계를 못 만나도 강제로 끊는다) */
-  const ceilingChars = hardMaxChars + 28;
+  /**
+   * 어떤 경우에도 이 길이를 넘기지 않는다.
+   * 원문이 끝내 안 붙는 상황(전사 실패 등)에서 자막이 무한히 길어지는 것을 막는 안전장치다.
+   */
+  const ceilingChars = options.ceilingChars ?? 150;
   /** 마지막으로 확정된 자막 — 남은 원문을 여기에 채워 넣는다 */
   let lastFinal: EngineSegment | null = null;
 
@@ -250,9 +255,16 @@ export function createSegmentAssembler(
           const endsSentence = SENTENCE_END.test(seg.targetText);
           // 단어 중간에서 끊으면 "르게" 같은 토막 자막이 생긴다 — 경계에서만 끊는다
           const atBoundary = /[\s.,!?。、！？]$/.test(seg.targetText);
+          /**
+           * ⚠ 원문이 아직 안 붙은 상태에서 길이만 보고 끊으면,
+           * 긴 번역이 여러 자막으로 쪼개지면서 두 번째 이후 자막의 원문 칸이 통째로 빈다.
+           * (실사용에서 원문이 띄엄띄엄 보이던 주된 원인)
+           * 그래서 원문이 붙기 전에는 길이로 끊지 않는다. 폭주 방지용 상한만 예외로 둔다.
+           */
+          const hasSource = seg.sourceText.trim().length > 0;
           if (
-            (long >= softMaxChars && endsSentence) ||
-            (long >= hardMaxChars && atBoundary) ||
+            (hasSource && long >= softMaxChars && endsSentence) ||
+            (hasSource && long >= hardMaxChars && atBoundary) ||
             long >= ceilingChars
           ) {
             finalize();
