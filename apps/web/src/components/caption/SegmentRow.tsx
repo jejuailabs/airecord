@@ -31,8 +31,8 @@ export const SegmentRow = memo(
             seg.isFinal ? '' : 'caption-caret'
           }`}
           style={{
-            fontSize: `calc(clamp(23px, 5.6vw, 34px) * ${scale})`,
-            lineHeight: 1.35,
+            fontSize: `calc(clamp(17px, 4.1vw, 25px) * ${scale})`,
+            lineHeight: 1.4,
           }}
         >
           {seg.targetText || ' '}
@@ -41,8 +41,8 @@ export const SegmentRow = memo(
           <p
             className="text-caption-source"
             style={{
-              fontSize: `calc(clamp(15px, 3.6vw, 19px) * ${scale})`,
-              lineHeight: 1.45,
+              fontSize: `calc(clamp(13px, 3.1vw, 16px) * ${scale})`,
+              lineHeight: 1.5,
             }}
           >
             {seg.sourceText}

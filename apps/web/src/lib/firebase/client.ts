@@ -30,39 +30,37 @@ export function firebaseAuth(): Auth {
   return getAuth(app());
 }
 
-/**
- * 모바일에서는 팝업이 차단되거나 닫힌 뒤 결과를 못 받는 경우가 많다.
- * 그래서 터치 기기·좁은 화면에서는 처음부터 리다이렉트 방식으로 간다.
- */
-function shouldUseRedirect(): boolean {
-  if (typeof window === 'undefined') return false;
-  const coarse = window.matchMedia?.('(pointer: coarse)').matches ?? false;
-  return coarse || window.innerWidth < 768;
-}
-
 /** 리다이렉트가 시작되면 이 페이지는 곧 떠난다 — 호출부는 로딩 상태를 유지해야 한다 */
 export const REDIRECT_PENDING_KEY = 'interlive-auth-redirect';
 
+/** 팝업이 막혔을 때만 쓰는 경로 — 인증 도메인이 앱 도메인과 달라 사파리에서 실패할 수 있다 */
+const REDIRECT_FALLBACK_CODES = new Set([
+  'auth/popup-blocked',
+  'auth/operation-not-supported-in-this-environment',
+  'auth/cancelled-popup-request',
+]);
+
 /**
  * 로그인 시작.
+ *
+ * ⚠ 팝업을 우선한다. 모바일이라고 리다이렉트로 보내면
+ * 인증 도메인(*.firebaseapp.com)이 앱 도메인과 달라 사파리가 저장소를 막아 결과가 사라진다.
+ * 팝업이 실제로 막힌 경우에만 리다이렉트로 넘어간다.
+ *
  * 팝업 경로면 idToken을 돌려주고, 리다이렉트 경로면 null을 돌려준 뒤 페이지를 떠난다.
  */
 export async function startGoogleSignIn(): Promise<string | null> {
   const auth = firebaseAuth();
   const provider = new GoogleAuthProvider();
 
-  if (shouldUseRedirect()) {
-    sessionStorage.setItem(REDIRECT_PENDING_KEY, '1');
-    await signInWithRedirect(auth, provider);
-    return null;
-  }
-
   try {
     const cred = await signInWithPopup(auth, provider);
     return await cred.user.getIdToken();
   } catch (e) {
     const code = (e as { code?: string }).code ?? '';
-    if (code === 'auth/popup-blocked' || code === 'auth/operation-not-supported-in-this-environment') {
+    // 유저가 직접 닫은 경우는 실패로 취급하지 않는다
+    if (code === 'auth/popup-closed-by-user') return null;
+    if (REDIRECT_FALLBACK_CODES.has(code)) {
       sessionStorage.setItem(REDIRECT_PENDING_KEY, '1');
       await signInWithRedirect(auth, provider);
       return null;

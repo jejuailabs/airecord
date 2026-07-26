@@ -842,11 +842,11 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col gap-4 bg-bg"
-      style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 9.5rem)' }}
+      className="flex flex-col gap-3 bg-bg"
+      style={{ height: isFullscreen ? '100dvh' : 'calc(100dvh - 6.5rem)' }}
     >
       {/* 상태 바 (docs/05 §4) */}
-      <div className="flex h-16 shrink-0 items-center gap-4 rounded-xl border border-border bg-bg-raised px-5">
+      <div className="flex h-14 shrink-0 items-center gap-3 rounded-xl border border-border bg-bg-raised px-4">
         <span className="flex items-center gap-2 text-[16px] font-bold text-accent">
           <span aria-hidden className="live-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" />
           {t('running.live')}

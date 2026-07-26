@@ -1,6 +1,8 @@
+import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Check, Languages, Link2, Mic, ScrollText } from 'lucide-react';
-import { Link } from '@/i18n/navigation';
+import { Link, redirect } from '@/i18n/navigation';
+import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { LiveCaptionDemo } from '@/components/landing/LiveCaptionDemo';
 import { ZoomMockup } from '@/components/landing/ZoomMockup';
 import { DashboardPreview } from '@/components/landing/DashboardPreview';
@@ -17,6 +19,13 @@ export default async function LandingPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+
+  // 이미 로그인했으면 랜딩을 볼 이유가 없다 — 바로 대시보드로 보낸다
+  const cookie = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
+  if (cookie && (await verifySessionCookie(cookie).catch(() => null))) {
+    redirect({ href: '/dashboard', locale });
+  }
+
   const t = await getTranslations('landing');
 
   return (

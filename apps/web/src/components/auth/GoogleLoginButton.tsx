@@ -62,8 +62,13 @@ export function GoogleLoginButton({ next = '/dashboard' }: { next?: string }) {
     setPhase('signing');
     try {
       const idToken = await startGoogleSignIn();
-      // null이면 리다이렉트 경로 — 페이지를 떠나므로 로딩 상태를 유지한다
-      if (idToken) await enter(idToken);
+      if (idToken) {
+        await enter(idToken);
+        return;
+      }
+      // null = 리다이렉트로 넘어갔거나(페이지를 곧 떠남) 유저가 팝업을 닫았다.
+      // 리다이렉트 중이면 로딩을 유지하고, 아니면 조용히 버튼으로 되돌린다.
+      if (!hasPendingRedirect()) setPhase('idle');
     } catch {
       setPhase('failed');
     }
