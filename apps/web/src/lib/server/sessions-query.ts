@@ -6,6 +6,7 @@ export interface SessionListItem {
   id: string;
   title: string | null;
   status: string;
+  mode: string;
   sourceLang: string;
   targetLang: string;
   billedSeconds: number;
@@ -43,6 +44,7 @@ export async function listSessions(uid: string, limit = 50): Promise<SessionList
         id: d.id,
         title: (d.get('title') as string | null) ?? null,
         status: (d.get('status') as string) ?? 'ended',
+        mode: (d.get('mode') as string) ?? 'inperson',
         sourceLang: (d.get('sourceLang') as string) ?? 'auto',
         targetLang: (d.get('targetLang') as string) ?? 'en',
         billedSeconds: (d.get('billedSeconds') as number) ?? 0,
@@ -77,6 +79,7 @@ export async function getSessionDetail(
       id: doc.id,
       title: (doc.get('title') as string | null) ?? null,
       status: (doc.get('status') as string) ?? 'ended',
+      mode: (doc.get('mode') as string) ?? 'inperson',
       sourceLang: (doc.get('sourceLang') as string) ?? 'auto',
       targetLang: (doc.get('targetLang') as string) ?? 'en',
       billedSeconds: (doc.get('billedSeconds') as number) ?? 0,

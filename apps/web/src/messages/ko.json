@@ -136,6 +136,11 @@
     "subtitle": "구글 계정으로 3초 만에 시작합니다. 별도 회원가입 절차가 없습니다.",
     "google": "Google로 계속하기",
     "busy": "로그인 중…",
+    "progress": {
+      "signingIn": "Google 계정으로 로그인하는 중입니다",
+      "finishing": "로그인을 마무리하는 중입니다",
+      "hint": "창을 닫지 말고 잠시만 기다려 주세요."
+    },
     "freeNote": "가입 즉시 매달 30분 무료. 카드 등록이 필요 없습니다.",
     "failed": {
       "title": "로그인에 실패했습니다",
@@ -213,12 +218,14 @@
       "empty": "통역을 시작하면 일별 사용량이 여기에 쌓입니다."
     },
     "startInPerson": {
-      "title": "대면 통역 시작",
-      "subtitle": "마이크로 바로 시작"
+      "title": "대면 통역",
+      "subtitle": "마이크 하나로 바로 시작",
+      "cta": "시작하기"
     },
     "startMeeting": {
-      "title": "회의 통역 시작",
-      "subtitle": "회의 주소 붙여넣기"
+      "title": "회의 통역",
+      "subtitle": "회의 주소만 붙여넣기",
+      "cta": "시작하기"
     },
     "recent": {
       "title": "최근 세션",
@@ -231,8 +238,16 @@
     "title": "대면 통역",
     "consentNotice": "이 대화는 통역과 기록을 위해 처리됩니다.",
     "setup": {
-      "lead": "마이크를 켜고 표시 언어만 고르면 됩니다. 입력 언어는 AI가 알아서 감지합니다.",
-      "micTitle": "마이크 확인",
+      "lead": "세 단계면 시작합니다.",
+      "steps": {
+        "mic": "마이크",
+        "source": "입력 언어",
+        "target": "표시 언어"
+      },
+      "next": "다음",
+      "micAllowed": "허용됨",
+      "readyHint": "{source} 발화를 {target} 자막으로 통역합니다.",
+      "micTitle": "마이크",
       "micNeed": "통역을 시작하려면 마이크 사용을 허용해 주세요.",
       "targetHint": "이 언어로 자막과 음성이 나옵니다.",
       "micRequest": "마이크 사용 허용",
@@ -276,6 +291,10 @@
       "title": "통역이 끝났습니다",
       "duration": "통역 시간",
       "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
+      "segmentsLabel": "자막",
+      "langPair": "통역 언어",
+      "savedNote": "원문·번역 스크립트가 저장되었고 AI 요약을 만들고 있습니다.",
+      "notSavedNote": "이번 세션은 저장되지 않았습니다.",
       "again": "다시 시작",
       "viewRecord": "기록 · AI 요약 보기",
       "toDashboard": "대시보드로"

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { LogOut } from 'lucide-react';
+import { LogIn, LogOut } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { ThemeToggle } from './ThemeToggle';
@@ -55,8 +55,11 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-bg/90 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-4 px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 whitespace-nowrap font-bold tracking-tight"
+        >
           <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />
           {t('appName')}
         </Link>
@@ -79,7 +82,10 @@ export function AppHeader() {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <LocaleSwitch />
+          {/* 좁은 화면에서는 언어 선택을 숨긴다 — 로그인 버튼이 줄바꿈되지 않게 (모바일 폭 우선) */}
+          <span className="hidden sm:block">
+            <LocaleSwitch />
+          </span>
           <ThemeToggle />
           {me === 'loading' ? null : me ? (
             <div className="flex items-center gap-1.5">
@@ -89,17 +95,19 @@ export function AppHeader() {
               <button
                 onClick={logout}
                 title={t('auth.logout')}
-                className="flex h-8 items-center gap-1 rounded-md border border-border px-2.5 text-xs text-text-muted hover:text-text"
+                aria-label={t('auth.logout')}
+                className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-border px-3 text-[13px] text-text-muted hover:text-text"
               >
-                <LogOut size={13} aria-hidden />
+                <LogOut size={14} aria-hidden />
                 <span className="hidden sm:inline">{t('auth.logout')}</span>
               </button>
             </div>
           ) : (
             <Link
               href="/login"
-              className="flex h-8 items-center rounded-md bg-accent px-3 text-xs font-semibold text-accent-text"
+              className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg bg-accent px-3.5 text-[13px] font-semibold text-accent-text"
             >
+              <LogIn size={14} aria-hidden />
               {t('auth.login')}
             </Link>
           )}

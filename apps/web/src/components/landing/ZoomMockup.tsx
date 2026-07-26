@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { MessageSquare, Volume2, VolumeX } from 'lucide-react';
+import { Bot, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 import { useDemoPlayback } from '@/hooks/useDemoPlayback';
 
 const TILE_COLORS = ['#3B5BDB', '#B23B72', '#8A6D1F'] as const;
@@ -47,12 +47,12 @@ export function ZoomMockup() {
                 }`}
               >
                 <span
-                  className="flex h-12 w-12 items-center justify-center rounded-full text-[18px] font-bold text-white/90"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-[15px] font-bold text-white/90 sm:h-11 sm:w-11 sm:text-[17px]"
                   style={{ backgroundColor: TILE_COLORS[i % TILE_COLORS.length] }}
                 >
                   {sp.initial}
                 </span>
-                <span className="absolute bottom-1.5 left-2 text-[11px] text-caption-source">
+                <span className="absolute bottom-1.5 left-2 max-w-[80%] truncate text-[10px] text-caption-source sm:text-[11px]">
                   {sp.name}
                 </span>
                 {speaking ? (
@@ -65,24 +65,26 @@ export function ZoomMockup() {
             );
           })}
           {/* 통역 봇 타일 — 봇의 존재를 숨기지 않는다 (docs/08 §2.2) */}
-          <div className="relative flex aspect-video items-center justify-center rounded-md bg-accent-weak/20">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent">
-              <span aria-hidden className="h-3 w-3 rounded-full bg-accent-text" />
+          <div className="relative flex aspect-video flex-col items-center justify-center gap-1.5 rounded-md border border-accent/30 bg-accent-weak/20">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent sm:h-11 sm:w-11">
+              <Bot size={18} aria-hidden className="text-accent-text" />
             </span>
-            <span className="absolute bottom-1.5 left-2 text-[11px] font-medium text-accent">
+            <span className="text-[10px] font-semibold text-accent sm:text-[11px]">
               {t('botName')}
             </span>
           </div>
         </div>
 
-        {/* 채팅 말풍선 — 봇이 자막 링크를 자동 게시 (docs/04 §4) */}
-        <div className="absolute right-6 top-6 max-w-[240px] rounded-md bg-white/10 px-3 py-2 backdrop-blur">
-          <p className="flex items-center gap-1 text-[11px] font-semibold text-caption-target">
+        {/* 채팅 말풍선 — 봇이 자막 링크를 자동 게시 (docs/04 §4).
+            좁은 화면에서는 타일 위에 겹치지 않고 아래로 내려온다. */}
+        <div className="mt-2 rounded-md bg-white/[.07] px-3 py-2 md:absolute md:right-6 md:top-6 md:mt-0 md:max-w-[240px] md:backdrop-blur">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold text-caption-target">
             <MessageSquare size={11} aria-hidden />
             {t('botName')}
           </p>
-          <p className="mt-0.5 break-all text-[11px] leading-snug text-caption-source">
-            🌐 {t('chatMessage')} <span className="text-accent">interlive.app/v/x7f3…</span>
+          <p className="mt-0.5 text-[11px] leading-snug text-caption-source">
+            🌐 {t('chatMessage')}{' '}
+            <span className="break-all text-accent">interlive.app/v/x7f3…</span>
           </p>
         </div>
 

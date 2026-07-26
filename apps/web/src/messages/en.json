@@ -136,6 +136,11 @@
     "subtitle": "Start in 3 seconds with your Google account. No separate sign-up flow.",
     "google": "Continue with Google",
     "busy": "Signing in…",
+    "progress": {
+      "signingIn": "Signing in with your Google account",
+      "finishing": "Finishing sign-in",
+      "hint": "Please wait a moment — don't close this window."
+    },
     "freeNote": "30 free minutes every month. No card required.",
     "failed": {
       "title": "Sign-in failed",
@@ -213,12 +218,14 @@
       "empty": "Start interpreting and daily usage piles up here."
     },
     "startInPerson": {
-      "title": "Start in-person",
-      "subtitle": "Start right away with your mic"
+      "title": "In-person",
+      "subtitle": "Just your microphone",
+      "cta": "Start"
     },
     "startMeeting": {
-      "title": "Start meeting",
-      "subtitle": "Paste a meeting link"
+      "title": "Meeting",
+      "subtitle": "Just paste the link",
+      "cta": "Start"
     },
     "recent": {
       "title": "Recent sessions",
@@ -231,8 +238,16 @@
     "title": "In-person interpreting",
     "consentNotice": "This conversation is processed for interpretation and records.",
     "setup": {
-      "lead": "Turn on your mic and pick a display language. The AI detects the spoken language itself.",
-      "micTitle": "Check your microphone",
+      "lead": "Three steps and you're live.",
+      "steps": {
+        "mic": "Microphone",
+        "source": "Spoken",
+        "target": "Display"
+      },
+      "next": "Next",
+      "micAllowed": "Allowed",
+      "readyHint": "{source} speech will be interpreted into {target} captions.",
+      "micTitle": "Microphone",
       "micNeed": "Allow microphone access to start interpreting.",
       "targetHint": "Captions and voice come out in this language.",
       "micRequest": "Allow microphone",
@@ -276,6 +291,10 @@
       "title": "Session ended",
       "duration": "Duration",
       "segments": "{count, plural, =0 {No captions} other {# captions}}",
+      "segmentsLabel": "Captions",
+      "langPair": "Languages",
+      "savedNote": "The transcript is saved and the AI summary is being written.",
+      "notSavedNote": "This session was not saved.",
       "again": "Start again",
       "viewRecord": "View record · AI summary",
       "toDashboard": "Go to dashboard"

@@ -12,6 +12,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
+import { SidebarLink } from './SidebarLink';
 
 export interface SidebarUsage {
   usedMinutes: number;
@@ -80,24 +81,13 @@ export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?:
             );
           }
           return (
-            <Link
+            <SidebarLink
               key={item.href}
               href={item.href}
-              className={`relative flex h-12 items-center gap-3 rounded-lg px-3.5 text-[15px] transition-colors duration-150 ${
-                active
-                  ? 'bg-white/[.07] font-semibold text-caption-target'
-                  : 'text-caption-source hover:bg-white/[.04] hover:text-caption-target'
-              }`}
-            >
-              {active ? (
-                <span
-                  aria-hidden
-                  className="absolute right-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-l bg-accent"
-                />
-              ) : null}
-              <Icon size={19} aria-hidden className={active ? 'text-accent' : ''} />
-              {item.label}
-            </Link>
+              icon={<Icon size={19} />}
+              label={item.label}
+              active={active}
+            />
           );
         })}
       </nav>

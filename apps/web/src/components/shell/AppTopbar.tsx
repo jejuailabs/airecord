@@ -48,9 +48,9 @@ export function AppTopbar() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-border bg-bg/90 px-5 backdrop-blur md:px-8">
+    <header className="sticky top-0 z-10 flex h-[72px] items-center gap-2.5 border-b border-border bg-bg/90 px-4 backdrop-blur md:gap-3 md:px-8">
       {/* 모바일: 사이드바 대신 브랜드 표시 */}
-      <Link href="/" className="flex items-center gap-2 font-bold lg:hidden">
+      <Link href="/" className="flex shrink-0 items-center gap-2 font-bold lg:hidden">
         <span
           aria-hidden
           className="cta-orb-violet inline-flex h-8 w-8 items-center justify-center rounded-md text-[13px] font-bold text-white"
@@ -58,14 +58,19 @@ export function AppTopbar() {
           IL
         </span>
       </Link>
-      {/* 브레드크럼 */}
-      <nav aria-label="breadcrumb" className="flex items-center gap-2 text-[15px]">
-        <span className="text-text-muted">{t('shell.manage')}</span>
-        <ChevronRight size={15} aria-hidden className="text-text-faint" />
-        <span className="font-semibold">{section}</span>
+      {/* 브레드크럼 — 좁은 화면에서 글자가 세로로 쪼개지지 않게 줄바꿈을 막는다 */}
+      <nav
+        aria-label="breadcrumb"
+        className="flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[15px]"
+      >
+        <span className="hidden text-text-muted sm:inline">{t('shell.manage')}</span>
+        <ChevronRight size={15} aria-hidden className="hidden shrink-0 text-text-faint sm:block" />
+        <span className="truncate font-semibold">{section}</span>
       </nav>
-      <div className="ml-auto flex items-center gap-2">
-        <LocaleSwitch />
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <span className="hidden sm:block">
+          <LocaleSwitch />
+        </span>
         <ThemeToggle />
         <span aria-hidden className="hidden h-6 w-px bg-border sm:block" />
         <button

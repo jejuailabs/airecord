@@ -1,45 +1,95 @@
 import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Mic, Link2, Inbox } from 'lucide-react';
+import { Mic, Link2, Inbox, Clock, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { SESSION_COOKIE_NAME, adminDb, verifySessionCookie } from '@/lib/firebase/admin';
-import { getPlan } from '@sotong/shared/constants';
+import { listSessions, type SessionListItem } from '@/lib/server/sessions-query';
+import { getPlan, languageLabel } from '@sotong/shared/constants';
+import type { SourceLangSetting } from '@sotong/shared/types';
+import { ActionCard } from '@/components/ui/ActionCard';
 
 interface DashData {
   includedMinutes: number;
   usedMinutes: number;
   meetingMinutes: number;
   inpersonMinutes: number;
+  sessions: SessionListItem[];
+  /** 최근 14일 일별 사용량 (분) */
+  daily: Array<{ date: string; meeting: number; inperson: number }>;
 }
 
-/** 워크스페이스 실데이터 — 실패 시 Free 기본값 (에러가 대시보드를 막으면 안 된다) */
+/** 세션 목록에서 최근 14일 막대를 만든다 — 별도 집계 배치 없이 실데이터로 그린다 */
+function buildDaily(sessions: SessionListItem[]): DashData['daily'] {
+  const days: DashData['daily'] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today.getTime() - i * 86_400_000);
+    days.push({ date: d.toISOString().slice(0, 10), meeting: 0, inperson: 0 });
+  }
+  for (const s of sessions) {
+    if (!s.startedAtMs) continue;
+    const key = new Date(s.startedAtMs).toISOString().slice(0, 10);
+    const bucket = days.find((d) => d.date === key);
+    if (!bucket) continue;
+    const minutes = Math.ceil(s.billedSeconds / 60);
+    if (s.mode === 'meeting') bucket.meeting += minutes;
+    else bucket.inperson += minutes;
+  }
+  return days;
+}
+
+/** 워크스페이스 + 최근 세션 — 실패해도 대시보드는 뜬다 */
 async function loadData(): Promise<DashData> {
   const fallback: DashData = {
     includedMinutes: getPlan('free')?.includedMinutes ?? 30,
     usedMinutes: 0,
     meetingMinutes: 0,
     inpersonMinutes: 0,
+    sessions: [],
+    daily: buildDaily([]),
   };
   try {
     const cookie = (await cookies()).get(SESSION_COOKIE_NAME)?.value;
     const user = await verifySessionCookie(cookie);
     if (!user) return fallback;
+
+    const sessions = await listSessions(user.uid, 20);
+    const minutesOf = (mode: 'meeting' | 'inperson') =>
+      sessions
+        .filter((s) => (mode === 'meeting' ? s.mode === 'meeting' : s.mode !== 'meeting'))
+        .reduce((sum, s) => sum + Math.ceil(s.billedSeconds / 60), 0);
+
     const userSnap = await adminDb().collection('users').doc(user.uid).get();
     const wsId = userSnap.get('lastWorkspaceId') as string | undefined;
-    if (!wsId) return fallback;
-    const ws = await adminDb().collection('workspaces').doc(wsId).get();
-    const billing = ws.get('billing') as
-      | { includedMinutes?: number; usedMinutes?: number }
-      | undefined;
+    let includedMinutes = fallback.includedMinutes;
+    let usedMinutes = 0;
+    if (wsId) {
+      const ws = await adminDb().collection('workspaces').doc(wsId).get();
+      const billing = ws.get('billing') as
+        | { includedMinutes?: number; usedMinutes?: number }
+        | undefined;
+      includedMinutes = billing?.includedMinutes ?? includedMinutes;
+      usedMinutes = billing?.usedMinutes ?? 0;
+    }
+
     return {
-      includedMinutes: billing?.includedMinutes ?? fallback.includedMinutes,
-      usedMinutes: billing?.usedMinutes ?? 0,
-      meetingMinutes: 0, // Phase 4: usage.minutesByMode.meeting
-      inpersonMinutes: billing?.usedMinutes ?? 0,
+      includedMinutes,
+      usedMinutes,
+      meetingMinutes: minutesOf('meeting'),
+      inpersonMinutes: minutesOf('inperson'),
+      sessions: sessions.slice(0, 5),
+      daily: buildDaily(sessions),
     };
   } catch {
     return fallback;
   }
+}
+
+function fmtDuration(sec: number) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 export default async function DashboardPage({
@@ -50,17 +100,41 @@ export default async function DashboardPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('dashboard');
+  const ts = await getTranslations('sessions');
   const data = await loadData();
   const remaining = Math.max(0, data.includedMinutes - data.usedMinutes);
   const pct = data.includedMinutes > 0 ? (remaining / data.includedMinutes) * 100 : 0;
   const barColor = pct <= 0 ? 'bg-danger' : pct < 20 ? 'bg-warn' : 'bg-accent';
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* ── 통계 카드 4 (시안) ── */}
+    <div className="flex flex-col gap-8">
+      {/* ── 시작 카드 — 화면의 주인공 ── */}
+      <section className="flex flex-col items-center gap-6 pt-2">
+        <h1 className="text-[28px] font-bold tracking-tight">{t('title')}</h1>
+        <div className="flex w-full flex-col items-center justify-center gap-5 sm:flex-row sm:items-stretch">
+          <ActionCard
+            href="/live"
+            tone="teal"
+            icon={<Mic size={40} />}
+            title={t('startInPerson.title')}
+            subtitle={t('startInPerson.subtitle')}
+            cta={t('startInPerson.cta')}
+          />
+          <ActionCard
+            href="/meeting"
+            tone="violet"
+            icon={<Link2 size={40} />}
+            title={t('startMeeting.title')}
+            subtitle={t('startMeeting.subtitle')}
+            cta={t('startMeeting.cta')}
+          />
+        </div>
+      </section>
+
+      {/* ── 통계 카드 4 ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-bg-raised p-5">
-          <span className="text-xs font-semibold text-text-muted">{t('stats.remaining')}</span>
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-5">
+          <span className="text-[13px] font-semibold text-text-muted">{t('stats.remaining')}</span>
           <span className="tabular text-[26px] font-bold leading-none">
             {remaining}
             <span className="text-sm font-normal text-text-muted">
@@ -73,72 +147,115 @@ export default async function DashboardPage({
         </div>
         <StatCard label={t('stats.month')} value={data.usedMinutes} unit={t('stats.minute')} />
         <StatCard label={t('stats.meeting')} value={data.meetingMinutes} unit={t('stats.minute')} />
-        <StatCard label={t('stats.inperson')} value={data.inpersonMinutes} unit={t('stats.minute')} />
+        <StatCard
+          label={t('stats.inperson')}
+          value={data.inpersonMinutes}
+          unit={t('stats.minute')}
+        />
       </div>
 
-      {/* ── 시작 카드 2 ── */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href="/live"
-          className="flex items-center gap-4 rounded-lg border border-border bg-bg-raised p-5 transition-colors duration-150 hover:border-accent"
-        >
-          <span className="cta-orb-violet flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white">
-            <Mic size={20} aria-hidden />
-          </span>
-          <div>
-            <div className="font-semibold">{t('startInPerson.title')}</div>
-            <div className="text-sm text-text-muted">{t('startInPerson.subtitle')}</div>
-          </div>
-        </Link>
-        <Link
-          href="/meeting"
-          className="flex items-center gap-4 rounded-lg border border-border bg-bg-raised p-5 transition-colors duration-150 hover:border-accent-2"
-        >
-          <span className="cta-orb-teal flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white">
-            <Link2 size={20} aria-hidden />
-          </span>
-          <div>
-            <div className="font-semibold">{t('startMeeting.title')}</div>
-            <div className="text-sm text-text-muted">{t('startMeeting.subtitle')}</div>
-          </div>
-        </Link>
-      </div>
-
-      {/* ── 일별 사용량 (시안 차트 — 데이터가 쌓이면 채워진다) ── */}
-      <section className="flex flex-col gap-4 rounded-lg border border-border bg-bg-raised p-5">
+      {/* ── 일별 사용량 — 세션 실데이터로 그린다 ── */}
+      <section className="flex flex-col gap-4 rounded-xl border border-border bg-bg-raised p-5">
         <div className="flex items-center gap-4">
-          <h2 className="text-sm font-semibold">{t('chart.title')}</h2>
-          <span className="ml-auto flex items-center gap-1.5 text-[11px] text-text-muted">
+          <h2 className="text-[15px] font-semibold">{t('chart.title')}</h2>
+          <span className="ml-auto flex items-center gap-1.5 text-[12px] text-text-muted">
             <span aria-hidden className="h-2 w-2 rounded-full bg-chart-1" />
             {t('chart.legendMeeting')}
           </span>
-          <span className="flex items-center gap-1.5 text-[11px] text-text-muted">
+          <span className="flex items-center gap-1.5 text-[12px] text-text-muted">
             <span aria-hidden className="h-2 w-2 rounded-full bg-chart-2" />
             {t('chart.legendInPerson')}
           </span>
         </div>
-        <div className="flex h-28 items-end gap-2">
-          {Array.from({ length: 14 }).map((_, i) => (
-            <div key={i} className="flex flex-1 items-end gap-0.5">
-              <div className="w-1/2 rounded-t-sm bg-chart-1/25" style={{ height: '6px' }} />
-              <div className="w-1/2 rounded-t-sm bg-chart-2/25" style={{ height: '6px' }} />
-            </div>
-          ))}
-        </div>
-        <p className="text-[13px] text-text-faint">{t('chart.empty')}</p>
+        {(() => {
+          const max = Math.max(1, ...data.daily.map((d) => d.meeting + d.inperson));
+          const hasData = data.daily.some((d) => d.meeting + d.inperson > 0);
+          return (
+            <>
+              <div className="flex h-28 items-end gap-2">
+                {data.daily.map((d) => (
+                  <div
+                    key={d.date}
+                    className="flex flex-1 items-end justify-center gap-0.5"
+                    title={`${d.date} · ${d.meeting + d.inperson}${t('stats.minute')}`}
+                  >
+                    <span
+                      className="w-1/2 rounded-t-sm bg-chart-1 transition-[height] duration-300"
+                      style={{ height: `${Math.max(4, (d.meeting / max) * 100)}%` }}
+                    />
+                    <span
+                      className="w-1/2 rounded-t-sm bg-chart-2 transition-[height] duration-300"
+                      style={{ height: `${Math.max(4, (d.inperson / max) * 100)}%` }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {!hasData ? (
+                <p className="text-[13px] text-text-faint">{t('chart.empty')}</p>
+              ) : null}
+            </>
+          );
+        })()}
       </section>
 
       {/* ── 최근 세션 ── */}
       <section className="flex flex-col gap-3">
         <div className="flex items-center">
-          <h2 className="text-sm font-semibold">{t('recent.title')}</h2>
-          <span className="ml-auto text-[13px] text-text-faint">{t('recent.viewAll')}</span>
+          <h2 className="text-[17px] font-semibold">{t('recent.title')}</h2>
+          <Link
+            href="/sessions"
+            className="ml-auto flex items-center gap-0.5 text-[14px] text-text-muted hover:text-text"
+          >
+            {t('recent.viewAll')}
+            <ChevronRight size={14} aria-hidden />
+          </Link>
         </div>
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-border bg-bg-raised px-6 py-10 text-center">
-          <Inbox size={26} aria-hidden className="text-text-faint" />
-          <div className="font-semibold">{t('recent.emptyTitle')}</div>
-          <p className="max-w-md text-sm text-text-muted">{t('recent.emptyHint')}</p>
-        </div>
+
+        {data.sessions.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-bg-raised px-6 py-12 text-center">
+            <Inbox size={26} aria-hidden className="text-text-faint" />
+            <div className="font-semibold">{t('recent.emptyTitle')}</div>
+            <p className="max-w-md text-sm text-text-muted">{t('recent.emptyHint')}</p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {data.sessions.map((s) => (
+              <li key={s.id}>
+                <Link
+                  href={`/sessions/${s.id}`}
+                  className="flex items-center gap-4 rounded-xl border border-border bg-bg-raised px-5 py-4 transition-colors duration-150 hover:border-accent"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[16px] font-semibold">
+                      {s.title ?? ts('untitled')}
+                    </div>
+                    <div className="mt-0.5 text-[13.5px] text-text-muted">
+                      {languageLabel(s.sourceLang as SourceLangSetting)} →{' '}
+                      {languageLabel(s.targetLang as SourceLangSetting)}
+                      {' · '}
+                      {ts('segments', { count: s.segmentCount })}
+                    </div>
+                  </div>
+                  <span className="tabular flex shrink-0 items-center gap-1.5 text-[14px] text-text-muted">
+                    <Clock size={14} aria-hidden />
+                    {fmtDuration(s.billedSeconds)}
+                  </span>
+                  <span className="tabular hidden shrink-0 text-[13px] text-text-faint sm:block">
+                    {s.startedAtMs
+                      ? new Intl.DateTimeFormat(locale, {
+                          month: 'numeric',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(s.startedAtMs))
+                      : ''}
+                  </span>
+                  <ChevronRight size={16} aria-hidden className="shrink-0 text-text-faint" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
@@ -146,8 +263,8 @@ export default async function DashboardPage({
 
 function StatCard({ label, value, unit }: { label: string; value: number; unit: string }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-border bg-bg-raised p-5">
-      <span className="text-xs font-semibold text-text-muted">{label}</span>
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-5">
+      <span className="text-[13px] font-semibold text-text-muted">{label}</span>
       <span className="tabular text-[26px] font-bold leading-none">
         {value}
         <span className="text-sm font-normal text-text-muted">{unit}</span>

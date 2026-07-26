@@ -25,7 +25,43 @@ const env = (k: string): string | undefined =>
   typeof process !== 'undefined' ? process.env?.[k] : undefined;
 
 const baseUrl = () => env('OPENAI_BASE_URL') ?? 'https://api.openai.com';
-const modelName = () => env('TRANSLATION_MODEL_OPENAI') ?? 'gpt-realtime-translate';
+
+const DEFAULT_TRANSLATE_MODEL = 'gpt-realtime-translate';
+
+/**
+ * 이 어댑터는 번역 전용 엔드포인트(/v1/realtime/translations/*)에만 붙는다.
+ * 범용 대화 모델(gpt-realtime 등)을 이 엔드포인트에 물리면 번역 대신 원문이 그대로 나오고
+ * 번역 오디오도 생성되지 않는다 — 운영에서 실제로 발생했던 사고다.
+ * 그래서 환경변수가 번역 모델이 아니면 무시하고 기본값으로 되돌린다.
+ */
+const modelName = () => {
+  const configured = env('TRANSLATION_MODEL_OPENAI');
+  if (!configured) return DEFAULT_TRANSLATE_MODEL;
+  if (!configured.includes('translate')) {
+    console.warn(
+      `[engine] TRANSLATION_MODEL_OPENAI="${configured}" is not a translation model; ` +
+        `falling back to "${DEFAULT_TRANSLATE_MODEL}".`,
+    );
+    return DEFAULT_TRANSLATE_MODEL;
+  }
+  return configured;
+};
+
+const DEFAULT_TRANSCRIPTION_MODEL = 'gpt-realtime-whisper';
+
+/** 전사 모델도 같은 이유로 검증한다 — 옛 값이 남아 있으면 원문 자막이 통째로 사라진다 */
+const transcriptionModel = () => {
+  const configured = env('TRANSCRIPTION_MODEL');
+  if (!configured) return DEFAULT_TRANSCRIPTION_MODEL;
+  if (!configured.startsWith('gpt-realtime')) {
+    console.warn(
+      `[engine] TRANSCRIPTION_MODEL="${configured}" is not supported on the translations endpoint; ` +
+        `falling back to "${DEFAULT_TRANSCRIPTION_MODEL}".`,
+    );
+    return DEFAULT_TRANSCRIPTION_MODEL;
+  }
+  return configured;
+};
 const apiKey = () => {
   const k = env('OPENAI_API_KEY');
   if (!k) throw new Error('OPENAI_API_KEY is not set');
@@ -44,7 +80,8 @@ export function buildTranslateSessionConfig(opts: OpenOpts) {
       output: { language: opts.targetLang },
       input: {
         // 원문 자막용 입력 전사 — 실청구에 별도 가산되는지 실측 시 확인 (docs/07 §6)
-        transcription: { model: env('TRANSCRIPTION_MODEL') ?? 'gpt-realtime-whisper' },
+        // 전사 모델도 옛 값(gpt-4o-*-transcribe)이 남아 있으면 이 엔드포인트에서 거부된다.
+        transcription: { model: transcriptionModel() },
       },
     },
   };

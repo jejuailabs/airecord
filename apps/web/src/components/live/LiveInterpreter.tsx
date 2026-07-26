@@ -13,8 +13,19 @@ import {
   Play,
   Lock,
   CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Captions,
+  Languages,
+  Sparkles,
+  RotateCcw,
+  LayoutDashboard,
+  CreditCard,
+  ChevronRight,
+  Loader2,
 } from 'lucide-react';
-import { FieldSelect, SettingRow, Toggle } from '@/components/ui/SettingRow';
+import { FieldSelect, Toggle } from '@/components/ui/SettingRow';
+import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
 import {
   INTERPRET_LANGUAGES,
   HEARTBEAT_INTERVAL_MS,
@@ -59,6 +70,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const tTry = useTranslations('try');
 
   const [phase, setPhase] = useState<Phase>('setup');
+  /** 시작 화면 단계 (1 마이크 → 2 입력 언어 → 3 표시 언어) */
+  const [step, setStep] = useState(1);
   const [error, setError] = useState<ErrorKey | null>(null);
 
   // ── 설정 (유저가 만지는 값은 언어뿐 — core.md §3-1) ──
@@ -125,6 +138,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       setMicStream(stream);
+      // 허용되면 바로 다음 단계로 — 유저가 한 번 더 누를 이유가 없다
+      setStep(2);
     } catch {
       setError('micPermission');
     }
@@ -396,83 +411,142 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   if (phase === 'ended' && summary && trial) {
     // 체험 종료 — 여기가 가입 전환 지점이다
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-6 py-16 text-center">
-        <h1 className="text-[28px] font-bold">{tTry('ended.title')}</h1>
-        <p className="text-text-muted">{tTry('ended.body')}</p>
-        <dl className="flex w-full flex-col gap-2 rounded-lg border border-border bg-bg-raised p-6">
-          <div className="flex items-center justify-between">
-            <dt className="text-sm text-text-muted">{t('ended.duration')}</dt>
-            <dd className="tabular font-semibold">{fmtSec(summary.billedSeconds)}</dd>
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-6">
+        <div className="flex flex-col items-center gap-5 pt-4 text-center">
+          <span
+            className="hero-glow cta-orb-teal text-white"
+            style={{ ['--glow-color' as string]: 'rgb(45 212 191 / .55)' }}
+            aria-hidden
+          >
+            <CheckCircle2 size={46} />
+          </span>
+          <div>
+            <h1 className="text-[36px] font-bold tracking-tight">{tTry('ended.title')}</h1>
+            <p className="mt-1.5 max-w-lg text-[16px] text-text-muted">{tTry('ended.body')}</p>
           </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-sm text-text-muted">
-              {t('ended.segments', { count: summary.segmentCount })}
-            </dt>
-            <dd />
-          </div>
+        </div>
+
+        <dl className="grid w-full gap-3 sm:grid-cols-3">
+          <SummaryStat
+            icon={<Clock size={20} />}
+            label={t('ended.duration')}
+            value={fmtSec(summary.billedSeconds)}
+          />
+          <SummaryStat
+            icon={<Captions size={20} />}
+            label={t('ended.segmentsLabel')}
+            value={String(summary.segmentCount)}
+          />
+          <SummaryStat
+            icon={<Languages size={20} />}
+            label={t('ended.langPair')}
+            value={`${sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)} → ${languageLabel(targetLang)}`}
+            small
+          />
         </dl>
-        <div className="flex flex-col gap-3 sm:flex-row">
+
+        <div className="flex w-full flex-col gap-3 sm:flex-row">
           <Link
             href="/login"
-            className="flex h-12 items-center justify-center rounded-md bg-accent px-6 font-semibold text-accent-text"
+            className="btn-gradient flex h-14 flex-1 items-center justify-center gap-2.5 rounded-xl text-[17px] font-bold"
           >
+            <Sparkles size={19} aria-hidden />
             {tTry('ended.signup')}
           </Link>
           <Link
             href="/#pricing"
-            className="flex h-12 items-center justify-center rounded-md border border-border px-6 font-semibold"
+            className="flex h-14 flex-1 items-center justify-center gap-2.5 rounded-xl border border-border text-[17px] font-semibold"
           >
+            <CreditCard size={19} aria-hidden />
             {tTry('ended.pricing')}
           </Link>
         </div>
-        <p className="text-[13px] text-text-faint">{tTry('ended.freeNote')}</p>
+        <p className="flex items-center gap-1.5 text-[14px] text-text-faint">
+          <Lock size={13} aria-hidden />
+          {tTry('ended.freeNote')}
+        </p>
       </div>
     );
   }
 
   if (phase === 'ended' && summary) {
+    const restart = () => {
+      setSummary(null);
+      setError(null);
+      setSegments([]);
+      setRemoteStream(null);
+      setPhase('setup');
+    };
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-6 py-16 text-center">
-        <h1 className="text-[28px] font-bold">{t('ended.title')}</h1>
+      <div className="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 py-6">
+        {/* 완료 히어로 */}
+        <div className="flex flex-col items-center gap-5 pt-4 text-center">
+          <span
+            className={`hero-glow ${error ? 'bg-danger' : 'cta-orb-teal'} text-white`}
+            style={{
+              ['--glow-color' as string]: error
+                ? 'rgb(196 60 44 / .45)'
+                : 'rgb(45 212 191 / .55)',
+            }}
+            aria-hidden
+          >
+            {error ? <AlertTriangle size={46} /> : <CheckCircle2 size={46} />}
+          </span>
+          <div>
+            <h1 className="text-[36px] font-bold tracking-tight">{t('ended.title')}</h1>
+            <p className="mt-1.5 text-[16px] text-text-muted">
+              {savedSessionId ? t('ended.savedNote') : t('ended.notSavedNote')}
+            </p>
+          </div>
+        </div>
+
         {error ? <ErrorBanner k={error} /> : null}
-        <dl className="flex w-full flex-col gap-2 rounded-lg border border-border bg-bg-raised p-6">
-          <div className="flex items-center justify-between">
-            <dt className="text-sm text-text-muted">{t('ended.duration')}</dt>
-            <dd className="tabular font-semibold">{fmtSec(summary.billedSeconds)}</dd>
-          </div>
-          <div className="flex items-center justify-between">
-            <dt className="text-sm text-text-muted">
-              {t('ended.segments', { count: summary.segmentCount })}
-            </dt>
-            <dd />
-          </div>
+
+        {/* 요약 지표 */}
+        <dl className="grid w-full gap-3 sm:grid-cols-3">
+          <SummaryStat
+            icon={<Clock size={20} />}
+            label={t('ended.duration')}
+            value={fmtSec(summary.billedSeconds)}
+          />
+          <SummaryStat
+            icon={<Captions size={20} />}
+            label={t('ended.segmentsLabel')}
+            value={String(summary.segmentCount)}
+          />
+          <SummaryStat
+            icon={<Languages size={20} />}
+            label={t('ended.langPair')}
+            value={`${sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)} → ${languageLabel(targetLang)}`}
+            small
+          />
         </dl>
-        <div className="flex flex-wrap justify-center gap-3">
+
+        {/* 다음 행동 */}
+        <div className="flex w-full flex-col gap-3 sm:flex-row">
           {savedSessionId ? (
             <Link
               href={`/sessions/${savedSessionId}`}
-              className="flex h-11 items-center rounded-md bg-accent px-6 font-semibold text-accent-text"
+              className="btn-gradient flex h-14 flex-1 items-center justify-center gap-2.5 rounded-xl text-[17px] font-bold"
             >
+              <Sparkles size={19} aria-hidden />
               {t('ended.viewRecord')}
             </Link>
           ) : null}
           <button
-            onClick={() => {
-              setSummary(null);
-              setError(null);
-              setSegments([]);
-              setPhase('setup');
-            }}
-            className={`h-11 rounded-md px-6 font-semibold ${
-              savedSessionId ? 'border border-border' : 'bg-accent text-accent-text'
+            onClick={restart}
+            className={`flex h-14 flex-1 items-center justify-center gap-2.5 rounded-xl text-[17px] font-bold ${
+              savedSessionId ? 'border border-border text-text' : 'btn-gradient'
             }`}
           >
+            <RotateCcw size={19} aria-hidden />
             {t('ended.again')}
           </button>
           <Link
             href="/dashboard"
-            className="flex h-11 items-center rounded-md border border-border px-6 font-semibold"
+            className="flex h-14 items-center justify-center gap-2.5 rounded-xl border border-border px-6 text-[17px] font-semibold text-text-muted sm:flex-none"
           >
+            <LayoutDashboard size={19} aria-hidden />
             {t('ended.toDashboard')}
           </Link>
         </div>
@@ -483,136 +557,207 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   if (phase === 'setup' || phase === 'starting') {
     const langOptions = INTERPRET_LANGUAGES;
     const micActive = micLevel > 0.03;
+    const micReady = Boolean(micStream);
+
+    const steps: StepDef[] = [
+      {
+        id: 1,
+        icon: <Mic size={24} />,
+        label: t('setup.steps.mic'),
+        done: micReady,
+        locked: false,
+      },
+      {
+        id: 2,
+        icon: <Globe size={24} />,
+        label: t('setup.steps.source'),
+        done: micReady && step > 2,
+        locked: !micReady,
+      },
+      {
+        id: 3,
+        icon: <span className="text-[19px] font-bold">A</span>,
+        label: t('setup.steps.target'),
+        done: false,
+        locked: !micReady,
+      },
+    ];
+
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-2">
-        {/* 히어로 — 아이콘 + 제목 나란히 */}
-        <div className="flex flex-col items-center gap-6 pt-6 sm:flex-row sm:justify-center">
-          <span
-            className="hero-glow cta-orb-teal text-white"
-            style={{ ['--glow-color' as string]: 'rgb(45 212 191 / .55)' }}
-            aria-hidden
-          >
-            <Mic size={46} />
-          </span>
-          <div className="text-center sm:text-left">
-            <h1 className="text-[40px] font-bold leading-tight tracking-tight">{t('title')}</h1>
-            <p className="mt-1 text-[16px] text-text-muted">{t('setup.lead')}</p>
-          </div>
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-2">
+        <div className="text-center">
+          <h1 className="text-[30px] font-bold leading-tight tracking-tight">{t('title')}</h1>
+          <p className="mt-1 text-[15px] text-text-muted">{t('setup.lead')}</p>
         </div>
+
+        <SetupStepper steps={steps} current={step} onSelect={(id) => setStep(id)} />
 
         {error ? <ErrorBanner k={error} /> : null}
 
-        {/* 설정 카드 — 행 하나당 아이콘 칩 하나 */}
-        <section className="row-divide overflow-hidden rounded-2xl border border-border bg-bg-raised">
-          {/* 마이크 */}
-          <SettingRow
-            icon={<Mic size={20} />}
-            tone={micActive ? 'teal' : 'default'}
-            label={t('setup.micTitle')}
-            right={
-              micStream ? (
+        {/* 현재 단계 패널 — 한 번에 하나만 보여 과정이 늘어지지 않게 한다 */}
+        <section className="min-h-[196px] rounded-2xl border border-border bg-bg-raised p-6">
+          {step === 1 ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
                 <span
-                  className={`flex items-center gap-1.5 text-[13.5px] font-semibold ${
-                    micActive ? 'text-accent-2' : 'text-text-faint'
-                  }`}
+                  className={`icon-chip ${micActive ? 'icon-chip-teal' : ''}`}
+                  aria-hidden
                 >
-                  <CheckCircle2 size={15} aria-hidden />
-                  {micActive ? t('setup.micReady') : t('setup.micSilent')}
+                  <Mic size={20} />
                 </span>
+                <div className="min-w-0">
+                  <h2 className="whitespace-nowrap text-[17px] font-semibold">
+                    {t('setup.micTitle')}
+                  </h2>
+                  <p className="text-[13.5px] text-text-faint">
+                    {micReady
+                      ? micActive
+                        ? t('setup.micReady')
+                        : t('setup.micSilent')
+                      : t('setup.micNeed')}
+                  </p>
+                </div>
+                {micReady ? (
+                  <span className="ml-auto flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13.5px] font-semibold text-accent-2">
+                    <CheckCircle2 size={16} aria-hidden />
+                    {t('setup.micAllowed')}
+                  </span>
+                ) : null}
+              </div>
+
+              {micReady ? (
+                <>
+                  <div className="flex h-10 items-center gap-[3px]">
+                    {Array.from({ length: 40 }).map((_, i) => {
+                      const on = micLevel * 40 > i;
+                      return (
+                        <span
+                          key={i}
+                          className={`flex-1 rounded-full transition-all duration-75 ${
+                            on ? 'bg-accent-2' : 'bg-border'
+                          }`}
+                          style={{ height: on ? `${18 + ((i * 37) % 16)}px` : '4px' }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={() => setStep(2)}
+                    className="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-accent text-[15px] font-bold text-accent-text"
+                  >
+                    {t('setup.next')}
+                    <ChevronRight size={17} aria-hidden />
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={requestMic}
-                  className="h-10 rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-text"
+                  className="btn-gradient flex h-12 items-center justify-center gap-2 rounded-xl text-[15px] font-bold"
                 >
+                  <Mic size={17} aria-hidden />
                   {t('setup.micRequest')}
                 </button>
-              )
-            }
-          >
-            {micStream ? (
-              <div className="flex h-8 items-center gap-[3px]">
-                {Array.from({ length: 44 }).map((_, i) => {
-                  const on = micLevel * 44 > i;
-                  return (
-                    <span
-                      key={i}
-                      className={`w-[3px] rounded-full transition-all duration-75 ${
-                        on ? 'bg-accent-2' : 'bg-border'
-                      }`}
-                      style={{ height: on ? `${20 + ((i * 37) % 14)}px` : '4px' }}
-                    />
-                  );
-                })}
+              )}
+            </div>
+          ) : null}
+
+          {step === 2 ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip" aria-hidden>
+                  <Globe size={20} />
+                </span>
+                <div>
+                  <h2 className="text-[17px] font-semibold">{t('setup.sourceLang')}</h2>
+                  <p className="text-[13.5px] text-text-faint">{t('setup.autoDetectHint')}</p>
+                </div>
               </div>
-            ) : (
-              <p className="text-[13.5px] text-text-faint">{t('setup.micNeed')}</p>
-            )}
-          </SettingRow>
-
-          {/* 입력 언어 — 자동 감지 기본 */}
-          <SettingRow
-            icon={<Globe size={20} />}
-            label={t('setup.sourceLang')}
-            hint={sourceLang === 'auto' ? t('setup.autoDetectHint') : undefined}
-          >
-            <FieldSelect
-              id="source-lang"
-              value={sourceLang}
-              onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
-            >
-              <option value="auto">{t('setup.autoDetect')}</option>
-              {langOptions.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </FieldSelect>
-          </SettingRow>
-
-          {/* 표시 언어 — 유저가 고르는 유일한 값 (core.md §3-1) */}
-          <SettingRow
-            icon={<span className="text-[17px] font-bold">A</span>}
-            tone="accent"
-            label={t('setup.targetLang')}
-            hint={t('setup.targetHint')}
-          >
-            <FieldSelect
-              id="target-lang"
-              value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value as LangCode)}
-            >
-              {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
-              {langOptions
-                .filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code))
-                .map((l) => (
+              <FieldSelect
+                id="source-lang"
+                value={sourceLang}
+                onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
+              >
+                <option value="auto">{t('setup.autoDetect')}</option>
+                {langOptions.map((l) => (
                   <option key={l.code} value={l.code}>
                     {l.label}
                   </option>
                 ))}
-            </FieldSelect>
-          </SettingRow>
+              </FieldSelect>
+              <button
+                onClick={() => setStep(3)}
+                className="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-accent text-[15px] font-bold text-accent-text"
+              >
+                {t('setup.next')}
+                <ChevronRight size={17} aria-hidden />
+              </button>
+            </div>
+          ) : null}
 
-          {/* 음성 출력 — 옵션 채널. 사과하지 말고 사실만 적는다 (docs/04 §3) */}
-          <SettingRow
-            icon={audioOut ? <Volume2 size={20} /> : <VolumeX size={20} />}
-            tone={audioOut ? 'teal' : 'default'}
-            label={t('setup.audioOut')}
-            hint={audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
-            right={<Toggle checked={audioOut} onChange={setAudioOut} label={t('setup.audioOut')} />}
-          />
+          {step === 3 ? (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <span className="icon-chip icon-chip-accent" aria-hidden>
+                  <span className="text-[17px] font-bold">A</span>
+                </span>
+                <div>
+                  <h2 className="text-[17px] font-semibold">{t('setup.targetLang')}</h2>
+                  <p className="text-[13.5px] text-text-faint">{t('setup.targetHint')}</p>
+                </div>
+              </div>
+              <FieldSelect
+                id="target-lang"
+                value={targetLang}
+                onChange={(e) => setTargetLang(e.target.value as LangCode)}
+              >
+                {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
+                {langOptions
+                  .filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code))
+                  .map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.label}
+                    </option>
+                  ))}
+              </FieldSelect>
+              <p className="rounded-lg bg-bg-sunken px-4 py-2.5 text-[13.5px] text-text-muted">
+                {t('setup.readyHint', {
+                  source: sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang),
+                  target: languageLabel(targetLang),
+                })}
+              </p>
+            </div>
+          ) : null}
         </section>
 
-        <div className="flex flex-col gap-3">
+        {/* 음성 출력 — 단계와 무관한 옵션이라 항상 한 줄로 둔다 (docs/04 §3) */}
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-raised px-5 py-3.5">
+          <span className={`icon-chip ${audioOut ? 'icon-chip-teal' : ''}`} aria-hidden>
+            {audioOut ? <Volume2 size={19} /> : <VolumeX size={19} />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[15px] font-semibold">{t('setup.audioOut')}</p>
+            <p className="text-[13px] leading-snug text-text-faint">
+              {audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
+            </p>
+          </div>
+          <Toggle checked={audioOut} onChange={setAudioOut} label={t('setup.audioOut')} />
+        </div>
+
+        <div className="flex flex-col gap-2.5">
           <button
             onClick={start}
-            disabled={!micStream || phase === 'starting'}
+            disabled={!micReady || phase === 'starting'}
             className="btn-gradient flex h-16 items-center justify-center gap-2.5 rounded-xl text-[19px] font-bold transition-opacity duration-150 disabled:cursor-not-allowed"
           >
-            <Play size={20} aria-hidden fill="currentColor" />
+            {phase === 'starting' ? (
+              <Loader2 size={20} className="animate-spin" aria-hidden />
+            ) : (
+              <Play size={20} aria-hidden fill="currentColor" />
+            )}
             {phase === 'starting' ? t('running.connecting') : t('setup.start')}
           </button>
           {/* 고지 — 시작이 곧 동의 (docs/08 §2.2) */}
-          <p className="flex items-center justify-center gap-1.5 text-[13.5px] text-text-faint">
+          <p className="flex items-center justify-center gap-1.5 text-[13px] text-text-faint">
             <Lock size={13} aria-hidden />
             {t('consentNotice')}
           </p>
@@ -788,9 +933,41 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
 function ErrorBanner({ k }: { k: ErrorKey }) {
   const t = useTranslations('live.errors');
   return (
-    <div className="w-full rounded-md bg-danger-weak px-4 py-3 text-left">
-      <p className="font-semibold text-danger">{t(`${k}.title`)}</p>
-      <p className="text-sm text-text-muted">{t(`${k}.action`)}</p>
+    <div className="flex w-full items-start gap-3.5 rounded-xl bg-danger-weak px-5 py-4 text-left">
+      <AlertTriangle size={20} aria-hidden className="mt-0.5 shrink-0 text-danger" />
+      <div>
+        <p className="text-[16px] font-semibold text-danger">{t(`${k}.title`)}</p>
+        <p className="mt-0.5 text-[14.5px] text-text-muted">{t(`${k}.action`)}</p>
+      </div>
+    </div>
+  );
+}
+
+/** 종료 화면 지표 카드 */
+function SummaryStat({
+  icon,
+  label,
+  value,
+  small,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  small?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3.5 rounded-xl border border-border bg-bg-raised px-5 py-4">
+      <span className="icon-chip icon-chip-accent" aria-hidden>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <dt className="text-[13px] text-text-muted">{label}</dt>
+        <dd
+          className={`tabular truncate font-bold ${small ? 'text-[16px]' : 'text-[24px] leading-tight'}`}
+        >
+          {value}
+        </dd>
+      </div>
     </div>
   );
 }

@@ -32,26 +32,40 @@ export default async function LandingPage({
           </h1>
           <p className="max-w-md whitespace-pre-line text-white/70">{t('hero.subtitle')}</p>
 
-          {/* 원형 CTA 2개 (시안) */}
-          <div className="flex flex-wrap gap-6 pt-2">
-            <Link href="/live" className="group flex w-32 flex-col items-center gap-3 text-center">
-              <span className="cta-orb-violet flex h-24 w-24 items-center justify-center rounded-full text-white shadow-token transition-transform duration-150 group-hover:scale-105">
-                <Mic size={30} aria-hidden />
+          {/* 원형 CTA 2개 — 어떤 폭에서도 한 줄에 둘, 각자 카드로 구분한다 */}
+          <div className="grid grid-cols-2 gap-3 pt-2 sm:gap-4">
+            <Link
+              href="/live"
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[.04] px-3 py-5 text-center transition-[transform,background-color,border-color] duration-200 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[.08]"
+            >
+              <span
+                className="cta-orb-violet orb-float flex h-[68px] w-[68px] items-center justify-center rounded-full text-white sm:h-20 sm:w-20"
+                style={{ ['--glow-color' as string]: 'rgb(124 77 255 / .55)' }}
+                aria-hidden
+              >
+                <Mic size={26} />
               </span>
               <span>
-                <span className="block text-sm font-semibold">{t('hero.orbInPerson.title')}</span>
-                <span className="block text-[12px] text-white/60">
+                <span className="block text-[15px] font-bold">{t('hero.orbInPerson.title')}</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-white/55">
                   {t('hero.orbInPerson.subtitle')}
                 </span>
               </span>
             </Link>
-            <Link href="/meeting" className="group flex w-32 flex-col items-center gap-3 text-center">
-              <span className="cta-orb-teal flex h-24 w-24 items-center justify-center rounded-full text-white shadow-token transition-transform duration-150 group-hover:scale-105">
-                <Link2 size={30} aria-hidden />
+            <Link
+              href="/meeting"
+              className="group flex flex-col items-center gap-3 rounded-2xl border border-white/10 bg-white/[.04] px-3 py-5 text-center transition-[transform,background-color,border-color] duration-200 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[.08]"
+            >
+              <span
+                className="cta-orb-teal orb-float flex h-[68px] w-[68px] items-center justify-center rounded-full text-white sm:h-20 sm:w-20"
+                style={{ ['--glow-color' as string]: 'rgb(45 212 191 / .55)' }}
+                aria-hidden
+              >
+                <Link2 size={26} />
               </span>
               <span>
-                <span className="block text-sm font-semibold">{t('hero.orbMeeting.title')}</span>
-                <span className="block text-[12px] text-white/60">
+                <span className="block text-[15px] font-bold">{t('hero.orbMeeting.title')}</span>
+                <span className="mt-0.5 block text-[12px] leading-snug text-white/55">
                   {t('hero.orbMeeting.subtitle')}
                 </span>
               </span>

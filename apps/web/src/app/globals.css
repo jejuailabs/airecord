@@ -184,6 +184,63 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* ── 즉각 반응 ─────────────────────────────────────
+   버튼·링크는 누르는 순간 눌린 느낌을 준다.
+   응답이 늦더라도 "눌렸나?" 하는 구간을 만들지 않는다. */
+button,
+a,
+[role='button'],
+[role='switch'],
+[role='radio'] {
+  transition:
+    transform 100ms ease-out,
+    opacity 100ms ease-out,
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+button:not(:disabled):active,
+a:active,
+[role='button']:active,
+[role='switch']:active,
+[role='radio']:active {
+  transform: scale(0.975);
+}
+.press-card:not(:disabled):active {
+  transform: scale(0.985);
+}
+button[aria-busy='true'],
+a[aria-busy='true'] {
+  cursor: progress;
+}
+
+/* 히어로 아이콘 부유 모션 — 입체감 */
+@keyframes orb-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.orb-float {
+  animation: orb-float 4s ease-in-out infinite;
+  box-shadow:
+    0 10px 30px -8px var(--glow-color),
+    inset 0 1px 0 rgb(255 255 255 / .28),
+    inset 0 -10px 22px -12px rgb(0 0 0 / .5);
+}
+.group:hover .orb-float {
+  animation-duration: 2s;
+}
+
+/* 라우트 전환 스켈레톤 */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.skeleton {
+  background: var(--bg-sunken);
+  border-radius: 10px;
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
 /* 라이브 인디케이터 — 2초 주기 밝기 변화. reduce 설정 시 정지 (docs/05 §6) */
 @keyframes live-pulse {
   0%, 100% { opacity: 0.6; }

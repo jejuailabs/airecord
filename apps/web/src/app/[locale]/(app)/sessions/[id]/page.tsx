@@ -52,7 +52,9 @@ export default async function SessionDetailPage({
         </div>
         <a
           href={`/api/sessions/${detail.id}/pdf`}
-          className="flex h-11 shrink-0 items-center gap-2 rounded-md bg-accent px-5 font-semibold text-accent-text"
+          target="_blank"
+          rel="noopener"
+          className="btn-gradient flex h-12 shrink-0 items-center gap-2 rounded-xl px-6 font-semibold"
         >
           <FileDown size={16} aria-hidden />
           {t('downloadPdf')}
