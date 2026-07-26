@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { sessionEndRequestSchema, type SessionEndResponse } from '@sotong/shared/schemas';
 import { endSession, finalizeSessionDoc, saveSegments } from '@/lib/server/session-store';
 import { generateAndStoreSummary } from '@/lib/server/summarize';
@@ -22,8 +22,9 @@ export async function POST(req: Request) {
   if (record?.uid) {
     await saveSegments(sessionId, segments ?? []);
     await finalizeSessionDoc(record);
-    // 요약은 부산물이므로 응답을 붙잡지 않는다
-    void generateAndStoreSummary(sessionId, record.targetLang);
+    // 요약은 응답을 붙잡지 않되 반드시 끝까지 실행돼야 한다.
+    // 서버리스에서 그냥 void로 띄우면 응답 직후 함수가 종료돼 요약이 영원히 'running'에 멈춘다.
+    after(() => generateAndStoreSummary(sessionId, record.targetLang));
   }
 
   const body: SessionEndResponse = {

@@ -24,7 +24,7 @@ import {
   ChevronRight,
   Loader2,
 } from 'lucide-react';
-import { FieldSelect, Toggle } from '@/components/ui/SettingRow';
+import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
 import {
   INTERPRET_LANGUAGES,
@@ -55,7 +55,7 @@ type ErrorKey =
   | 'guestQuota'
   | 'authRequired';
 
-const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.35, xl: 1.75 };
+const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
 const CAP_WARNING_SEC = 30; // 예고 없이 끊지 않는다 (docs/07 §5.2)
 
@@ -72,6 +72,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const [phase, setPhase] = useState<Phase>('setup');
   /** 시작 화면 단계 (1 마이크 → 2 입력 언어 → 3 표시 언어) */
   const [step, setStep] = useState(1);
+  /** 세션 제목 — 비워두면 AI 요약이 제목을 만들어 채운다 */
+  const [title, setTitle] = useState('');
   const [error, setError] = useState<ErrorKey | null>(null);
 
   // ── 설정 (유저가 만지는 값은 언어뿐 — core.md §3-1) ──
@@ -216,7 +218,14 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       const res = await fetch('/api/session/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'inperson', sourceLang, targetLang, audioOut, trial }),
+        body: JSON.stringify({
+          mode: 'inperson',
+          sourceLang,
+          targetLang,
+          audioOut,
+          trial,
+          title: title.trim() || undefined,
+        }),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -584,10 +593,59 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     ];
 
     return (
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 py-2">
-        <div className="text-center">
-          <h1 className="text-[30px] font-bold leading-tight tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-[15px] text-text-muted">{t('setup.lead')}</p>
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 py-2">
+        {/* 제목 + 음성 토글 — 제목과 같은 무게로 마주 보게 둔다 */}
+        <div className="flex items-center gap-3">
+          <span
+            className="cta-orb-teal flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white"
+            style={{
+              boxShadow:
+                '0 8px 20px -8px rgb(45 212 191 / .6), inset 0 1px 0 rgb(255 255 255 / .3)',
+            }}
+            aria-hidden
+          >
+            <Mic size={22} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">
+              {t('title')}
+            </h1>
+            <p className="text-[14px] text-text-muted">{t('setup.lead')}</p>
+          </div>
+
+          {/* 음성 번역 토글 — 스위치 모양 + 아래 라벨. 아이콘만 두면 무슨 기능인지 모른다. */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={audioOut}
+            onClick={() => setAudioOut(!audioOut)}
+            title={audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
+            className="flex w-[68px] shrink-0 flex-col items-center gap-1.5"
+          >
+            <span
+              className={`relative flex h-9 w-full items-center rounded-full border transition-colors duration-200 ${
+                audioOut ? 'border-transparent bg-accent-2-weak' : 'border-border bg-bg-sunken'
+              }`}
+              aria-hidden
+            >
+              <span
+                className={`absolute flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 ${
+                  audioOut
+                    ? 'cta-orb-teal left-[calc(100%-32px)] text-white'
+                    : 'left-[4px] bg-bg-raised text-text-faint shadow-token'
+                }`}
+              >
+                {audioOut ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              </span>
+            </span>
+            <span
+              className={`text-center text-[10.5px] font-semibold leading-tight ${
+                audioOut ? 'text-accent-2' : 'text-text-muted'
+              }`}
+            >
+              {t('setup.audioOutStacked')}
+            </span>
+          </button>
         </div>
 
         <SetupStepper steps={steps} current={step} onSelect={(id) => setStep(id)} />
@@ -595,9 +653,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         {error ? <ErrorBanner k={error} /> : null}
 
         {/* 현재 단계 패널 — 한 번에 하나만 보여 과정이 늘어지지 않게 한다 */}
-        <section className="min-h-[196px] rounded-2xl border border-border bg-bg-raised p-6">
+        <section className="rounded-2xl border border-border bg-bg-raised p-5">
           {step === 1 ? (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <span
                   className={`icon-chip ${micActive ? 'icon-chip-teal' : ''}`}
@@ -662,7 +720,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
           ) : null}
 
           {step === 2 ? (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <span className="icon-chip" aria-hidden>
                   <Globe size={20} />
@@ -695,7 +753,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
           ) : null}
 
           {step === 3 ? (
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
                 <span className="icon-chip icon-chip-accent" aria-hidden>
                   <span className="text-[17px] font-bold">A</span>
@@ -719,6 +777,24 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
                     </option>
                   ))}
               </FieldSelect>
+
+              {/* 제목은 선택 사항 — 비워두면 AI가 요약할 때 붙여준다 */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="session-title" className="text-[14px] font-semibold">
+                  {t('setup.titleLabel')}
+                </label>
+                <input
+                  id="session-title"
+                  type="text"
+                  value={title}
+                  maxLength={80}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder={t('setup.titlePlaceholder')}
+                  className="h-12 rounded-lg border border-border bg-bg-sunken px-4 text-[15px]"
+                />
+                <p className="text-[13px] text-text-faint">{t('setup.titleHint')}</p>
+              </div>
+
               <p className="rounded-lg bg-bg-sunken px-4 py-2.5 text-[13.5px] text-text-muted">
                 {t('setup.readyHint', {
                   source: sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang),
@@ -729,19 +805,12 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
           ) : null}
         </section>
 
-        {/* 음성 출력 — 단계와 무관한 옵션이라 항상 한 줄로 둔다 (docs/04 §3) */}
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-raised px-5 py-3.5">
-          <span className={`icon-chip ${audioOut ? 'icon-chip-teal' : ''}`} aria-hidden>
-            {audioOut ? <Volume2 size={19} /> : <VolumeX size={19} />}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">{t('setup.audioOut')}</p>
-            <p className="text-[13px] leading-snug text-text-faint">
-              {audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
-            </p>
-          </div>
-          <Toggle checked={audioOut} onChange={setAudioOut} label={t('setup.audioOut')} />
-        </div>
+        {/* 음성을 켰을 때만 주의사항 한 줄 (docs/04 §3 — 사과하지 말고 사실만) */}
+        {audioOut ? (
+          <p className="rounded-lg bg-warn-weak px-4 py-2.5 text-[13px] text-warn">
+            {t('setup.headsetHint')}
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-2.5">
           <button

@@ -117,7 +117,10 @@ export function createSegmentAssembler(
           const seg = ensureSegment();
           seg.targetText += evt.delta ?? '';
           emit();
-          if (seg.targetText.length >= softMaxChars && SENTENCE_END.test(seg.targetText)) {
+          // 원문 전사는 번역보다 늦게 도착하기도 한다.
+          // 원문이 아직 없는데 끊으면 그 덩어리는 번역만 남고 원문이 영영 비어 버린다.
+          const hasSource = seg.sourceText.trim().length > 0;
+          if (hasSource && seg.targetText.length >= softMaxChars && SENTENCE_END.test(seg.targetText)) {
             finalize();
           } else {
             armPauseTimer();

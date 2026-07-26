@@ -17,6 +17,8 @@ export interface SessionListItem {
 export interface SessionDetail extends SessionListItem {
   summary: SessionSummary | null;
   summaryStatus: string | null;
+  /** 제목을 AI가 붙였는지 (유저가 수정하면 false) */
+  titleFromAi: boolean;
   segments: Array<{ seq: number; startMs: number; sourceText: string; targetText: string }>;
 }
 
@@ -87,6 +89,7 @@ export async function getSessionDetail(
       startedAtMs: toMs(doc.get('startedAt')),
       summary: (doc.get('summary') as SessionSummary | undefined) ?? null,
       summaryStatus: (doc.get('summaryStatus') as string | undefined) ?? null,
+      titleFromAi: Boolean(doc.get('titleFromAi')),
       segments: segSnap.docs.map((d) => ({
         seq: (d.get('seq') as number) ?? 0,
         startMs: (d.get('startMs') as number) ?? 0,

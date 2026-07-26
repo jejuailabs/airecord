@@ -5,7 +5,7 @@ import type { EngineSegment } from '@sotong/shared/engine';
 
 export interface SegmentRowProps {
   seg: EngineSegment;
-  /** 자막 크기 배율 — ×1.0 / ×1.35 / ×1.75 (docs/05 §3) */
+  /** 자막 크기 배율 — 보통 ×1.0 / 크게 ×1.3 / 아주 크게 ×1.7 */
   scale: number;
   showSource: boolean;
 }
@@ -13,25 +13,37 @@ export interface SegmentRowProps {
 /**
  * 자막 세그먼트 한 덩어리 (docs/05 §4).
  * 번역문은 크고 밝고 굵게, 원문은 작고 흐리게 — 색이 아니라 무게·명도의 위계.
- * 회의실 모니터에서 곁눈질로 읽히는 것이 기준이라 기본 크기를 크게 잡는다.
- * 확정 세그먼트는 memo로 리렌더를 차단한다 (docs/04 §3).
+ *
+ * 크기는 화면 폭에 따라 자동으로 줄고 늘어난다(clamp).
+ * 고정 px로 두면 모바일에서 한 줄에 두세 글자만 보이고, 회의실 모니터에서는 너무 작다.
  */
 export const SegmentRow = memo(
   function SegmentRow({ seg, scale, showSource }: SegmentRowProps) {
     return (
-      <div className="flex flex-col gap-3 py-5">
+      <div className="flex flex-col gap-1.5 py-4">
+        {seg.detectedLang ? (
+          <span className="text-[12px] font-medium uppercase tracking-wide text-caption-source">
+            {seg.detectedLang}
+          </span>
+        ) : null}
         <p
-          className={`max-w-[30ch] font-semibold tracking-tight text-caption-target ${
+          className={`font-semibold tracking-tight text-caption-target ${
             seg.isFinal ? '' : 'caption-caret'
           }`}
-          style={{ fontSize: `${56 * scale}px`, lineHeight: 1.3 }}
+          style={{
+            fontSize: `calc(clamp(23px, 5.6vw, 34px) * ${scale})`,
+            lineHeight: 1.35,
+          }}
         >
           {seg.targetText || ' '}
         </p>
         {showSource && seg.sourceText ? (
           <p
-            className="max-w-[46ch] text-caption-source"
-            style={{ fontSize: `${26 * scale}px`, lineHeight: 1.45 }}
+            className="text-caption-source"
+            style={{
+              fontSize: `calc(clamp(15px, 3.6vw, 19px) * ${scale})`,
+              lineHeight: 1.45,
+            }}
           >
             {seg.sourceText}
           </p>
@@ -44,6 +56,7 @@ export const SegmentRow = memo(
     prev.seg.isFinal === next.seg.isFinal &&
     prev.seg.sourceText === next.seg.sourceText &&
     prev.seg.targetText === next.seg.targetText &&
+    prev.seg.detectedLang === next.seg.detectedLang &&
     prev.scale === next.scale &&
     prev.showSource === next.showSource,
 );

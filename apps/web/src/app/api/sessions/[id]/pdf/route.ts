@@ -39,7 +39,8 @@ export async function GET(
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
-  const title = d.summary?.title ?? d.title ?? 'InterLive 통역 기록';
+  // 유저가 정한 제목이 최우선 — AI 가안은 저장 시 title에 이미 반영돼 있다
+  const title = d.title?.trim() || d.summary?.title || 'InterLive 통역 기록';
   const date = d.startedAtMs ? new Date(d.startedAtMs).toLocaleString('ko-KR') : '';
   const s = d.summary;
 

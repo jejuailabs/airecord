@@ -132,13 +132,25 @@ export async function generateAndStoreSummary(sessionId: string, outputLang: str
 
     await db.collection('sessions').doc(sessionId).set({ summaryStatus: 'running' }, { merge: true });
     const summary = await summarizeTranscript(lines, outputLang);
+    if (!summary) {
+      await db.collection('sessions').doc(sessionId).set({ summaryStatus: 'failed' }, { merge: true });
+      return;
+    }
+    // 유저가 제목을 안 넣었으면 AI가 만든 제목을 세션 제목으로 채운다 (수정 가능)
+    const existingTitle = (await db.collection('sessions').doc(sessionId).get()).get('title') as
+      | string
+      | null
+      | undefined;
     await db
       .collection('sessions')
       .doc(sessionId)
       .set(
-        summary
-          ? { summary, summaryStatus: 'ready', summarizedAt: FieldValue.serverTimestamp() }
-          : { summaryStatus: 'failed' },
+        {
+          summary,
+          summaryStatus: 'ready',
+          summarizedAt: FieldValue.serverTimestamp(),
+          ...(existingTitle ? {} : { title: summary.title, titleFromAi: true }),
+        },
         { merge: true },
       );
   } catch (e) {

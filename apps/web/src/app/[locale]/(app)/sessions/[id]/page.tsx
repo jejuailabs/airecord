@@ -6,6 +6,7 @@ import { currentUid, getSessionDetail } from '@/lib/server/sessions-query';
 import { languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { SummaryRefresher } from '@/components/sessions/SummaryRefresher';
+import { EditableTitle } from '@/components/sessions/EditableTitle';
 
 function fmtMs(ms: number) {
   const total = Math.floor(ms / 1000);
@@ -29,32 +30,45 @@ export default async function SessionDetailPage({
   return (
     <div className="flex flex-col gap-6">
       {/* 헤더 */}
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <Link href="/sessions" className="text-sm text-text-muted hover:text-text">
-            ← {t('back')}
-          </Link>
-          <h1 className="mt-1 text-[30px] font-bold leading-tight tracking-tight">
-            {detail.summary?.title ?? detail.title ?? t('untitled')}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-muted">
-            <span>
-              {languageLabel(detail.sourceLang as SourceLangSetting)} →{' '}
-              {languageLabel(detail.targetLang as SourceLangSetting)}
-            </span>
-            <span className="tabular flex items-center gap-1">
-              <Clock size={13} aria-hidden />
-              {Math.ceil(detail.billedSeconds / 60)}
-              {t('minute')}
-            </span>
-            <span>{t('segments', { count: detail.segments.length })}</span>
-          </p>
+      <div className="flex flex-col gap-3">
+        <Link href="/sessions" className="text-sm text-text-muted hover:text-text">
+          ← {t('back')}
+        </Link>
+
+        <EditableTitle
+          sessionId={detail.id}
+          initialTitle={detail.title ?? ''}
+          fromAi={detail.titleFromAi}
+          placeholder={t('untitled')}
+        />
+
+        {/* 메타 — 좁은 화면에서도 각 항목이 쪼개지지 않게 한 덩어리씩 묶는다 */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[14px] text-text-muted">
+          <span className="whitespace-nowrap">
+            {languageLabel(detail.sourceLang as SourceLangSetting)} →{' '}
+            {languageLabel(detail.targetLang as SourceLangSetting)}
+          </span>
+          <span aria-hidden className="text-text-faint">
+            ·
+          </span>
+          <span className="tabular flex items-center gap-1 whitespace-nowrap">
+            <Clock size={13} aria-hidden />
+            {Math.ceil(detail.billedSeconds / 60)}
+            {t('minute')}
+          </span>
+          <span aria-hidden className="text-text-faint">
+            ·
+          </span>
+          <span className="whitespace-nowrap">
+            {t('segments', { count: detail.segments.length })}
+          </span>
         </div>
+
         <a
           href={`/api/sessions/${detail.id}/pdf`}
           target="_blank"
           rel="noopener"
-          className="btn-gradient flex h-12 shrink-0 items-center gap-2 rounded-xl px-6 font-semibold"
+          className="btn-gradient flex h-12 w-full items-center justify-center gap-2 rounded-xl px-6 font-semibold sm:w-auto sm:self-start"
         >
           <FileDown size={16} aria-hidden />
           {t('downloadPdf')}

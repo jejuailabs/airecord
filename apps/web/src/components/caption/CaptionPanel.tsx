@@ -85,9 +85,9 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
         ref={scrollRef}
         onScroll={onScroll}
         aria-live="polite"
-        className="min-h-0 flex-1 overflow-y-auto px-8 py-6"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-8 sm:py-6"
       >
-        <div className="relative ml-6 border-l border-[color:var(--caption-source)]/30 pl-6">
+        <div className="relative ml-2 border-l border-[color:var(--caption-source)]/30 pl-4 sm:ml-6 sm:pl-6">
           {omitted > 0 ? (
             <p className="py-2 text-[13px] text-caption-source">{t('omitted', { count: omitted })}</p>
           ) : null}
