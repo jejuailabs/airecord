@@ -1,0 +1,149 @@
+{
+  "common": {
+    "appName": "소통",
+    "nav": {
+      "dashboard": "대시보드",
+      "live": "대면 통역",
+      "meeting": "화상회의 통역"
+    },
+    "actions": {
+      "start": "시작",
+      "end": "종료",
+      "cancel": "취소",
+      "copy": "링크 복사",
+      "copied": "복사됨",
+      "retry": "다시 시도",
+      "back": "돌아가기"
+    },
+    "theme": {
+      "label": "테마",
+      "light": "라이트",
+      "dark": "다크",
+      "system": "자동"
+    },
+    "language": {
+      "label": "화면 언어"
+    },
+    "phaseBadge": "Phase 1 미리보기"
+  },
+  "dashboard": {
+    "title": "통역 시작",
+    "startInPerson": {
+      "title": "대면 통역",
+      "subtitle": "마이크로 바로 시작"
+    },
+    "startMeeting": {
+      "title": "화상회의 통역",
+      "subtitle": "회의 주소 붙여넣기"
+    },
+    "recent": {
+      "title": "최근 기록",
+      "emptyTitle": "아직 통역 기록이 없습니다",
+      "emptyHint": "대면 통역을 시작하면 자막이 이 자리에 쌓입니다. 기록 저장은 계정 연결(Phase 2)부터 켜집니다."
+    }
+  },
+  "live": {
+    "title": "대면 통역",
+    "consentNotice": "이 대화는 통역과 기록을 위해 처리됩니다.",
+    "setup": {
+      "micTitle": "마이크 확인",
+      "micRequest": "마이크 사용 허용",
+      "micReady": "마이크 입력이 들어오고 있습니다",
+      "micSilent": "소리가 감지되지 않습니다. 마이크 위치를 확인해 주세요.",
+      "sourceLang": "입력 언어",
+      "autoDetect": "자동 감지",
+      "autoDetectHint": "여러 언어가 섞여도 발화마다 자동으로 감지해 통역합니다.",
+      "targetLang": "표시 언어",
+      "audioOut": "음성 번역 (AI 보이스)",
+      "audioOutHint": "음성 번역은 자막보다 늦을 수 있습니다.",
+      "headsetHint": "스피커로 재생하면 번역 음성이 다시 입력됩니다. 헤드셋 사용을 권장합니다.",
+      "start": "통역 시작"
+    },
+    "running": {
+      "live": "LIVE",
+      "connecting": "연결 중",
+      "reconnecting": "연결을 복구하는 중입니다. 자막은 남아 있습니다.",
+      "end": "종료",
+      "audioOut": "음성 출력",
+      "captionSize": "자막 크기",
+      "sizeMd": "보통",
+      "sizeLg": "크게",
+      "sizeXl": "아주 크게",
+      "fullscreen": "전체화면",
+      "exitFullscreen": "전체화면 종료",
+      "latest": "최신으로",
+      "capWarning": "{sec}초 후 세션 최대 시간에 도달해 자동 종료됩니다.",
+      "omitted": "{count, plural, other {이전 자막 #개는 화면에서 생략됨}}",
+      "waitingSpeech": "말을 시작하면 자막이 여기에 나타납니다"
+    },
+    "endDialog": {
+      "title": "통역을 종료합니다",
+      "body": "이 세션의 자막은 화면을 닫으면 사라집니다. 기록 저장은 계정 연결(Phase 2)부터 제공됩니다.",
+      "confirm": "종료",
+      "cancel": "계속 통역"
+    },
+    "ended": {
+      "title": "통역이 끝났습니다",
+      "duration": "통역 시간",
+      "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
+      "again": "다시 시작",
+      "toDashboard": "대시보드로"
+    },
+    "errors": {
+      "micPermission": {
+        "title": "마이크 권한이 거부되었습니다",
+        "action": "브라우저 주소창의 사이트 권한에서 마이크를 허용한 뒤 다시 시도해 주세요."
+      },
+      "startFailed": {
+        "title": "세션을 시작하지 못했습니다",
+        "action": "네트워크 상태를 확인하고 다시 시도해 주세요. 반복되면 서버 로그의 오류 메시지를 확인해 주세요."
+      },
+      "keyMissing": {
+        "title": "번역 엔진 키가 설정되지 않았습니다",
+        "action": "apps/web/.env.local 파일에 OPENAI_API_KEY를 넣고 개발 서버를 다시 시작해 주세요."
+      },
+      "connectionLost": {
+        "title": "번역 엔진과의 연결이 끊겼습니다",
+        "action": "세션을 종료했습니다. 네트워크를 확인한 뒤 다시 시작해 주세요."
+      },
+      "unsupportedPair": {
+        "title": "이 언어 조합은 아직 지원되지 않습니다",
+        "action": "다른 표시 언어를 선택해 주세요."
+      }
+    }
+  },
+  "meeting": {
+    "title": "화상회의 통역",
+    "subtitle": "회의 주소를 붙여넣으면 통역 봇이 회의에 입장해 자막 링크를 채팅에 게시합니다.",
+    "urlLabel": "회의 링크",
+    "urlPlaceholder": "https://zoom.us/j/…",
+    "urlInvalid": "회의 링크를 다시 확인해 주세요. Zoom·Teams·Meet·Webex 주소를 지원합니다.",
+    "sourceLang": "입력 언어",
+    "autoDetect": "자동 감지",
+    "targetLang": "표시 언어",
+    "send": "봇 보내기",
+    "detected": "{platform} 회의로 인식됨",
+    "consentNotice": "봇이 입장하면 회의 채팅에 통역 처리 사실이 고지됩니다.",
+    "unavailable": {
+      "title": "화상회의 모드는 Phase 4에서 열립니다",
+      "body": "구조(봇 입장 → 서버 릴레이 → 자막 링크)는 준비되어 있습니다. RECALL_API_KEY와 Realtime Worker 배포가 연결되면 이 화면에서 바로 시작됩니다.",
+      "docs": "docs/01 §4.2 · docs/04 §4 참조"
+    }
+  },
+  "viewer": {
+    "consentNotice": "이 대화는 통역을 위해 기록됩니다.",
+    "dismiss": "닫기",
+    "waiting": {
+      "title": "자막 스트림 대기 중",
+      "hint": "세션이 시작되면 자막이 실시간으로 표시됩니다. 이 링크는 회의 참가자 누구나 열 수 있습니다."
+    },
+    "notReady": {
+      "title": "뷰어는 화상회의 모드(Phase 4)와 함께 열립니다",
+      "hint": "Firestore 실시간 구독이 연결되면 이 화면이 자막을 표시합니다."
+    }
+  },
+  "notFound": {
+    "title": "페이지를 찾을 수 없습니다",
+    "action": "대시보드로 돌아가기"
+  }
+}

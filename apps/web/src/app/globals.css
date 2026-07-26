@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* docs/05 §2 색 토큰 — 여기 없는 색을 새로 만들지 않는다 */
+:root {                                   /* ── LIGHT ── */
+  --bg:            #F6F5F2;   /* 종이. 순백 아님 — 형광등 아래 눈부심 억제 */
+  --bg-raised:     #FFFFFF;
+  --bg-sunken:     #EDECE8;
+  --border:        #DCDAD4;
+  --border-strong: #C2BFB7;
+
+  --text:          #14181F;
+  --text-muted:    #5C636E;
+  --text-faint:    #8A9099;
+
+  --accent:        #0E9384;   /* 신호색 — 라이브 상태 전용 */
+  --accent-weak:   #E0F2EF;
+  --accent-text:   #FFFFFF;
+
+  --warn:          #B26A12;
+  --warn-weak:     #FBF0DE;
+  --danger:        #B23B32;
+  --danger-weak:   #FBE9E7;
+
+  --caption-bg:    #101720;   /* 자막 패널은 라이트 모드에서도 어둡다 (docs/05 §4) */
+  --caption-target:#F3F6F8;
+  --caption-source:#7E8A97;
+
+  --focus:         #0E9384;
+  --shadow: 0 1px 2px rgb(20 24 31 / .06), 0 8px 24px rgb(20 24 31 / .06);
+}
+
+.dark {                                   /* ── DARK (기본) ── */
+  --bg:            #0B1220;
+  --bg-raised:     #131C2C;
+  --bg-sunken:     #070D18;
+  --border:        #223047;
+  --border-strong: #33445F;
+
+  --text:          #E8ECF2;
+  --text-muted:    #9AA6B8;
+  --text-faint:    #66748A;
+
+  --accent:        #2DD4BF;
+  --accent-weak:   #0D2E2C;
+  --accent-text:   #04211E;
+
+  --warn:          #E0A340;
+  --warn-weak:     #2C220E;
+  --danger:        #E4685C;
+  --danger-weak:   #2E1512;
+
+  --caption-bg:    #070D18;
+  --caption-target:#F3F6F8;
+  --caption-source:#78879B;
+
+  --focus:         #2DD4BF;
+  --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .3);
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Pretendard Variable', Pretendard, Inter, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* 숫자(타이머·사용량·금액)는 tabular — 초 단위가 흔들리면 안 된다 (docs/05 §3) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 포커스 링 — 모든 인터랙티브 요소에 보이는 링 (docs/05 §8) */
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* 라이브 인디케이터 — 2초 주기 밝기 변화. reduce 설정 시 정지 (docs/05 §6) */
+@keyframes live-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.live-dot {
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .live-dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+/* 진행 중 세그먼트 캐럿 — 깜빡이지 않는다 (docs/05 §4) */
+.caption-caret::after {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  margin-left: 4px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  border-radius: 2px;
+}

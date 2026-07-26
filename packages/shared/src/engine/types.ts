@@ -1,0 +1,94 @@
+/**
+ * docs/04 §1 — 번역 코어 추상화.
+ * 이 디렉터리만 번역 모델 벤더를 안다. apps/web·apps/worker는 getEngine()만 부른다.
+ */
+import type { LangCode, SourceLangSetting } from '../types';
+
+export interface EngineSegment {
+  seq: number;
+  startMs: number;
+  endMs?: number;
+  sourceText: string;
+  targetText: string;
+  isFinal: boolean;
+  speaker?: string;
+  /** auto 모드에서 엔진이 감지한 발화 언어 (없을 수 있음) */
+  detectedLang?: string;
+}
+
+export interface EngineError {
+  code: string;
+  message: string;
+  /** true면 재연결로 복구 불가 — 세션을 접어야 한다 */
+  fatal: boolean;
+}
+
+export interface TranslationSession {
+  /** PCM16 오디오 청크 전송 (서버 릴레이 경로 — 모드 A) */
+  pushAudio(chunk: ArrayBuffer): void;
+  /** 세그먼트 스트림 구독 */
+  onSegment(cb: (s: EngineSegment) => void): void;
+  /** 번역 오디오 수신 (옵션 채널) */
+  onAudio?(cb: (chunk: ArrayBuffer) => void): void;
+  onError(cb: (e: EngineError) => void): void;
+  close(): Promise<void>;
+  readonly provider: 'openai' | 'google';
+  readonly model: string;
+}
+
+export interface OpenOpts {
+  sourceLang: SourceLangSetting;
+  targetLang: LangCode;
+  audioOut: boolean;
+  sessionId: string;
+}
+
+export interface EphemeralGrant {
+  key: string;
+  /** epoch ms */
+  expiresAt: number;
+  /** 브라우저가 직결에 쓸 정보 — 벤더 세부는 어댑터가 채운다 */
+  model: string;
+  provider: 'openai' | 'google';
+  /** WebRTC SDP 교환 엔드포인트 (벤더별) */
+  callUrl: string;
+}
+
+export interface TranslationEngine {
+  /** 서버가 직접 스트림을 릴레이 (모드 A) */
+  openServerSession(opts: OpenOpts): Promise<TranslationSession>;
+  /** 브라우저 직결용 단명 토큰 발급 (모드 B) */
+  mintEphemeralKey(opts: OpenOpts): Promise<EphemeralGrant>;
+  supports(source: SourceLangSetting, target: LangCode): boolean;
+  readonly provider: 'openai' | 'google';
+  readonly capabilities: {
+    audioOut: boolean;
+    browserDirect: boolean;      // WebRTC 직결 가능 여부
+    autoDetectSource: boolean;   // 소스 언어 자동 감지 지원
+    maxSessionSec: number;
+  };
+}
+
+/**
+ * 통역 지시문 — 소스 언어 auto면 다국어 혼합 발화를 전제로 쓴다.
+ * 유저 요구사항: 최대 3개 언어가 섞여도 목적 언어 하나로 통역.
+ */
+export function buildInterpreterInstructions(
+  source: SourceLangSetting,
+  target: LangCode,
+  targetLabel: string,
+): string {
+  const sourceClause =
+    source === 'auto'
+      ? 'Speakers may switch between multiple languages (possibly 2–3 different languages) within the same conversation. Detect the language of each utterance automatically.'
+      : `The speakers talk in "${source}".`;
+  return [
+    'You are a professional simultaneous interpreter.',
+    sourceClause,
+    `Translate every utterance into ${targetLabel} (${target}).`,
+    `If an utterance is already in ${targetLabel}, repeat it verbatim.`,
+    'Output ONLY the translation. Never answer questions, never add commentary, never explain.',
+    'Keep names, numbers, and technical terms accurate.',
+    'Translate incrementally with low latency; prefer short complete sentences.',
+  ].join(' ');
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@sotong/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./types": "./src/types/index.ts",
+    "./schemas": "./src/schemas/index.ts",
+    "./constants": "./src/constants/index.ts",
+    "./engine": "./src/engine/index.ts",
+    "./engine/browser": "./src/engine/browser-webrtc.ts",
+    "./pricing": "./src/pricing/cost.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@sotong/config": "workspace:*",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.7.2"
+  }
+}

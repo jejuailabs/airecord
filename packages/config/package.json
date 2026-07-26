@@ -1,0 +1,10 @@
+{
+  "name": "@sotong/config",
+  "version": "0.1.0",
+  "private": true,
+  "main": "tailwind-preset.js",
+  "files": [
+    "tailwind-preset.js",
+    "tsconfig.base.json"
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "common": {
+    "appName": "Sotong",
+    "nav": {
+      "dashboard": "Dashboard",
+      "live": "In-person",
+      "meeting": "Meeting"
+    },
+    "actions": {
+      "start": "Start",
+      "end": "End",
+      "cancel": "Cancel",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "retry": "Retry",
+      "back": "Back"
+    },
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "Auto"
+    },
+    "language": {
+      "label": "Display language"
+    },
+    "phaseBadge": "Phase 1 preview"
+  },
+  "dashboard": {
+    "title": "Start interpreting",
+    "startInPerson": {
+      "title": "In-person",
+      "subtitle": "Start right away with your mic"
+    },
+    "startMeeting": {
+      "title": "Video meeting",
+      "subtitle": "Paste a meeting link"
+    },
+    "recent": {
+      "title": "Recent sessions",
+      "emptyTitle": "No sessions yet",
+      "emptyHint": "Start an in-person session and captions will pile up here. Saved history arrives with accounts (Phase 2)."
+    }
+  },
+  "live": {
+    "title": "In-person interpreting",
+    "consentNotice": "This conversation is processed for interpretation and records.",
+    "setup": {
+      "micTitle": "Check your microphone",
+      "micRequest": "Allow microphone",
+      "micReady": "Microphone input detected",
+      "micSilent": "No sound detected. Check your microphone position.",
+      "sourceLang": "Spoken language",
+      "autoDetect": "Auto-detect",
+      "autoDetectHint": "Mixed languages are detected per utterance and interpreted automatically.",
+      "targetLang": "Display language",
+      "audioOut": "Voice translation (AI voice)",
+      "audioOutHint": "Voice translation can lag behind captions.",
+      "headsetHint": "Playing through speakers feeds translated audio back into the mic. Use a headset.",
+      "start": "Start interpreting"
+    },
+    "running": {
+      "live": "LIVE",
+      "connecting": "Connecting",
+      "reconnecting": "Restoring the connection. Captions are preserved.",
+      "end": "End",
+      "audioOut": "Voice output",
+      "captionSize": "Caption size",
+      "sizeMd": "Normal",
+      "sizeLg": "Large",
+      "sizeXl": "Extra large",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "latest": "Jump to latest",
+      "capWarning": "The session reaches its time limit in {sec}s and will end automatically.",
+      "omitted": "{count, plural, other {# earlier captions hidden from view}}",
+      "waitingSpeech": "Start speaking and captions will appear here"
+    },
+    "endDialog": {
+      "title": "End this session?",
+      "body": "Captions disappear when you close this screen. Saved records arrive with accounts (Phase 2).",
+      "confirm": "End",
+      "cancel": "Keep interpreting"
+    },
+    "ended": {
+      "title": "Session ended",
+      "duration": "Duration",
+      "segments": "{count, plural, =0 {No captions} other {# captions}}",
+      "again": "Start again",
+      "toDashboard": "Go to dashboard"
+    },
+    "errors": {
+      "micPermission": {
+        "title": "Microphone access was denied",
+        "action": "Allow the microphone in your browser's site permissions, then try again."
+      },
+      "startFailed": {
+        "title": "Could not start the session",
+        "action": "Check your network and try again. If it keeps failing, check the server log for the error message."
+      },
+      "keyMissing": {
+        "title": "Translation engine key is not configured",
+        "action": "Put OPENAI_API_KEY into apps/web/.env.local and restart the dev server."
+      },
+      "connectionLost": {
+        "title": "Lost connection to the translation engine",
+        "action": "The session was ended. Check your network and start again."
+      },
+      "unsupportedPair": {
+        "title": "This language pair is not supported yet",
+        "action": "Pick a different display language."
+      }
+    }
+  },
+  "meeting": {
+    "title": "Meeting interpreting",
+    "subtitle": "Paste a meeting link and the interpreter bot joins the call and posts a caption link into the chat.",
+    "urlLabel": "Meeting link",
+    "urlPlaceholder": "https://zoom.us/j/…",
+    "urlInvalid": "Check the meeting link. Zoom, Teams, Meet and Webex addresses are supported.",
+    "sourceLang": "Spoken language",
+    "autoDetect": "Auto-detect",
+    "targetLang": "Display language",
+    "send": "Send bot",
+    "detected": "Recognized as a {platform} meeting",
+    "consentNotice": "When the bot joins, an interpretation notice is posted in the meeting chat.",
+    "unavailable": {
+      "title": "Meeting mode opens in Phase 4",
+      "body": "The structure (bot join → server relay → caption link) is in place. Once RECALL_API_KEY and the Realtime Worker are connected, this screen goes live.",
+      "docs": "See docs/01 §4.2 · docs/04 §4"
+    }
+  },
+  "viewer": {
+    "consentNotice": "This conversation is recorded for interpretation.",
+    "dismiss": "Dismiss",
+    "waiting": {
+      "title": "Waiting for the caption stream",
+      "hint": "Captions appear in real time once the session starts. Anyone in the meeting can open this link."
+    },
+    "notReady": {
+      "title": "The viewer opens with meeting mode (Phase 4)",
+      "hint": "Once the Firestore live subscription is wired up, this screen shows captions."
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "action": "Back to dashboard"
+  }
+}
