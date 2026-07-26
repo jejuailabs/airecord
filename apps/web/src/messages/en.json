@@ -12,7 +12,13 @@
       "soon": "Soon"
     },
     "shell": {
-      "manage": "Manage"
+      "manage": "Manage",
+      "notifications": "Notifications"
+    },
+    "sidebar": {
+      "monthUsage": "Used this month",
+      "minuteOf": "min / {total}min",
+      "remaining": "{minutes} min left"
     },
     "actions": {
       "start": "Start",
@@ -254,6 +260,8 @@
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
       "latest": "Jump to latest",
+      "enableSound": "Click to turn on interpreter voice",
+      "audioWaiting": "Preparing the translated voice. It plays as soon as someone speaks.",
       "capWarning": "The session reaches its time limit in {sec}s and will end automatically.",
       "omitted": "{count, plural, other {# earlier captions hidden from view}}",
       "waitingSpeech": "Start speaking and captions will appear here"
@@ -305,7 +313,13 @@
   },
   "meeting": {
     "title": "Meeting interpreting",
-    "subtitle": "Paste a meeting link and the interpreter bot joins the call and posts a caption link into the chat.",
+    "subtitle": "Paste a meeting link and the bot joins the call,\nthen posts a caption link into the chat.",
+    "paste": "Paste",
+    "botRow": {
+      "title": "Bot joins and posts the link",
+      "body": "Once the bot joins, it posts the live caption link into the meeting chat.",
+      "badge": "Automatic"
+    },
     "urlLabel": "Meeting link",
     "urlPlaceholder": "https://zoom.us/j/…",
     "urlInvalid": "Check the meeting link. Zoom, Teams, Meet and Webex addresses are supported.",

@@ -41,6 +41,23 @@ const SCHEMA = {
   },
 } as const;
 
+/**
+ * Responses API 출력에서 텍스트를 꺼낸다.
+ * 추론 모델은 output 배열 첫 항목이 'reasoning'이라 [0]만 보면 비어 나온다 — 실측 확인.
+ */
+function extractOutputText(payload: Record<string, unknown>): string | undefined {
+  if (typeof payload.output_text === 'string' && payload.output_text) return payload.output_text;
+  const output = payload.output as
+    | Array<{ content?: Array<{ text?: string }> }>
+    | undefined;
+  for (const item of output ?? []) {
+    for (const c of item.content ?? []) {
+      if (typeof c.text === 'string' && c.text.trim()) return c.text;
+    }
+  }
+  return undefined;
+}
+
 export async function summarizeTranscript(
   lines: Array<{ sourceText: string; targetText: string }>,
   outputLang: string,
@@ -84,12 +101,11 @@ export async function summarizeTranscript(
       console.error('[summarize] failed', res.status, (await res.text()).slice(0, 300));
       return null;
     }
-    const json = (await res.json()) as {
-      output_text?: string;
-      output?: Array<{ content?: Array<{ text?: string }> }>;
-    };
-    const raw = json.output_text ?? json.output?.[0]?.content?.[0]?.text;
-    if (!raw) return null;
+    const raw = extractOutputText((await res.json()) as Record<string, unknown>);
+    if (!raw) {
+      console.error('[summarize] no output text in response');
+      return null;
+    }
     return JSON.parse(raw) as SessionSummary;
   } catch (e) {
     console.error('[summarize] error', e);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Bell, LogOut } from 'lucide-react';
+import { Bell, ChevronRight, LogOut } from 'lucide-react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -48,7 +48,7 @@ export function AppTopbar() {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-20 items-center gap-3 border-b border-border bg-bg/90 px-5 backdrop-blur md:px-8">
+    <header className="sticky top-0 z-10 flex h-[72px] items-center gap-3 border-b border-border bg-bg/90 px-5 backdrop-blur md:px-8">
       {/* 모바일: 사이드바 대신 브랜드 표시 */}
       <Link href="/" className="flex items-center gap-2 font-bold lg:hidden">
         <span
@@ -58,25 +58,30 @@ export function AppTopbar() {
           IL
         </span>
       </Link>
-      <span className="text-[19px] font-semibold">
+      {/* 브레드크럼 */}
+      <nav aria-label="breadcrumb" className="flex items-center gap-2 text-[15px]">
         <span className="text-text-muted">{t('shell.manage')}</span>
-        <span className="mx-2 text-text-faint">·</span>
-        {section}
-      </span>
+        <ChevronRight size={15} aria-hidden className="text-text-faint" />
+        <span className="font-semibold">{section}</span>
+      </nav>
       <div className="ml-auto flex items-center gap-2">
         <LocaleSwitch />
         <ThemeToggle />
-        <span aria-hidden className="hidden h-5 w-px bg-border sm:block" />
-        <Bell size={15} aria-hidden className="hidden text-text-faint sm:block" />
-        <span className="hidden max-w-[140px] truncate text-xs text-text-muted lg:inline">
-          {email ?? ''}
-        </span>
+        <span aria-hidden className="hidden h-6 w-px bg-border sm:block" />
+        <button
+          type="button"
+          aria-label={t('shell.notifications')}
+          className="relative hidden h-9 w-9 items-center justify-center rounded-lg text-text-muted hover:bg-bg-sunken sm:flex"
+        >
+          <Bell size={17} aria-hidden />
+          <span aria-hidden className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-accent" />
+        </button>
         <button
           onClick={logout}
-          title={t('auth.logout')}
-          className="flex h-8 items-center gap-1 rounded-md border border-border px-2.5 text-xs text-text-muted hover:text-text"
+          title={`${email ?? ''} · ${t('auth.logout')}`}
+          className="flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-[13px] text-text-muted hover:text-text"
         >
-          <LogOut size={13} aria-hidden />
+          <LogOut size={14} aria-hidden />
           <span className="hidden sm:inline">{t('auth.logout')}</span>
         </button>
       </div>

@@ -41,12 +41,11 @@ export async function connectBrowserSession(
     }
   });
 
+  // addTrack이 만드는 sendrecv 트랜시버 하나로 송신·수신을 모두 처리한다.
+  // 여기에 recvonly 트랜시버를 추가하면 오디오 m-line이 둘이 되어 협상이 어긋난다.
   for (const track of micStream.getAudioTracks()) {
     pc.addTrack(track, micStream);
   }
-
-  // 번역 오디오를 받기 위한 수신 전용 트랜시버 — 마이크 트랙만으로는 협상되지 않을 수 있다
-  pc.addTransceiver('audio', { direction: 'recvonly' });
 
   const dc = pc.createDataChannel('oai-events');
   const assembler = createSegmentAssembler(

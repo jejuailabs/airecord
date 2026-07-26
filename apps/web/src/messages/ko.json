@@ -12,7 +12,13 @@
       "soon": "준비 중"
     },
     "shell": {
-      "manage": "관리"
+      "manage": "관리",
+      "notifications": "알림"
+    },
+    "sidebar": {
+      "monthUsage": "이번 달 사용량",
+      "minuteOf": "분 / {total}분",
+      "remaining": "남은 시간 {minutes}분"
     },
     "actions": {
       "start": "시작",
@@ -254,6 +260,8 @@
       "fullscreen": "전체화면",
       "exitFullscreen": "전체화면 종료",
       "latest": "최신으로",
+      "enableSound": "클릭해서 통역 음성 켜기",
+      "audioWaiting": "번역 음성을 준비하는 중입니다. 말을 시작하면 통역 음성이 함께 나옵니다.",
       "capWarning": "{sec}초 후 세션 최대 시간에 도달해 자동 종료됩니다.",
       "omitted": "{count, plural, other {이전 자막 #개는 화면에서 생략됨}}",
       "waitingSpeech": "말을 시작하면 자막이 여기에 나타납니다"
@@ -305,7 +313,13 @@
   },
   "meeting": {
     "title": "화상회의 통역",
-    "subtitle": "회의 주소를 붙여넣으면 통역 봇이 회의에 입장해 자막 링크를 채팅에 게시합니다.",
+    "subtitle": "회의 주소를 붙여넣으면 통역 봇이 회의에 입장해\n자막 링크를 채팅에 게시합니다.",
+    "paste": "붙여넣기",
+    "botRow": {
+      "title": "봇 입장 및 링크 게시",
+      "body": "봇이 회의에 입장한 후, 통역 자막 링크를 채팅에 자동으로 게시합니다.",
+      "badge": "자동 처리"
+    },
     "urlLabel": "회의 링크",
     "urlPlaceholder": "https://zoom.us/j/…",
     "urlInvalid": "회의 링크를 다시 확인해 주세요. Zoom·Teams·Meet·Webex 주소를 지원합니다.",

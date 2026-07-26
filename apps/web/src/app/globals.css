@@ -36,6 +36,10 @@
   --caption-target:#F3F5FC;
   --caption-source:#8189AD;
 
+  --chip-bg:       #F1F2F8;
+  --chip-fg:       #5A6079;
+  --chip-border:   #E2E5F0;
+
   --focus:         #6D5AE8;
   --shadow: 0 1px 2px rgb(20 23 43 / .06), 0 8px 24px rgb(20 23 43 / .08);
 }
@@ -69,6 +73,10 @@
   --caption-bg:    #080B1C;
   --caption-target:#F3F5FC;
   --caption-source:#7A82A8;
+
+  --chip-bg:       #1B2140;
+  --chip-fg:       #9AA1C2;
+  --chip-border:   #2A3160;
 
   --focus:         #8B7BFF;
   --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 8px 24px rgb(0 0 0 / .35);
@@ -106,6 +114,74 @@ body {
 }
 .cta-orb-teal {
   background: linear-gradient(145deg, #2DD4BF 0%, #0D9488 100%);
+}
+
+/* ── 시안 톤 공통 요소 ─────────────────────────────── */
+
+/* 주 실행 버튼: 틸 → 바이올렛 그라데이션 */
+.btn-gradient {
+  background: linear-gradient(90deg, #14B8A6 0%, #6D5AE8 55%, #7C4DFF 100%);
+  color: #fff;
+}
+.btn-gradient-violet {
+  background: linear-gradient(90deg, #7C4DFF 0%, #6D5AE8 50%, #4F7DF3 100%);
+  color: #fff;
+}
+.btn-gradient:disabled,
+.btn-gradient-violet:disabled {
+  filter: grayscale(0.7);
+  opacity: 0.45;
+}
+
+/* 행 왼쪽 아이콘 칩 */
+.icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  border: 1px solid var(--chip-border);
+}
+.icon-chip-accent {
+  background: var(--accent-weak);
+  color: var(--accent);
+  border-color: transparent;
+}
+.icon-chip-teal {
+  background: var(--accent-2-weak);
+  color: var(--accent-2);
+  border-color: transparent;
+}
+
+/* 히어로 아이콘 글로우 */
+.hero-glow {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 118px;
+  height: 118px;
+  border-radius: 9999px;
+}
+.hero-glow::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, var(--glow-color) 0%, transparent 68%);
+  opacity: 0.5;
+}
+.hero-glow > * {
+  position: relative;
+}
+
+/* 카드 내부 행 구분선 */
+.row-divide > * + * {
+  border-top: 1px solid var(--border);
 }
 
 /* 라이브 인디케이터 — 2초 주기 밝기 변화. reduce 설정 시 정지 (docs/05 §6) */

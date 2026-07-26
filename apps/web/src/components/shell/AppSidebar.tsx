@@ -9,14 +9,26 @@ import {
   CreditCard,
   Settings,
   HelpCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 
+export interface SidebarUsage {
+  usedMinutes: number;
+  includedMinutes: number;
+}
+
+export interface SidebarAccount {
+  name: string;
+  role: string;
+}
+
 /**
- * InterLive 시안의 좌측 다크 사이드바 — 테마와 무관하게 항상 딥 네이비.
- * 준비 안 된 메뉴는 숨기지 않고 '준비 중'으로 표시한다 (빈 상태가 다음을 안내 — core.md §6).
+ * 좌측 사이드바 — 테마와 무관하게 항상 딥 네이비(시안).
+ * 하단에 사용량 카드와 계정 카드를 둔다.
+ * 준비 안 된 메뉴는 숨기지 않고 '준비 중'으로 표시한다 (core.md §6).
  */
-export function AppSidebar() {
+export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?: SidebarAccount }) {
   const t = useTranslations('common');
   const pathname = usePathname();
 
@@ -30,33 +42,40 @@ export function AppSidebar() {
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
   ] as const;
 
+  const used = usage?.usedMinutes ?? 0;
+  const total = usage?.includedMinutes ?? 0;
+  const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+  const remaining = Math.max(0, total - used);
+
   return (
-    <aside className="hidden w-72 shrink-0 flex-col bg-caption-bg lg:flex xl:w-80">
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-white/5 bg-caption-bg lg:flex xl:w-72">
       <Link
         href="/"
-        className="flex h-20 items-center gap-3 px-6 text-[22px] font-bold tracking-tight text-caption-target"
+        className="flex h-[72px] items-center gap-2.5 px-6 text-[19px] font-bold tracking-tight text-caption-target"
       >
         <span
           aria-hidden
-          className="cta-orb-violet inline-flex h-10 w-10 items-center justify-center rounded-lg text-[15px] font-bold text-white"
+          className="cta-orb-violet inline-flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-bold text-white"
         >
           IL
         </span>
         {t('appName')}
       </Link>
-      <nav className="flex flex-1 flex-col gap-1 px-4 py-4">
+
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
         {items.map((item) => {
-          const active = item.ready && pathname.startsWith(item.href) && item.href !== '/#pricing';
+          const active =
+            item.ready && item.href !== '/#pricing' && pathname.startsWith(item.href);
           const Icon = item.icon;
           if (!item.ready) {
             return (
               <span
                 key={item.href}
-                className="flex h-14 cursor-default items-center gap-3.5 rounded-lg px-4 text-[17px] text-caption-source/50"
+                className="flex h-12 cursor-default items-center gap-3 rounded-lg px-3.5 text-[15px] text-caption-source/45"
               >
-                <Icon size={22} aria-hidden />
+                <Icon size={19} aria-hidden />
                 {item.label}
-                <span className="ml-auto text-[12px]">{t('nav.soon')}</span>
+                <span className="ml-auto text-[11px]">{t('nav.soon')}</span>
               </span>
             );
           }
@@ -64,18 +83,65 @@ export function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex h-14 items-center gap-3.5 rounded-lg px-4 text-[17px] transition-colors duration-150 ${
+              className={`relative flex h-12 items-center gap-3 rounded-lg px-3.5 text-[15px] transition-colors duration-150 ${
                 active
-                  ? 'bg-accent font-semibold text-white'
-                  : 'text-caption-source hover:bg-white/5 hover:text-caption-target'
+                  ? 'bg-white/[.07] font-semibold text-caption-target'
+                  : 'text-caption-source hover:bg-white/[.04] hover:text-caption-target'
               }`}
             >
-              <Icon size={22} aria-hidden />
+              {active ? (
+                <span
+                  aria-hidden
+                  className="absolute right-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-l bg-accent"
+                />
+              ) : null}
+              <Icon size={19} aria-hidden className={active ? 'text-accent' : ''} />
               {item.label}
             </Link>
           );
         })}
       </nav>
+
+      {/* 사용량 카드 */}
+      {usage ? (
+        <div className="mx-3 mb-3 rounded-xl bg-white/[.05] p-4">
+          <p className="text-[12px] text-caption-source">{t('sidebar.monthUsage')}</p>
+          <p className="tabular mt-1 text-[22px] font-bold leading-none text-caption-target">
+            {used}
+            <span className="text-[13px] font-normal text-caption-source">
+              {t('sidebar.minuteOf', { total })}
+            </span>
+          </p>
+          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[12px] text-caption-source">
+            {t('sidebar.remaining', { minutes: remaining })}
+          </p>
+        </div>
+      ) : null}
+
+      {/* 계정 카드 */}
+      {account ? (
+        <div className="mx-3 mb-4 flex items-center gap-3 rounded-xl bg-white/[.05] p-3">
+          <span
+            aria-hidden
+            className="cta-orb-violet flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[14px] font-bold text-white"
+          >
+            {account.name.slice(0, 1).toUpperCase()}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-semibold text-caption-target">
+              {account.name}
+            </span>
+            <span className="block truncate text-[12px] text-caption-source">{account.role}</span>
+          </span>
+          <ChevronDown size={15} aria-hidden className="shrink-0 text-caption-source" />
+        </div>
+      ) : null}
     </aside>
   );
 }

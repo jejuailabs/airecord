@@ -2,7 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Mic, Maximize2, Minimize2, Volume2, VolumeX, Languages, Square } from 'lucide-react';
+import {
+  Mic,
+  Maximize2,
+  Minimize2,
+  Volume2,
+  VolumeX,
+  Square,
+  Globe,
+  Play,
+  Lock,
+  CheckCircle2,
+} from 'lucide-react';
+import { FieldSelect, SettingRow, Toggle } from '@/components/ui/SettingRow';
 import {
   INTERPRET_LANGUAGES,
   HEARTBEAT_INTERVAL_MS,
@@ -67,6 +79,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const [summary, setSummary] = useState<{ billedSeconds: number; segmentCount: number } | null>(
     null,
   );
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
+  const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [trialUsedChars, setTrialUsedChars] = useState(0);
   const [trialBudget, setTrialBudget] = useState(TRIAL_CHAR_LIMIT);
@@ -247,13 +262,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
               if (used >= charBudgetRef.current) void doEnd('cap');
             }
           },
-          onAudioTrack: (stream) => {
-            const el = audioElRef.current;
-            if (!el) return;
-            el.srcObject = stream;
-            el.muted = !audioOutRef.current;
-            void el.play().catch(() => undefined);
-          },
+          // ⚠ 이 시점에는 아직 phase가 'starting'이라 <audio> 엘리먼트가 마운트되지 않았다.
+          // 스트림을 state로 보관했다가 아래 useEffect에서 엘리먼트에 붙인다.
+          onAudioTrack: (stream) => setRemoteStream(stream),
           onError: (e) => {
             if (e.fatal) void doEnd('error');
           },
@@ -324,6 +335,23 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     audioOutRef.current = audioOut;
   }, [audioOut]);
 
+  /**
+   * 번역 오디오 트랙을 <audio>에 연결한다.
+   * 트랙은 연결 직후(phase='starting') 도착하고 엘리먼트는 phase='live'에서 마운트되므로,
+   * 양쪽이 모두 준비된 시점에 붙여야 한다.
+   */
+  useEffect(() => {
+    const el = audioElRef.current;
+    if (!el || !remoteStream) return;
+    if (el.srcObject !== remoteStream) el.srcObject = remoteStream;
+    el.muted = !audioOut;
+    if (!audioOut) return;
+    void el
+      .play()
+      .then(() => setNeedsAudioGesture(false))
+      .catch(() => setNeedsAudioGesture(true)); // 자동재생 차단 — 클릭 유도
+  }, [remoteStream, audioOut, phase]);
+
   // 언마운트 시 정리 — 분(minute)은 곧 돈이다 (core.md §3-6)
   useEffect(() => {
     return () => {
@@ -343,7 +371,12 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     const el = audioElRef.current;
     if (!el) return;
     el.muted = !on;
-    if (on) void el.play().catch(() => undefined);
+    if (on) {
+      void el
+        .play()
+        .then(() => setNeedsAudioGesture(false))
+        .catch(() => setNeedsAudioGesture(true));
+    }
   }, []);
 
   const toggleFullscreen = useCallback(async () => {
@@ -451,69 +484,81 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     const langOptions = INTERPRET_LANGUAGES;
     const micActive = micLevel > 0.03;
     return (
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-7 py-4">
-        <div>
-          <h1 className="text-[34px] font-bold tracking-tight">{t('title')}</h1>
-          <p className="mt-1.5 text-[17px] text-text-muted">{t('setup.lead')}</p>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-2">
+        {/* 히어로 — 아이콘 + 제목 나란히 */}
+        <div className="flex flex-col items-center gap-6 pt-6 sm:flex-row sm:justify-center">
+          <span
+            className="hero-glow cta-orb-teal text-white"
+            style={{ ['--glow-color' as string]: 'rgb(45 212 191 / .55)' }}
+            aria-hidden
+          >
+            <Mic size={46} />
+          </span>
+          <div className="text-center sm:text-left">
+            <h1 className="text-[40px] font-bold leading-tight tracking-tight">{t('title')}</h1>
+            <p className="mt-1 text-[16px] text-text-muted">{t('setup.lead')}</p>
+          </div>
         </div>
+
         {error ? <ErrorBanner k={error} /> : null}
 
-        {/* 1. 마이크 — 소리가 들어오는지 눈으로 확인시킨다 */}
-        <section className="flex items-center gap-5 rounded-xl border border-border bg-bg-raised p-6">
-          <span
-            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition-colors duration-150 ${
-              micStream ? (micActive ? 'cta-orb-violet text-white' : 'bg-accent-weak text-accent') : 'bg-bg-sunken text-text-faint'
-            }`}
+        {/* 설정 카드 — 행 하나당 아이콘 칩 하나 */}
+        <section className="row-divide overflow-hidden rounded-2xl border border-border bg-bg-raised">
+          {/* 마이크 */}
+          <SettingRow
+            icon={<Mic size={20} />}
+            tone={micActive ? 'teal' : 'default'}
+            label={t('setup.micTitle')}
+            right={
+              micStream ? (
+                <span
+                  className={`flex items-center gap-1.5 text-[13.5px] font-semibold ${
+                    micActive ? 'text-accent-2' : 'text-text-faint'
+                  }`}
+                >
+                  <CheckCircle2 size={15} aria-hidden />
+                  {micActive ? t('setup.micReady') : t('setup.micSilent')}
+                </span>
+              ) : (
+                <button
+                  onClick={requestMic}
+                  className="h-10 rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-text"
+                >
+                  {t('setup.micRequest')}
+                </button>
+              )
+            }
           >
-            <Mic size={26} aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[19px] font-semibold">{t('setup.micTitle')}</h2>
             {micStream ? (
-              <>
-                <div className="mt-2.5 flex h-3 gap-1 overflow-hidden">
-                  {Array.from({ length: 28 }).map((_, i) => (
+              <div className="flex h-8 items-center gap-[3px]">
+                {Array.from({ length: 44 }).map((_, i) => {
+                  const on = micLevel * 44 > i;
+                  return (
                     <span
                       key={i}
-                      className={`h-full flex-1 rounded-sm transition-colors duration-75 ${
-                        micLevel * 28 > i ? 'bg-accent' : 'bg-bg-sunken'
+                      className={`w-[3px] rounded-full transition-all duration-75 ${
+                        on ? 'bg-accent-2' : 'bg-border'
                       }`}
+                      style={{ height: on ? `${20 + ((i * 37) % 14)}px` : '4px' }}
                     />
-                  ))}
-                </div>
-                <p className="mt-2 text-[15px] text-text-muted">
-                  {micActive ? t('setup.micReady') : t('setup.micSilent')}
-                </p>
-              </>
+                  );
+                })}
+              </div>
             ) : (
-              <p className="mt-1 text-[15px] text-text-muted">{t('setup.micNeed')}</p>
+              <p className="text-[13.5px] text-text-faint">{t('setup.micNeed')}</p>
             )}
-          </div>
-          {!micStream ? (
-            <button
-              onClick={requestMic}
-              className="h-12 shrink-0 rounded-lg bg-accent px-6 text-[16px] font-semibold text-accent-text"
-            >
-              {t('setup.micRequest')}
-            </button>
-          ) : null}
-        </section>
+          </SettingRow>
 
-        {/* 2. 언어 — 입력은 자동 감지, 유저가 고르는 건 표시 언어뿐 (core.md §3-1) */}
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-bg-raised p-6">
-            <label
-              htmlFor="source-lang"
-              className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-text-muted"
-            >
-              <Languages size={15} aria-hidden />
-              {t('setup.sourceLang')}
-            </label>
-            <select
+          {/* 입력 언어 — 자동 감지 기본 */}
+          <SettingRow
+            icon={<Globe size={20} />}
+            label={t('setup.sourceLang')}
+            hint={sourceLang === 'auto' ? t('setup.autoDetectHint') : undefined}
+          >
+            <FieldSelect
               id="source-lang"
               value={sourceLang}
               onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
-              className="h-14 rounded-lg border border-border bg-bg-sunken px-4 text-[19px] font-semibold"
             >
               <option value="auto">{t('setup.autoDetect')}</option>
               {langOptions.map((l) => (
@@ -521,27 +566,22 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
                   {l.label}
                 </option>
               ))}
-            </select>
-            {sourceLang === 'auto' ? (
-              <p className="text-[14px] leading-snug text-text-faint">{t('setup.autoDetectHint')}</p>
-            ) : null}
-          </div>
+            </FieldSelect>
+          </SettingRow>
 
-          <div className="flex flex-col gap-2.5 rounded-xl border border-accent bg-bg-raised p-6">
-            <label
-              htmlFor="target-lang"
-              className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wider text-accent"
-            >
-              <Languages size={15} aria-hidden />
-              {t('setup.targetLang')}
-            </label>
-            <select
+          {/* 표시 언어 — 유저가 고르는 유일한 값 (core.md §3-1) */}
+          <SettingRow
+            icon={<span className="text-[17px] font-bold">A</span>}
+            tone="accent"
+            label={t('setup.targetLang')}
+            hint={t('setup.targetHint')}
+          >
+            <FieldSelect
               id="target-lang"
               value={targetLang}
               onChange={(e) => setTargetLang(e.target.value as LangCode)}
-              className="h-14 rounded-lg border border-border bg-bg-sunken px-4 text-[19px] font-semibold"
             >
-              {/* 출력 언어는 엔진 지원 목록만 노출 — 선택 불가 조합은 애초에 못 고르게 (docs/04 §2) */}
+              {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
               {langOptions
                 .filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code))
                 .map((l) => (
@@ -549,49 +589,33 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
                     {l.label}
                   </option>
                 ))}
-            </select>
-            <p className="text-[14px] leading-snug text-text-faint">{t('setup.targetHint')}</p>
-          </div>
-        </section>
+            </FieldSelect>
+          </SettingRow>
 
-        {/* 3. 음성 출력 — 옵션 채널. 사과하지 말고 사실만 적는다 (docs/04 §3) */}
-        <section className="flex flex-col gap-3 rounded-xl border border-border bg-bg-raised p-6">
-          <label className="flex cursor-pointer items-center gap-4">
-            <span
-              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
-                audioOut ? 'cta-orb-teal text-white' : 'bg-bg-sunken text-text-faint'
-              }`}
-            >
-              {audioOut ? <Volume2 size={20} aria-hidden /> : <VolumeX size={20} aria-hidden />}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[17px] font-semibold">{t('setup.audioOut')}</span>
-              <span className="block text-[14px] text-text-faint">{t('setup.audioOutHint')}</span>
-            </span>
-            <input
-              type="checkbox"
-              checked={audioOut}
-              onChange={(e) => setAudioOut(e.target.checked)}
-              className="h-6 w-6 shrink-0 accent-[color:var(--accent)]"
-            />
-          </label>
-          {audioOut ? (
-            <p className="rounded-lg bg-warn-weak px-4 py-2.5 text-[14px] text-warn">
-              {t('setup.headsetHint')}
-            </p>
-          ) : null}
+          {/* 음성 출력 — 옵션 채널. 사과하지 말고 사실만 적는다 (docs/04 §3) */}
+          <SettingRow
+            icon={audioOut ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            tone={audioOut ? 'teal' : 'default'}
+            label={t('setup.audioOut')}
+            hint={audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
+            right={<Toggle checked={audioOut} onChange={setAudioOut} label={t('setup.audioOut')} />}
+          />
         </section>
 
         <div className="flex flex-col gap-3">
           <button
             onClick={start}
             disabled={!micStream || phase === 'starting'}
-            className="h-16 rounded-xl bg-accent text-[19px] font-bold text-accent-text transition-opacity duration-150 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-gradient flex h-16 items-center justify-center gap-2.5 rounded-xl text-[19px] font-bold transition-opacity duration-150 disabled:cursor-not-allowed"
           >
+            <Play size={20} aria-hidden fill="currentColor" />
             {phase === 'starting' ? t('running.connecting') : t('setup.start')}
           </button>
           {/* 고지 — 시작이 곧 동의 (docs/08 §2.2) */}
-          <p className="text-center text-[14px] text-text-faint">{t('consentNotice')}</p>
+          <p className="flex items-center justify-center gap-1.5 text-[13.5px] text-text-faint">
+            <Lock size={13} aria-hidden />
+            {t('consentNotice')}
+          </p>
         </div>
       </div>
     );
@@ -632,6 +656,32 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         <div className="shrink-0 rounded-lg bg-warn-weak px-5 py-3 text-[16px] font-semibold text-warn">
           {t('running.capWarning', { sec: remainingSec })}
         </div>
+      ) : null}
+
+      {/* 자동재생이 막힌 경우 — 클릭 한 번으로 소리를 켠다 */}
+      {audioOut && needsAudioGesture ? (
+        <button
+          onClick={() => {
+            const el = audioElRef.current;
+            if (!el) return;
+            el.muted = false;
+            void el
+              .play()
+              .then(() => setNeedsAudioGesture(false))
+              .catch(() => undefined);
+          }}
+          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-weak px-5 py-3 text-[16px] font-semibold text-accent"
+        >
+          <Volume2 size={18} aria-hidden />
+          {t('running.enableSound')}
+        </button>
+      ) : null}
+
+      {/* 음성은 켰는데 트랙이 아직 없을 때 — 원인을 알려준다 */}
+      {audioOut && !remoteStream ? (
+        <p className="shrink-0 rounded-lg bg-bg-sunken px-5 py-2.5 text-[14px] text-text-muted">
+          {t('running.audioWaiting')}
+        </p>
       ) : null}
 
       <CaptionPanel segments={segments} scale={SIZE_SCALE[captionSize]} live />
@@ -689,8 +739,17 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         </button>
       </div>
 
-      {/* 번역 오디오 — 재생 큐가 밀리면 트랙이 실시간을 따라간다 (WebRTC 라이브 트랙) */}
-      <audio ref={audioElRef} autoPlay className="hidden" />
+      {/*
+        번역 오디오 — WebRTC 라이브 트랙이라 밀린 음성이 쌓이지 않고 실시간을 따라간다.
+        display:none이면 재생을 막는 브라우저가 있어 화면 밖으로만 밀어낸다.
+      */}
+      <audio
+        ref={audioElRef}
+        autoPlay
+        playsInline
+        className="pointer-events-none absolute h-px w-px opacity-0"
+        aria-hidden
+      />
 
       {confirmEnd ? (
         <div
