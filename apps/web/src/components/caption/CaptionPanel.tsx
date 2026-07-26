@@ -76,7 +76,15 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
         </div>,
       );
     }
-    rows.push(<SegmentRow key={seg.seq} seg={seg} scale={scale} showSource={showSource} />);
+    rows.push(
+      <SegmentRow
+        key={seg.seq}
+        seg={seg}
+        scale={scale}
+        showSource={showSource}
+        sameLangLabel={t('sameLanguage')}
+      />,
+    );
   }
 
   return (

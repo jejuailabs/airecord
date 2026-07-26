@@ -48,8 +48,32 @@ export interface OpenOpts {
   sessionId: string;
 }
 
+/** 언어 코드 → 문자 종류. 원문이 표시 언어와 같은 문자인지 판단할 때 쓴다. */
+export function scriptOfLang(lang: string): string {
+  switch (lang) {
+    case 'ko':
+      return 'KO';
+    case 'ja':
+      return 'JA';
+    case 'zh':
+      return 'ZH';
+    case 'ru':
+      return 'RU';
+    case 'ar':
+      return 'AR';
+    case 'th':
+      return 'TH';
+    case 'hi':
+      return 'HI';
+    default:
+      return 'ABC'; // 라틴 문자권 (en, es, fr, de, pt, it, id, vi …)
+  }
+}
+
 export interface EphemeralGrant {
   key: string;
+  /** 표시 언어 — 조립기가 "번역 없음" 판정에 쓴다 */
+  targetLang?: string;
   /** epoch ms */
   expiresAt: number;
   /** 브라우저가 직결에 쓸 정보 — 벤더 세부는 어댑터가 채운다 */

@@ -12,6 +12,8 @@
  *    → 원문은 문장 단위로 큐에 쌓아 두고, 번역이 확정될 때 문장 수만큼 꺼내 짝지운다.
  */
 import type { EngineSegment } from './types';
+import { scriptOfLang } from './types';
+import { guessScript } from '../constants';
 
 interface RealtimeEvent {
   type: string;
@@ -29,8 +31,19 @@ export interface SegmentAssembler {
 }
 
 export interface AssemblerOptions {
-  /** 이 시간 동안 델타가 없으면 현재 세그먼트를 확정한다 */
+  /**
+   * 표시 언어 코드. 원문이 이 언어와 같은 문자일 때만 "번역 없음" 처리를 한다.
+   * 없으면 번역이 늦게 오는 것과 번역이 아예 없는 것을 구분하지 못한다.
+   */
+  targetLang?: string;
+  /** 문장이 끝난 상태에서 이 시간 동안 델타가 없으면 확정한다 */
   pauseMs?: number;
+  /**
+   * 문장 도중일 때 기다리는 시간.
+   * 번역 델타 간격은 실측 p99 1.4초·최대 1.7초까지 벌어진다(2026-07 측정).
+   * 짧게 잡으면 "아직 올 내용이 남았는데" 자막이 끊긴다.
+   */
+  midSentencePauseMs?: number;
   /** 번역문이 이 길이를 넘고 문장부호로 끝나면 확정한다 */
   softMaxChars?: number;
   /** 문장부호가 없어도 이 길이를 넘으면 끊는다 (모델이 구두점을 안 붙이는 경우가 있다) */
@@ -46,7 +59,13 @@ export function createSegmentAssembler(
   onError?: (code: string, message: string) => void,
   options: AssemblerOptions = {},
 ): SegmentAssembler {
-  const pauseMs = options.pauseMs ?? 900;
+  const pauseMs = options.pauseMs ?? 800;
+  const midSentencePauseMs = options.midSentencePauseMs ?? 2_400;
+  const targetLang = options.targetLang;
+  /** 번역 델타가 이만큼 없어야 "번역이 아예 없는 발화"로 본다 */
+  const untranslatedIdleMs = 3_000;
+  /** 마지막 번역 델타 시각 */
+  let lastOutputAt = 0;
   const softMaxChars = options.softMaxChars ?? 24;
   const hardMaxChars = options.hardMaxChars ?? 52;
   /** 어떤 경우에도 이 길이를 넘기지 않는다 (단어 경계를 못 만나도 강제로 끊는다) */
@@ -139,13 +158,22 @@ export function createSegmentAssembler(
 
   /**
    * 표시 언어와 같은 언어로 말하면 모델이 번역을 만들지 않는다(문서화된 동작).
-   * 그대로 두면 그 발화는 화면에 아무것도 안 뜬다 —
-   * 원문만 도착하고 번역이 오지 않으면 원문을 그대로 자막으로 내보낸다.
+   * 그 발화가 화면에서 사라지지 않도록 원문을 그대로 자막으로 내보낸다.
+   *
+   * ⚠ 단, "번역이 늦는 것"과 "번역이 없는 것"을 반드시 구분해야 한다.
+   * 구분하지 않으면 번역이 도착하기 전에 원문을 먼저 소비해 버려서
+   * 뒤이어 오는 번역 자막의 원문 칸이 통째로 비어 버린다(실측으로 확인한 사고).
+   * 그래서 (1) 원문 문자가 표시 언어와 같고 (2) 번역 델타가 오래 없을 때만 내보낸다.
    */
   function flushUntranslated() {
     if (current) return;
     const text = [...pendingSentences, sourcePartial.trim()].filter(Boolean).join(' ').trim();
     if (!text || !/[\p{L}\p{N}]/u.test(text)) return;
+
+    // 번역이 최근에 왔다면 아직 따라오는 중이다 — 기다린다
+    if (lastOutputAt && Date.now() - lastOutputAt < untranslatedIdleMs) return;
+    // 문자 종류가 표시 언어와 다르면 번역이 나올 발화다 — 기다린다
+    if (targetLang && guessScript(text) !== scriptOfLang(targetLang)) return;
     pendingSentences = [];
     sourcePartial = '';
     const seg: EngineSegment = {
@@ -169,7 +197,11 @@ export function createSegmentAssembler(
 
   function armPauseTimer() {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(onPause, pauseMs);
+    // 문장이 아직 안 끝났으면 더 기다린다 — 뒤에 올 내용을 잘라먹지 않기 위해서다.
+    // 문장이 끝난 뒤에는 짧게 끊어 자막이 늦게 확정되지 않게 한다.
+    const midSentence =
+      !!current && current.targetText.length > 0 && !SENTENCE_END.test(current.targetText);
+    timer = setTimeout(onPause, midSentence ? midSentencePauseMs : pauseMs);
   }
 
   function ensureSegment(): EngineSegment {
@@ -210,6 +242,7 @@ export function createSegmentAssembler(
         case 'session.output_transcript.delta':
         case 'response.output_text.delta':
         case 'response.output_audio_transcript.delta': {
+          lastOutputAt = Date.now();
           const seg = ensureSegment();
           seg.targetText += evt.delta ?? '';
           emit();

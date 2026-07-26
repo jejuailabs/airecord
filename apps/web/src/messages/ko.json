@@ -242,9 +242,9 @@
       "lead": "세 단계면 시작합니다.",
       "steps": {
         "mic": "마이크",
-        "source": "입력 언어",
         "target": "표시 언어"
       },
+      "autoDetectFixed": "입력 언어는 발화마다 자동으로 감지됩니다. 여러 언어가 섞여도 {target}로 통역합니다.",
       "next": "다음",
       "micAllowed": "허용됨",
       "titleLabel": "제목 (선택)",
@@ -290,6 +290,7 @@
       "audioWaiting": "번역 음성을 준비하는 중입니다. 말을 시작하면 통역 음성이 함께 나옵니다.",
       "capWarning": "{sec}초 후 세션 최대 시간에 도달해 자동 종료됩니다.",
       "omitted": "{count, plural, other {이전 자막 #개는 화면에서 생략됨}}",
+      "sameLanguage": "표시 언어와 같은 말",
       "waitingSpeech": "말을 시작하면 자막이 여기에 나타납니다"
     },
     "endDialog": {

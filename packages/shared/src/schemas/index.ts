@@ -76,6 +76,24 @@ export const sessionEndResponseSchema = z.object({
 });
 export type SessionEndResponse = z.infer<typeof sessionEndResponseSchema>;
 
+// ── POST /api/translate/text ────────────────────────
+export const translateTextRequestSchema = z.object({
+  text: z.string().max(20_000),
+  sourceLang: sourceLangSchema,
+  targetLang: langCodeSchema,
+  tone: z.enum(['plain', 'formal', 'casual']).default('plain'),
+});
+export type TranslateTextRequest = z.infer<typeof translateTextRequestSchema>;
+
+export const translateTextResponseSchema = z.object({
+  translated: z.string(),
+  detectedLang: z.string().optional(),
+  notes: z.array(z.string()).optional(),
+  /** 비회원 체험 잔여 글자수 (로그인 사용자는 null) */
+  remainingChars: z.number().nullable().default(null),
+});
+export type TranslateTextResponse = z.infer<typeof translateTextResponseSchema>;
+
 // ── POST /api/meeting/join (모드 A — Phase 4) ───────
 export const meetingJoinRequestSchema = z.object({
   url: z.string().url(),

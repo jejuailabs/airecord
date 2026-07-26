@@ -144,8 +144,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       setMicStream(stream);
-      // 허용되면 바로 다음 단계로 — 유저가 한 번 더 누를 이유가 없다
-      setStep(2);
+      setStep(2); // 허용되면 바로 다음 단계로 — 유저가 한 번 더 누를 이유가 없다
     } catch {
       setError('micPermission');
     }
@@ -266,6 +265,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       const session = await connectBrowserSession(
         {
           key: grant.ephemeralKey,
+          targetLang,
           expiresAt: grant.keyExpiresAt,
           model: grant.model,
           provider: grant.provider,
@@ -611,6 +611,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     const micActive = micLevel > 0.03;
     const micReady = Boolean(micStream);
 
+    // 입력 언어 단계는 없앴다 — 이 엔진은 입력 언어 지정을 받지 않고 항상 자동 감지한다(실측 확인).
     const steps: StepDef[] = [
       {
         id: 1,
@@ -621,13 +622,6 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       },
       {
         id: 2,
-        icon: <Globe size={24} />,
-        label: t('setup.steps.source'),
-        done: micReady && step > 2,
-        locked: !micReady,
-      },
-      {
-        id: 3,
         icon: <span className="text-[19px] font-bold">A</span>,
         label: t('setup.steps.target'),
         done: false,
@@ -765,39 +759,6 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
           {step === 2 ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-3">
-                <span className="icon-chip" aria-hidden>
-                  <Globe size={20} />
-                </span>
-                <div>
-                  <h2 className="text-[17px] font-semibold">{t('setup.sourceLang')}</h2>
-                  <p className="text-[13.5px] text-text-faint">{t('setup.autoDetectHint')}</p>
-                </div>
-              </div>
-              <FieldSelect
-                id="source-lang"
-                value={sourceLang}
-                onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
-              >
-                <option value="auto">{t('setup.autoDetect')}</option>
-                {langOptions.map((l) => (
-                  <option key={l.code} value={l.code}>
-                    {l.label}
-                  </option>
-                ))}
-              </FieldSelect>
-              <button
-                onClick={() => setStep(3)}
-                className="flex h-12 items-center justify-center gap-1.5 rounded-xl bg-accent text-[15px] font-bold text-accent-text"
-              >
-                {t('setup.next')}
-                <ChevronRight size={17} aria-hidden />
-              </button>
-            </div>
-          ) : null}
-
-          {step === 3 ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
                 <span className="icon-chip icon-chip-accent" aria-hidden>
                   <span className="text-[17px] font-bold">A</span>
                 </span>
@@ -838,11 +799,10 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
                 <p className="text-[13px] text-text-faint">{t('setup.titleHint')}</p>
               </div>
 
-              <p className="rounded-lg bg-bg-sunken px-4 py-2.5 text-[13.5px] text-text-muted">
-                {t('setup.readyHint', {
-                  source: sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang),
-                  target: languageLabel(targetLang),
-                })}
+              {/* 입력 언어는 엔진이 발화마다 자동 감지한다 (지정 파라미터가 없다) */}
+              <p className="flex items-start gap-2 rounded-lg bg-bg-sunken px-4 py-2.5 text-[13.5px] text-text-muted">
+                <Globe size={15} aria-hidden className="mt-0.5 shrink-0 text-accent" />
+                {t('setup.autoDetectFixed', { target: languageLabel(targetLang) })}
               </p>
             </div>
           ) : null}
@@ -951,70 +911,80 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       <CaptionPanel segments={segments} scale={SIZE_SCALE[captionSize]} live />
 
       {/* 컨트롤 4개를 넘지 않는다: 종료 / 음성 출력 / 자막 크기 / 전체화면 (docs/06 §2.2) */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
+      {/* 컨트롤 한 줄 — 좁은 화면에서는 보조 버튼을 아이콘만 남긴다 (docs/06 §2.2) */}
+      <div className="flex shrink-0 items-center gap-2">
         <button
           onClick={() => setConfirmEnd(true)}
-          className="flex h-14 items-center gap-2.5 rounded-xl bg-danger px-6 text-[17px] font-bold text-white"
+          className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-danger px-4 text-[15px] font-bold text-white sm:px-5"
         >
-          <Square size={16} aria-hidden fill="currentColor" />
+          <Square size={14} aria-hidden fill="currentColor" />
           {t('running.end')}
         </button>
         <button
           onClick={togglePause}
           aria-pressed={paused}
-          className={`flex h-14 items-center gap-2.5 rounded-xl border-2 px-6 text-[16px] font-semibold transition-colors duration-150 ${
+          className={`flex h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-[15px] font-semibold transition-colors duration-150 ${
             paused ? 'border-warn bg-warn-weak text-warn' : 'border-border text-text'
           }`}
         >
           {paused ? (
-            <Play size={19} aria-hidden fill="currentColor" />
+            <Play size={16} aria-hidden fill="currentColor" />
           ) : (
-            <Pause size={19} aria-hidden fill="currentColor" />
+            <Pause size={16} aria-hidden fill="currentColor" />
           )}
           {paused ? t('running.resume') : t('running.pause')}
         </button>
-        <button
-          onClick={() => toggleAudioOut(!audioOut)}
-          aria-pressed={audioOut}
-          className={`flex h-14 items-center gap-2.5 rounded-xl border-2 px-6 text-[16px] font-semibold transition-colors duration-150 ${
-            audioOut
-              ? 'border-accent-2 bg-accent-2-weak text-accent-2'
-              : 'border-border text-text-muted'
-          }`}
-        >
-          {audioOut ? <Volume2 size={19} aria-hidden /> : <VolumeX size={19} aria-hidden />}
-          {t('running.audioOut')}
-        </button>
-        <div
-          role="radiogroup"
-          aria-label={t('running.captionSize')}
-          className="flex h-14 items-center rounded-xl border border-border p-1"
-        >
-          {(['md', 'lg', 'xl'] as const).map((s) => (
-            <button
-              key={s}
-              role="radio"
-              aria-checked={captionSize === s}
-              onClick={() => setCaptionSize(s)}
-              className={`h-12 rounded-lg px-4 text-[16px] transition-colors duration-150 ${
-                captionSize === s
-                  ? 'bg-accent font-bold text-accent-text'
-                  : 'text-text-muted hover:text-text'
-              }`}
-            >
-              {s === 'md' ? t('running.sizeMd') : s === 'lg' ? t('running.sizeLg') : t('running.sizeXl')}
-            </button>
-          ))}
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => toggleAudioOut(!audioOut)}
+            aria-pressed={audioOut}
+            aria-label={t('running.audioOut')}
+            title={t('running.audioOut')}
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-150 ${
+              audioOut
+                ? 'border-accent-2 bg-accent-2-weak text-accent-2'
+                : 'border-border text-text-muted'
+            }`}
+          >
+            {audioOut ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
+          </button>
+
+          <div
+            role="radiogroup"
+            aria-label={t('running.captionSize')}
+            className="flex h-12 items-center rounded-xl border border-border px-1"
+          >
+            {(['md', 'lg', 'xl'] as const).map((s, i) => (
+              <button
+                key={s}
+                role="radio"
+                aria-checked={captionSize === s}
+                aria-label={
+                  s === 'md' ? t('running.sizeMd') : s === 'lg' ? t('running.sizeLg') : t('running.sizeXl')
+                }
+                onClick={() => setCaptionSize(s)}
+                className={`flex h-10 w-9 items-center justify-center rounded-lg font-bold transition-colors duration-150 ${
+                  captionSize === s
+                    ? 'bg-accent text-accent-text'
+                    : 'text-text-muted hover:text-text'
+                }`}
+                style={{ fontSize: `${12 + i * 3}px` }}
+              >
+                가
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? t('running.exitFullscreen') : t('running.fullscreen')}
+            title={isFullscreen ? t('running.exitFullscreen') : t('running.fullscreen')}
+            className="flex h-12 w-12 items-center justify-center rounded-xl border border-border text-text-muted"
+          >
+            {isFullscreen ? <Minimize2 size={18} aria-hidden /> : <Maximize2 size={18} aria-hidden />}
+          </button>
         </div>
-        <button
-          onClick={toggleFullscreen}
-          className="ml-auto flex h-14 items-center gap-2.5 rounded-xl border border-border px-6 text-[16px] font-semibold text-text-muted"
-        >
-          {isFullscreen ? <Minimize2 size={19} aria-hidden /> : <Maximize2 size={19} aria-hidden />}
-          <span className="hidden sm:inline">
-            {isFullscreen ? t('running.exitFullscreen') : t('running.fullscreen')}
-          </span>
-        </button>
       </div>
 
       {/*

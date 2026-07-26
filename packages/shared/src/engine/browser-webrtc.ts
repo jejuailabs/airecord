@@ -51,6 +51,7 @@ export async function connectBrowserSession(
   const assembler = createSegmentAssembler(
     (s) => cbs.onSegment(s),
     (code, message) => cbs.onError?.({ code, message, fatal: false }),
+    { targetLang: grant.targetLang },
   );
   dc.addEventListener('message', (ev) => {
     try {

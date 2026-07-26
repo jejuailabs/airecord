@@ -9,6 +9,8 @@ export interface SegmentRowProps {
   /** 자막 크기 배율 — 보통 ×1.0 / 크게 ×1.3 / 아주 크게 ×1.7 */
   scale: number;
   showSource: boolean;
+  /** "같은 언어라 번역 없음" 배지 문구 */
+  sameLangLabel: string;
 }
 
 /**
@@ -19,16 +21,20 @@ export interface SegmentRowProps {
  * 고정 px로 두면 모바일에서 한 줄에 두세 글자만 보이고, 회의실 모니터에서는 너무 작다.
  */
 export const SegmentRow = memo(
-  function SegmentRow({ seg, scale, showSource }: SegmentRowProps) {
+  function SegmentRow({ seg, scale, showSource, sameLangLabel }: SegmentRowProps) {
     const langBadge = seg.detectedLang ?? guessScript(seg.sourceText || seg.targetText);
     return (
       <div className="flex flex-col gap-1.5 py-4">
         {/* 엔진이 언어 코드를 주지 않으므로 원문 문자로 추정해 표시한다 */}
-        {langBadge ? (
-          <span className="text-[11px] font-medium uppercase tracking-wide text-caption-source">
-            {langBadge}
-          </span>
-        ) : null}
+        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-caption-source">
+          {langBadge}
+          {/* 표시 언어와 같은 말이라 번역이 생성되지 않은 경우 — 원문 줄이 없는 이유를 밝힌다 */}
+          {seg.sameAsTarget ? (
+            <span className="rounded-sm bg-white/10 px-1.5 py-0.5 normal-case tracking-normal">
+              {sameLangLabel}
+            </span>
+          ) : null}
+        </span>
         <p
           className={`font-semibold tracking-tight text-caption-target ${
             seg.isFinal ? '' : 'caption-caret'
@@ -60,6 +66,7 @@ export const SegmentRow = memo(
     prev.seg.sourceText === next.seg.sourceText &&
     prev.seg.targetText === next.seg.targetText &&
     prev.seg.detectedLang === next.seg.detectedLang &&
+    prev.seg.sameAsTarget === next.seg.sameAsTarget &&
     prev.scale === next.scale &&
     prev.showSource === next.showSource,
 );

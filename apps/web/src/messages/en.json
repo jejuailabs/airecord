@@ -241,9 +241,9 @@
       "lead": "Three steps and you're live.",
       "steps": {
         "mic": "Microphone",
-        "source": "Spoken",
         "target": "Display"
       },
+      "autoDetectFixed": "The spoken language is detected per utterance. Mixed languages are all interpreted into {target}.",
       "next": "Next",
       "micAllowed": "Allowed",
       "titleLabel": "Title (optional)",
@@ -286,6 +286,7 @@
       "audioWaiting": "Preparing the translated voice. It plays as soon as someone speaks.",
       "capWarning": "The session reaches its time limit in {sec}s and will end automatically.",
       "omitted": "{count, plural, other {# earlier captions hidden from view}}",
+      "sameLanguage": "same as display language",
       "waitingSpeech": "Start speaking and captions will appear here"
     },
     "endDialog": {

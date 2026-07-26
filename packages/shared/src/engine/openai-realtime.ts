@@ -107,6 +107,7 @@ async function mintEphemeralKey(opts: OpenOpts): Promise<EphemeralGrant> {
   const json = (await res.json()) as { value: string; expires_at: number };
   return {
     key: json.value,
+    targetLang: opts.targetLang,
     expiresAt: json.expires_at * 1000,
     model: modelName(),
     provider: 'openai',
@@ -128,6 +129,7 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
   const assembler = createSegmentAssembler(
     (s) => segmentCbs.forEach((cb) => cb(s)),
     (code, message) => errorCbs.forEach((cb) => cb({ code, message, fatal: false })),
+    { targetLang: opts.targetLang },
   );
 
   await new Promise<void>((resolve, reject) => {
