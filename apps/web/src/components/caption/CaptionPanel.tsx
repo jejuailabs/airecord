@@ -6,6 +6,8 @@ import { ArrowDown } from 'lucide-react';
 import type { EngineSegment } from '@sotong/shared/engine';
 import { SegmentRow } from './SegmentRow';
 import { ParallelRows } from './ParallelRows';
+import { StackedPanes } from './StackedPanes';
+import { useIsNarrow } from '@/hooks/useIsNarrow';
 
 const MAX_DOM_SEGMENTS = 400; // 세그먼트 500 초과 대비 — 오래된 것은 DOM에서 뺀다 (docs/04 §3)
 const TICK_MS = 30_000;       // 타임 레일 눈금 주기 (docs/05 §1)
@@ -55,6 +57,8 @@ export function CaptionPanel({
   const t = useTranslations('live.running');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
+  /** 좁은 화면은 좌우가 성립하지 않는다 — 화면을 위아래로 갈라 각자 스크롤시킨다 */
+  const narrow = useIsNarrow();
 
   const visible = segments.slice(-MAX_DOM_SEGMENTS);
   const omitted = segments.length - visible.length;
@@ -117,6 +121,20 @@ export function CaptionPanel({
         sameLangLabel={t('sameLanguage')}
         justPaired={justPairedSeqs?.has(seg.seq)}
       />,
+    );
+  }
+
+  if (narrow) {
+    return (
+      <StackedPanes
+        paired={segments}
+        pendingTarget={pendingTarget}
+        pendingSource={pendingSource}
+        scale={scale}
+        targetLabel={parallelLabels?.target ?? ''}
+        sourceLabel={parallelLabels?.source ?? ''}
+        emptyLabel={t('waitingSpeech')}
+      />
     );
   }
 

@@ -48,8 +48,12 @@ export const ParallelRows = memo(function ParallelRows({
         ))}
       </div>
 
-      {/* 원문 — 전사 레그가 굶으면 비어 있을 수 있다. 좁은 화면에서는 감춘다. */}
-      <div className="hidden flex-col gap-3 sm:flex">
+      {/*
+        원문 — 전사 레그가 굶으면 비어 있을 수 있다.
+        ⚠ 좁은 화면에서 감추지 않는다. 감추면 "원문이 안 온다"와 "원문을 안 보여준다"를
+        구분할 수 없어 문제 추적이 불가능해진다. 모바일에서는 아래로 쌓인다.
+      */}
+      <div className="flex flex-col gap-3 border-t border-[color:var(--caption-source)]/20 pt-3 sm:border-t-0 sm:pt-0">
         <span className="text-[11px] font-medium uppercase tracking-wide text-caption-source">
           {sourceLabel}
         </span>
