@@ -19,8 +19,13 @@
     },
     "sidebar": {
       "monthUsage": "Used this month",
+      "dayUsage": "Used today",
+      "minute": "min",
       "minuteOf": "min / {total}min",
-      "remaining": "{minutes} min left"
+      "remaining": "{minutes} min left",
+      "exhausted": "No minutes left this month",
+      "exhaustedDay": "No minutes left today — resets tomorrow",
+      "unlimited": "Admin · unlimited"
     },
     "actions": {
       "start": "Start",
@@ -65,7 +70,7 @@
       "tryCta": "Try it now",
       "signupCta": "Start free",
       "pricingCta": "See pricing →",
-      "trialNote": "Try 500 translated characters without signing in. Sign up and get 30 free minutes every month."
+      "trialNote": "Try 500 translated characters without signing in. Sign up and get 10 free minutes every day."
     },
     "captionDemo": {
       "title": "Mixed languages in,\none language out",
@@ -143,7 +148,7 @@
       "finishing": "Finishing sign-in",
       "hint": "Please wait a moment — don't close this window."
     },
-    "freeNote": "30 free minutes every month. No card required.",
+    "freeNote": "10 free minutes every day. No card required.",
     "failed": {
       "title": "Sign-in failed",
       "action": "Allow popups for this site or try again in a moment."
@@ -154,7 +159,8 @@
     "counter": "Trial {used}/{max} chars",
     "ended": {
       "title": "That's the end of the trial",
-      "body": "What you just saw is the real performance. Sign up for 30 free minutes every month.",
+      "backToMain": "Back to main",
+      "body": "What you just saw is the real performance. Sign up for 10 free minutes every day.",
       "signup": "Start free",
       "pricing": "See pricing",
       "freeNote": "Starts instantly with your Google account — no card required."
@@ -166,7 +172,7 @@
     "perMonth": "/mo",
     "popular": "Most popular",
     "cta": "Start with this plan",
-    "freeNote": "Every paid plan comes after a free 30 min/month tier. Prices exclude VAT.",
+    "freeNote": "Every paid plan comes after a free 10 min/day tier. Prices exclude VAT.",
     "includedMinutes": "{minutes} minutes / month included",
     "retention": "Records kept for {days} days",
     "meetingMode": "Meeting interpreter bot (Zoom · Teams · Meet · Webex)",
@@ -195,7 +201,7 @@
     "pgNote": "Payments activate once our payment provider review completes. Apply now to reserve your spot — we'll email you the moment it opens.",
     "reserved": {
       "title": "Your request is in",
-      "body": "We'll email you as soon as payments open. Your free 30 minutes keep working in the meantime.",
+      "body": "We'll email you as soon as payments open. Your free 10 minutes a day keep working in the meantime.",
       "toDashboard": "Go to dashboard →"
     },
     "failed": {
@@ -208,6 +214,8 @@
     "stats": {
       "remaining": "Minutes left",
       "month": "Used this month",
+      "day": "Used today",
+      "unlimited": "Admin · unlimited",
       "meeting": "Meeting",
       "inperson": "In-person",
       "minute": "min",
@@ -240,7 +248,7 @@
     "title": "In-person interpreting",
     "consentNotice": "This conversation is processed for interpretation and records.",
     "setup": {
-      "lead": "Three steps and you're live.",
+      "lead": "Two steps and you're live.",
       "steps": {
         "mic": "Microphone",
         "target": "Display"
@@ -273,6 +281,10 @@
     },
     "running": {
       "live": "LIVE",
+      "paused": "Paused",
+      "wrapping": "Finishing the remaining translation…",
+      "pause": "Pause",
+      "resume": "Resume",
       "connecting": "Connecting",
       "reconnecting": "Restoring the connection. Captions are preserved.",
       "end": "End",
@@ -299,6 +311,7 @@
     },
     "ended": {
       "title": "Session ended",
+      "backToMain": "Back to main",
       "duration": "Duration",
       "segments": "{count, plural, =0 {No captions} other {# captions}}",
       "segmentsLabel": "Captions",
@@ -332,7 +345,11 @@
       },
       "guestQuota": {
         "title": "You've used all your free trial characters this month",
-        "action": "Sign up for 30 free minutes every month, then continue where you left off."
+        "action": "Sign up for 10 free minutes every day, then continue where you left off."
+      },
+      "quotaExhausted": {
+        "title": "You've used all your interpretation minutes",
+        "action": "The free plan refills every day. Upgrade your plan to keep going right now."
       },
       "authRequired": {
         "title": "Sign-in required",

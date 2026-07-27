@@ -19,6 +19,10 @@ import { SidebarLink } from './SidebarLink';
 export interface SidebarUsage {
   usedMinutes: number;
   includedMinutes: number;
+  /** 운영자 계정 — 한도 없음 */
+  unlimited?: boolean;
+  /** 무료 플랜처럼 사용량이 매일 초기화되는 경우 — 문구를 '오늘'로 바꾼다 */
+  daily?: boolean;
 }
 
 export interface SidebarAccount {
@@ -49,6 +53,7 @@ export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?:
 
   const used = usage?.usedMinutes ?? 0;
   const total = usage?.includedMinutes ?? 0;
+  // 초과 사용한 경우에도 막대가 100%를 넘지 않게 한다
   const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
   const remaining = Math.max(0, total - used);
 
@@ -99,22 +104,46 @@ export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?:
       {/* 사용량 카드 */}
       {usage ? (
         <div className="mx-3 mb-3 rounded-xl bg-white/[.05] p-4">
-          <p className="text-[12px] text-caption-source">{t('sidebar.monthUsage')}</p>
-          <p className="tabular mt-1 text-[22px] font-bold leading-none text-caption-target">
-            {used}
-            <span className="text-[13px] font-normal text-caption-source">
-              {t('sidebar.minuteOf', { total })}
-            </span>
+          <p className="text-[12px] text-caption-source">
+            {t(usage.daily ? 'sidebar.dayUsage' : 'sidebar.monthUsage')}
           </p>
-          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-accent transition-[width] duration-300"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="mt-2 text-[12px] text-caption-source">
-            {t('sidebar.remaining', { minutes: remaining })}
-          </p>
+          {usage.unlimited ? (
+            <>
+              <p className="tabular mt-1 text-[22px] font-bold leading-none text-caption-target">
+                {used}
+                <span className="text-[13px] font-normal text-caption-source">
+                  {t('sidebar.minute')}
+                </span>
+              </p>
+              <p className="mt-2 inline-flex items-center gap-1 rounded-md bg-accent/20 px-2 py-0.5 text-[12px] font-semibold text-accent">
+                {t('sidebar.unlimited')}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="tabular mt-1 text-[22px] font-bold leading-none text-caption-target">
+                {Math.min(used, total)}
+                <span className="text-[13px] font-normal text-caption-source">
+                  {t('sidebar.minuteOf', { total })}
+                </span>
+              </p>
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={`h-full rounded-full transition-[width] duration-300 ${
+                    remaining === 0 ? 'bg-danger' : 'bg-accent'
+                  }`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <p
+                className={`mt-2 text-[12px] ${remaining === 0 ? 'font-semibold text-danger' : 'text-caption-source'}`}
+              >
+                {remaining === 0
+                  ? t(usage.daily ? 'sidebar.exhaustedDay' : 'sidebar.exhausted')
+                  : t('sidebar.remaining', { minutes: remaining })}
+              </p>
+            </>
+          )}
         </div>
       ) : null}
 

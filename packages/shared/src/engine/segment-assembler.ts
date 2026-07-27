@@ -41,9 +41,17 @@ export interface AssemblerOptions {
   maxSourceChars?: number;
 }
 
-const SENTENCE_END = /[.!?。！？…]\s*$/;
 const SENTENCE_SPLIT = /[^.!?。！？]+[.!?。！？]+\s*/g;
 const HAS_WORD = /[\p{L}\p{N}]/u;
+const SENTENCE_MARK = '.!?。！？…';
+
+/** from 이후로 문장이 처음 끝나는 위치. 없으면 -1 */
+function sentenceEndAtOrAfter(s: string, from: number): number {
+  for (let i = Math.max(0, from); i < s.length; i++) {
+    if (SENTENCE_MARK.includes(s.charAt(i))) return i;
+  }
+  return -1;
+}
 
 export function createSegmentAssembler(
   onSegment: (s: EngineSegment) => void,
@@ -67,6 +75,8 @@ export function createSegmentAssembler(
    * 빈 덩어리를 만들어 담으면 이후 모든 번역이 한 칸씩 밀린다.
    */
   let pendingTarget = '';
+  /** 문장이 끝나기 전 미리 띄워 둔 덩어리 (완성되면 이 덩어리를 확정한다) */
+  let livePreview: EngineSegment | null = null;
   let detectedLang: string | undefined;
   let lastOutputAt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -87,35 +97,85 @@ export function createSegmentAssembler(
       seq: nextSeq++,
       startMs: Date.now() - startedAt,
       sourceText,
-      // 먼저 도착해 대기하던 번역이 있으면 첫 덩어리가 이어받는다
-      targetText: pendingTarget,
+      targetText: '',
       isFinal: false,
       detectedLang,
     };
-    pendingTarget = '';
     open.push(seg);
     emit(seg); // 원문을 먼저 화면에 띄운다 — 번역은 곧 따라 붙는다
     return seg;
   }
 
-  /** 완성된 원문 문장이 나올 때마다 덩어리를 하나 만든다 */
+  /**
+   * 원문 덩어리가 생기기 전에 도착해 대기하던 번역을 흘려보낸다.
+   * ⚠ newSegment 안에서 부르면 안 된다 — 갓 만든 미리보기 덩어리가 그 자리에서 닫히는데
+   * 아직 livePreview에 대입되기 전이라 sourcePartial 정리가 건너뛰어지고 원문이 중복된다.
+   */
+  function flushPendingTarget(force = false) {
+    if (!pendingTarget) return;
+    /**
+     * 아직 문장이 안 끝난 미리보기 조각밖에 없으면 기다린다.
+     * 거기에 번역을 밀어 넣으면 그 자리에서 조각이 확정돼 원문이 어색하게 쪼개진다
+     * ("Good m" / "orning").
+     */
+    if (!force && (open.length === 0 || (open.length === 1 && open[0] === livePreview))) return;
+    const carry = pendingTarget;
+    pendingTarget = '';
+    feedTarget(carry);
+  }
+
+  /**
+   * 완성된 원문 문장이 나올 때마다 덩어리를 하나 만든다.
+   * 문장이 끝나기 전이라도 진행 중인 조각을 화면에 즉시 보여준다 —
+   * 문장 완성을 기다리면 자막이 한꺼번에 뭉쳐 나오고 음성보다 한참 늦게 뜬다.
+   */
   function drainSourceSentences() {
     const matches = sourcePartial.match(SENTENCE_SPLIT);
     if (matches) {
       sourcePartial = sourcePartial.slice(matches.join('').length);
       for (const raw of matches) {
         const s = raw.trim();
-        if (s && HAS_WORD.test(s)) newSegment(s);
+        if (!s || !HAS_WORD.test(s)) continue;
+        // 미리 보여주던 조각이 있으면 그 덩어리를 완성된 문장으로 확정한다
+        if (livePreview) {
+          livePreview.sourceText = s;
+          emit(livePreview);
+          livePreview = null;
+        } else {
+          newSegment(s);
+        }
       }
     }
+
     // 구두점 없이 길게 이어지면 강제로 끊는다
     if (sourcePartial.length >= maxSourceChars) {
       const cut = sourcePartial.lastIndexOf(' ', maxSourceChars);
       const at = cut > maxSourceChars / 2 ? cut : maxSourceChars;
       const head = sourcePartial.slice(0, at).trim();
       sourcePartial = sourcePartial.slice(at);
-      if (head && HAS_WORD.test(head)) newSegment(head);
+      if (head && HAS_WORD.test(head)) {
+        if (livePreview) {
+          livePreview.sourceText = head;
+          emit(livePreview);
+          livePreview = null;
+        } else {
+          newSegment(head);
+        }
+      }
     }
+
+    // 아직 문장이 안 끝났으면 조각만이라도 즉시 띄운다
+    const partial = sourcePartial.trim();
+    if (partial && HAS_WORD.test(partial)) {
+      if (!livePreview) livePreview = newSegment(partial);
+      else {
+        livePreview.sourceText = partial;
+        emit(livePreview);
+      }
+    }
+
+    // 덩어리가 생겼으니, 먼저 도착해 대기하던 번역을 이제 흘려보낸다
+    flushPendingTarget();
   }
 
   /** 가장 오래된, 아직 열려 있는 덩어리 */
@@ -123,9 +183,61 @@ export function createSegmentAssembler(
     return open[0];
   }
 
+  /**
+   * 번역 델타를 가장 오래된 덩어리부터 채우고, 문장이 끝나면 거기서 잘라
+   * 남은 말을 다음 덩어리로 넘긴다.
+   *
+   * 예전에는 "덩어리 끝이 마침표인가"만 봤는데, 델타 경계가 마침표에 딱 떨어지는 일이 드물어
+   * ("…하세요. 오늘" 처럼 온다) 다음 문장 번역이 앞 덩어리에 붙어 버렸다.
+   * 이제는 문장부호 위치에서 직접 자른다.
+   *
+   * 자를 위치는 원문 길이에 비례한 분량(quota)의 절반을 넘긴 뒤부터 찾는다 —
+   * 그러지 않으면 짧은 첫 문장에서 잘려 뒤 덩어리가 번역을 다 가져간다.
+   */
+  function feedTarget(text: string) {
+    let rest = text;
+    while (rest) {
+      const seg = currentOpen();
+      if (!seg) {
+        // 아직 원문 덩어리가 없으면 빈 덩어리를 만들지 않고 잠시 들고 있는다
+        pendingTarget += rest;
+        return;
+      }
+      seg.targetText += rest;
+      rest = '';
+      emit(seg);
+
+      // 하한을 크게 잡으면 "네." → "Yes." 같은 짧은 문장이 다음 문장까지 물고 간다
+      const quota = Math.max(6, seg.sourceText.length * targetPerSource());
+      const idx = sentenceEndAtOrAfter(seg.targetText, Math.ceil(quota * 0.5) - 1);
+      if (idx >= 0) {
+        rest = seg.targetText.slice(idx + 1);
+        seg.targetText = seg.targetText.slice(0, idx + 1);
+        closeSegment(seg);
+        continue;
+      }
+      /**
+       * 구두점이 끝내 안 오는 경우의 안전장치 — 한 덩어리가 전부 삼키지 못하게 한다.
+       * 절대 하한(24자)을 함께 두지 않으면, 짧은 원문에서 문장이 끝나기도 전에
+       * 강제로 잘려 번역이 중간에서 토막 난다("Understood" / ". Thank y").
+       */
+      if (seg.targetText.length >= Math.max(24, quota * 1.6)) closeSegment(seg);
+    }
+  }
+
   function closeSegment(seg: EngineSegment, sameAsTarget = false) {
     const idx = open.indexOf(seg);
     if (idx >= 0) open.splice(idx, 1);
+    if (livePreview === seg) {
+      livePreview = null;
+      /**
+       * 미리 보여주던 조각이 확정됐다.
+       * 그 부분을 남은 원문에서 지우지 않으면, 다음 델타가 붙을 때
+       * 같은 말이 새 덩어리에 한 번 더 들어간다.
+       */
+      const i = sourcePartial.indexOf(seg.sourceText);
+      if (i >= 0) sourcePartial = sourcePartial.slice(i + seg.sourceText.length);
+    }
     seg.isFinal = true;
     seg.endMs = Date.now() - startedAt;
     if (sameAsTarget) {
@@ -144,6 +256,8 @@ export function createSegmentAssembler(
    */
   function onPause() {
     const idle = lastOutputAt ? Date.now() - lastOutputAt : Infinity;
+    // 대기 중인 번역이 남아 있으면 지금 흘려보낸다 — 여기서 안 보내면 영영 못 보낸다
+    flushPendingTarget(true);
     for (const seg of [...open]) {
       if (seg.targetText.trim()) {
         closeSegment(seg);
@@ -182,30 +296,7 @@ export function createSegmentAssembler(
           const delta = evt.delta ?? '';
           if (!delta) break;
           seenTarget += delta.length;
-
-          // 아직 원문 덩어리가 없으면 빈 덩어리를 만들지 않고 잠시 들고 있는다
-          const seg = currentOpen();
-          if (!seg) {
-            pendingTarget += delta;
-            armTimer();
-            break;
-          }
-          seg.targetText += delta;
-          emit(seg);
-
-          /**
-           * 이 덩어리가 가져갈 번역 분량을 원문 길이에 비례해 정한다.
-           * 문장부호만 기준으로 삼으면, 모델이 구두점을 늦게 붙일 때
-           * 한 덩어리가 뒤 문장들의 번역까지 전부 삼켜 버린다(실측으로 확인).
-           */
-          const quota = Math.max(12, seg.sourceText.length * targetPerSource());
-          const len = seg.targetText.length;
-          if (
-            (len >= quota * 0.8 && SENTENCE_END.test(seg.targetText)) ||
-            len >= quota * 1.6
-          ) {
-            closeSegment(seg);
-          }
+          feedTarget(delta);
           armTimer();
           break;
         }
@@ -228,7 +319,9 @@ export function createSegmentAssembler(
       // 남은 원문 조각도 덩어리로 만들어 유실을 막는다
       const tail = sourcePartial.trim();
       sourcePartial = '';
-      if (tail && HAS_WORD.test(tail)) newSegment(tail);
+      if (tail && HAS_WORD.test(tail) && !livePreview) newSegment(tail);
+      livePreview = null;
+      flushPendingTarget(true);
       for (const seg of [...open]) {
         const sameScript =
           !targetLang || guessScript(seg.sourceText) === scriptOfLang(targetLang);

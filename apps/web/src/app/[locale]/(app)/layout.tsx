@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from '@/i18n/navigation';
 import { adminDb, SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { getEntitlement } from '@/lib/server/entitlement';
 import { AppSidebar, type SidebarAccount, type SidebarUsage } from '@/components/shell/AppSidebar';
 import { AppTopbar } from '@/components/shell/AppTopbar';
 import { getPlan } from '@sotong/shared/constants';
@@ -9,27 +10,32 @@ import { getPlan } from '@sotong/shared/constants';
 async function loadShellData(
   uid: string,
   fallbackName: string,
+  email?: string | null,
 ): Promise<{ usage: SidebarUsage; account: SidebarAccount }> {
   const free = getPlan('free');
-  const usage: SidebarUsage = { usedMinutes: 0, includedMinutes: free?.includedMinutes ?? 30 };
+  const usage: SidebarUsage = {
+    usedMinutes: 0,
+    includedMinutes: free?.includedMinutes ?? 10,
+    daily: (free?.cycle ?? 'daily') === 'daily',
+  };
   const account: SidebarAccount = { name: fallbackName, role: 'owner' };
   try {
+    const ent = await getEntitlement(uid, email);
     const db = adminDb();
-    const userSnap = await db.collection('users').doc(uid).get();
-    const wsId = userSnap.get('lastWorkspaceId') as string | undefined;
-    if (!wsId) return { usage, account };
-    const ws = await db.collection('workspaces').doc(wsId).get();
-    const billing = ws.get('billing') as
-      | { includedMinutes?: number; usedMinutes?: number }
-      | undefined;
+    const ws = ent.workspaceId
+      ? await db.collection('workspaces').doc(ent.workspaceId).get()
+      : null;
     return {
       usage: {
-        usedMinutes: billing?.usedMinutes ?? 0,
-        includedMinutes: billing?.includedMinutes ?? usage.includedMinutes,
+        usedMinutes: ent.usedMinutes,
+        includedMinutes: ent.includedMinutes,
+        // 운영자는 한도가 없다 — 41/30 같은 이상한 표시가 나오지 않게 한다
+        unlimited: ent.isAdmin,
+        daily: getPlan(ent.plan)?.cycle === 'daily',
       },
       account: {
-        name: (ws.get('name') as string) || fallbackName,
-        role: (ws.get('ownerUid') as string) === uid ? 'owner' : 'member',
+        name: (ws?.get('name') as string) || fallbackName,
+        role: ent.isAdmin ? 'admin' : (ws?.get('ownerUid') as string) === uid ? 'owner' : 'member',
       },
     };
   } catch {
@@ -59,6 +65,7 @@ export default async function AppGroupLayout({
   const { usage, account } = await loadShellData(
     user.uid,
     user.name ?? user.email ?? 'InterLive',
+    user.email,
   );
 
   return (

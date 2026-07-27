@@ -19,6 +19,11 @@ export interface EngineSegment {
    * 이 경우 targetText에 원문을 그대로 넣는다 (화면에서 발화가 사라지지 않도록).
    */
   sameAsTarget?: boolean;
+  /**
+   * 통역 모델이 끝내 번역을 보내지 않아 텍스트 번역 엔진으로 메운 자막.
+   * (입력이 문장 도중 끊기면 마지막 발화의 번역이 오지 않는다 — 실측 2026-07)
+   */
+  recovered?: boolean;
 }
 
 export interface EngineError {

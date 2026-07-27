@@ -14,6 +14,12 @@ export interface PlanDef {
   id: 'free' | 'starter' | 'pro' | 'business';
   audience: 'personal' | 'business';
   monthlyKrw: number;
+  /**
+   * 사용량 갱신 주기.
+   * 무료는 매일 초기화한다 — 한 달치를 하루에 몰아 쓰고 한 달을 못 쓰는 것보다,
+   * 매일 조금씩 쓰게 하는 편이 체험 효과가 크고 원가도 통제된다.
+   */
+  cycle: 'daily' | 'monthly';
   includedMinutes: number;
   /** null이면 초과 사용 불가(차단). 초과 과금은 유저가 명시적으로 켜야 발생 (docs/07 §5.3) */
   overageKrwPerMin: number | null;
@@ -27,7 +33,8 @@ export const PLANS: readonly PlanDef[] = [
     id: 'free',
     audience: 'personal',
     monthlyKrw: 0,
-    includedMinutes: 30,
+    cycle: 'daily',
+    includedMinutes: 10,
     overageKrwPerMin: null,
     retentionDays: 7,
     meetingMode: false,
@@ -37,6 +44,7 @@ export const PLANS: readonly PlanDef[] = [
     id: 'starter',
     audience: 'personal',
     monthlyKrw: 14_900,
+    cycle: 'monthly',
     includedMinutes: 100,
     overageKrwPerMin: null,
     retentionDays: 30,
@@ -47,6 +55,7 @@ export const PLANS: readonly PlanDef[] = [
     id: 'pro',
     audience: 'personal',
     monthlyKrw: 39_900,
+    cycle: 'monthly',
     includedMinutes: 300,
     overageKrwPerMin: 150,
     retentionDays: 90,
@@ -57,6 +66,7 @@ export const PLANS: readonly PlanDef[] = [
     id: 'business',
     audience: 'business',
     monthlyKrw: 199_000,
+    cycle: 'monthly',
     includedMinutes: 1_500,
     overageKrwPerMin: 130,
     retentionDays: 365,
@@ -67,6 +77,16 @@ export const PLANS: readonly PlanDef[] = [
 
 export function getPlan(id: string): PlanDef | undefined {
   return PLANS.find((p) => p.id === id);
+}
+
+/**
+ * 현재 사용 주기의 키.
+ * 이 키가 바뀌면 사용량을 0으로 되돌린다 — 별도 배치 없이 읽는 시점에 갱신한다.
+ * 배치에 의존하면 배치가 죽었을 때 유저가 영영 막힌다.
+ */
+export function cycleKey(cycle: PlanDef['cycle'], now: Date = new Date()): string {
+  const iso = now.toISOString();
+  return cycle === 'daily' ? iso.slice(0, 10) : iso.slice(0, 7);
 }
 
 /** 방어선 검증 — 새 플랜 추가 시 이 함수로 GM 50% 하한을 확인한다 (docs/07 §4.2) */

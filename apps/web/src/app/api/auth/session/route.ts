@@ -7,7 +7,7 @@ import {
   SESSION_COOKIE_MAX_AGE_MS,
   SESSION_COOKIE_NAME,
 } from '@/lib/firebase/admin';
-import { getPlan } from '@sotong/shared/constants';
+import { cycleKey, getPlan } from '@sotong/shared/constants';
 
 export const runtime = 'nodejs';
 
@@ -52,10 +52,12 @@ export async function POST(req: Request) {
         emailDomain: domain && !PUBLIC_DOMAINS.has(domain) ? domain : null,
         plan: 'free',
         billing: {
-          includedMinutes: free?.includedMinutes ?? 30,
+          includedMinutes: free?.includedMinutes ?? 10,
           usedMinutes: 0,
           overageMinutes: 0,
           overageEnabled: false, // 기본 꺼짐 — 예상치 못한 청구서 방지 (docs/07 §5.3)
+          // 무료는 매일 갱신 — 이 키가 바뀌면 사용량이 0으로 돌아간다
+          cycleKey: cycleKey(free?.cycle ?? 'daily'),
           cycleStart: now,
         },
         retentionDays: free?.retentionDays ?? 7,

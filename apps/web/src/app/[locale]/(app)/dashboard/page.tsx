@@ -2,7 +2,8 @@ import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Mic, Link2, Inbox, Clock, ChevronRight } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { SESSION_COOKIE_NAME, adminDb, verifySessionCookie } from '@/lib/firebase/admin';
+import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { getEntitlement } from '@/lib/server/entitlement';
 import { listSessions, type SessionListItem } from '@/lib/server/sessions-query';
 import { getPlan, languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
@@ -11,6 +12,10 @@ import { ActionCard } from '@/components/ui/ActionCard';
 interface DashData {
   includedMinutes: number;
   usedMinutes: number;
+  /** 운영자 — 한도 없음 */
+  unlimited: boolean;
+  /** 사용량이 매일 초기화되는 플랜인가 (무료) */
+  dailyCycle: boolean;
   meetingMinutes: number;
   inpersonMinutes: number;
   sessions: SessionListItem[];
@@ -41,9 +46,12 @@ function buildDaily(sessions: SessionListItem[]): DashData['daily'] {
 
 /** 워크스페이스 + 최근 세션 — 실패해도 대시보드는 뜬다 */
 async function loadData(): Promise<DashData> {
+  const free = getPlan('free');
   const fallback: DashData = {
-    includedMinutes: getPlan('free')?.includedMinutes ?? 30,
+    includedMinutes: free?.includedMinutes ?? 10,
     usedMinutes: 0,
+    unlimited: false,
+    dailyCycle: (free?.cycle ?? 'daily') === 'daily',
     meetingMinutes: 0,
     inpersonMinutes: 0,
     sessions: [],
@@ -60,22 +68,18 @@ async function loadData(): Promise<DashData> {
         .filter((s) => (mode === 'meeting' ? s.mode === 'meeting' : s.mode !== 'meeting'))
         .reduce((sum, s) => sum + Math.ceil(s.billedSeconds / 60), 0);
 
-    const userSnap = await adminDb().collection('users').doc(user.uid).get();
-    const wsId = userSnap.get('lastWorkspaceId') as string | undefined;
-    let includedMinutes = fallback.includedMinutes;
-    let usedMinutes = 0;
-    if (wsId) {
-      const ws = await adminDb().collection('workspaces').doc(wsId).get();
-      const billing = ws.get('billing') as
-        | { includedMinutes?: number; usedMinutes?: number }
-        | undefined;
-      includedMinutes = billing?.includedMinutes ?? includedMinutes;
-      usedMinutes = billing?.usedMinutes ?? 0;
-    }
+    /**
+     * 사용량은 반드시 entitlement를 거친다.
+     * Firestore billing을 직접 읽으면 주기 갱신(무료=매일 초기화)과 운영자 무제한이 빠져
+     * 사이드바와 대시보드가 서로 다른 숫자를 보여준다.
+     */
+    const ent = await getEntitlement(user.uid, user.email);
 
     return {
-      includedMinutes,
-      usedMinutes,
+      includedMinutes: ent.includedMinutes,
+      usedMinutes: ent.usedMinutes,
+      unlimited: ent.isAdmin,
+      dailyCycle: getPlan(ent.plan)?.cycle === 'daily',
       meetingMinutes: minutesOf('meeting'),
       inpersonMinutes: minutesOf('inperson'),
       sessions: sessions.slice(0, 5),
@@ -135,17 +139,32 @@ export default async function DashboardPage({
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-5">
           <span className="text-[13px] font-semibold text-text-muted">{t('stats.remaining')}</span>
-          <span className="tabular text-[26px] font-bold leading-none">
-            {remaining}
-            <span className="text-sm font-normal text-text-muted">
-              {t('stats.minuteOf', { total: data.includedMinutes })}
-            </span>
-          </span>
-          <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
-            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-          </div>
+          {data.unlimited ? (
+            <>
+              <span className="tabular text-[26px] font-bold leading-none">∞</span>
+              <span className="inline-flex w-fit items-center rounded-md bg-accent-weak px-2 py-0.5 text-[12px] font-semibold text-accent">
+                {t('stats.unlimited')}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="tabular text-[26px] font-bold leading-none">
+                {remaining}
+                <span className="text-sm font-normal text-text-muted">
+                  {t('stats.minuteOf', { total: data.includedMinutes })}
+                </span>
+              </span>
+              <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
+                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+              </div>
+            </>
+          )}
         </div>
-        <StatCard label={t('stats.month')} value={data.usedMinutes} unit={t('stats.minute')} />
+        <StatCard
+          label={t(data.dailyCycle ? 'stats.day' : 'stats.month')}
+          value={data.usedMinutes}
+          unit={t('stats.minute')}
+        />
         <StatCard label={t('stats.meeting')} value={data.meetingMinutes} unit={t('stats.minute')} />
         <StatCard
           label={t('stats.inperson')}

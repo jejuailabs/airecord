@@ -46,7 +46,8 @@ import { Link } from '@/i18n/navigation';
 import { useMicLevel } from '@/hooks/useMicLevel';
 import { CaptionPanel } from '@/components/caption/CaptionPanel';
 
-type Phase = 'setup' | 'starting' | 'live' | 'ended';
+/** 'wrapping' — 입력은 끊었지만 남은 번역이 도착하길 기다리는 구간 */
+type Phase = 'setup' | 'starting' | 'live' | 'wrapping' | 'ended';
 type CaptionSize = 'md' | 'lg' | 'xl';
 type ErrorKey =
   | 'micPermission'
@@ -55,11 +56,16 @@ type ErrorKey =
   | 'connectionLost'
   | 'unsupportedPair'
   | 'guestQuota'
+  | 'quotaExhausted'
   | 'authRequired';
 
 const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
 const CAP_WARNING_SEC = 30; // 예고 없이 끊지 않는다 (docs/07 §5.2)
+/** 종료 시 남은 번역을 기다리는 최대 시간 — 이 시간도 과금되므로 짧게 잡는다 */
+const WRAP_MAX_MS = 5_000;
+/** 이 시간 동안 자막 갱신이 없으면 더 기다리지 않고 닫는다 */
+const WRAP_IDLE_MS = 1_500;
 
 function fmtSec(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -122,6 +128,17 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const audioOutRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const endingRef = useRef(false);
+  /** seq → 화면에 처음 뜬 시각. 번역이 끝내 오지 않는 덩어리를 찾는 데 쓴다. */
+  const seenAtRef = useRef(new Map<number, number>());
+  /** 이미 텍스트 번역으로 메운(또는 메우는 중인) seq */
+  const recoveredRef = useRef(new Set<number>());
+  /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
+  const lastSegmentAtRef = useRef(0);
+  /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
+  const segmentsRef = useRef<EngineSegment[]>([]);
+  useEffect(() => {
+    segmentsRef.current = segments;
+  }, [segments]);
 
   // 마지막 언어쌍 기억 → 다음에 미리 채움 (docs/06 §2.1)
   useEffect(() => {
@@ -162,6 +179,24 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       if (endingRef.current) return;
       endingRef.current = true;
       stopTimers();
+
+      /**
+       * 입력을 먼저 끊고, 남은 번역이 도착할 시간을 조금 준다.
+       * 세션을 즉시 닫으면 마지막 몇 문장의 번역과 통역 음성이 통째로 잘린다
+       * (실측 2026-07: 입력이 끊긴 뒤 마지막 번역 +3.1초).
+       * 세션이 열려 있는 동안은 계속 과금되므로 최대 대기 시간을 짧게 못 박는다.
+       */
+      if (reason !== 'error') {
+        micStream?.getAudioTracks().forEach((tr) => {
+          tr.enabled = false;
+        });
+        setPhase('wrapping');
+        const deadline = Date.now() + WRAP_MAX_MS;
+        while (Date.now() < deadline && Date.now() - lastSegmentAtRef.current < WRAP_IDLE_MS) {
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+
       sessionRef.current?.close();
       sessionRef.current = null;
       micStream?.getTracks().forEach((tr) => tr.stop());
@@ -239,9 +274,11 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
               ? 'unsupportedPair'
               : body.error === 'guest_quota_exhausted'
                 ? 'guestQuota'
-                : body.error === 'auth_required'
-                  ? 'authRequired'
-                  : 'startFailed',
+                : body.error === 'quota_exhausted'
+                  ? 'quotaExhausted'
+                  : body.error === 'auth_required'
+                    ? 'authRequired'
+                    : 'startFailed',
         );
         setPhase('setup');
         return;
@@ -274,6 +311,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         micStream,
         {
           onSegment: (seg) => {
+            lastSegmentAtRef.current = Date.now();
+            if (!seenAtRef.current.has(seg.seq)) seenAtRef.current.set(seg.seq, Date.now());
             setSegments((prev) => {
               const idx = prev.findIndex((p) => p.seq === seg.seq);
               const next = idx >= 0 ? [...prev.slice(0, idx), seg, ...prev.slice(idx + 1)] : [...prev, seg];
@@ -315,6 +354,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     setRemainingSec(grant.maxDurationSec);
     setSegments([]);
     segmentsLenRef.current = 0;
+    seenAtRef.current.clear();
+    recoveredRef.current.clear();
+    lastSegmentAtRef.current = Date.now();
     setPhase('live');
 
     // 서버 하드 캡과 별개로 클라이언트도 자체 종료한다 — 한쪽만 있으면 뚫린다 (docs/07 §5.1)
@@ -379,6 +421,63 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       .then(() => setNeedsAudioGesture(false))
       .catch(() => setNeedsAudioGesture(true)); // 자동재생 차단 — 클릭 유도
   }, [remoteStream, audioOut, phase]);
+
+  /**
+   * 번역이 끝내 오지 않은 덩어리를 텍스트 번역 엔진으로 메운다.
+   *
+   * 실측(2026-07): 입력이 문장 도중에 끊기면(유튜브 일시정지 등) 원문 전사는 끝까지 오는데
+   * 그 마지막 발화의 번역은 통역 모델이 영영 내보내지 않는다. 세션은 살아 있으므로
+   * 화면에는 원문만 남고 자막이 멈춘 것처럼 보인다.
+   * 통역 모델을 기다리게 둘 수 없으니, 일정 시간이 지나면 같은 문장을 텍스트 번역으로 채운다.
+   */
+  useEffect(() => {
+    if (phase !== 'live' || trial) return;
+    const RECOVER_AFTER_MS = 4_000;
+    const id = setInterval(() => {
+      const now = Date.now();
+      for (const seg of segmentsRef.current) {
+        if (seg.sameAsTarget) continue;
+        if (seg.targetText.trim()) continue;
+        if (seg.sourceText.trim().length < 2) continue;
+        if (recoveredRef.current.has(seg.seq)) continue;
+        const seenAt = seenAtRef.current.get(seg.seq) ?? now;
+        if (now - seenAt < RECOVER_AFTER_MS) continue;
+
+        recoveredRef.current.add(seg.seq);
+        const source = seg.sourceText;
+        void fetch('/api/translate/text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: source, sourceLang: 'auto', targetLang, tone: 'plain' }),
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((body: { translated?: string } | null) => {
+            const translated = body?.translated?.trim();
+            if (!translated) return;
+            setSegments((prev) =>
+              prev.map((p) =>
+                // 그 사이 통역 모델이 번역을 보냈다면 그쪽을 존중한다
+                p.seq === seg.seq && !p.targetText.trim()
+                  ? { ...p, targetText: translated, isFinal: true, recovered: true }
+                  : p,
+              ),
+            );
+            const patched = segmentsRef.current.find((p) => p.seq === seg.seq);
+            if (patched) {
+              pendingFinalsRef.current.set(seg.seq, {
+                ...patched,
+                targetText: translated,
+                isFinal: true,
+              });
+            }
+          })
+          .catch(() => {
+            /* 복구 실패 — 원문만이라도 남는다 */
+          });
+      }
+    }, 1_200);
+    return () => clearInterval(id);
+  }, [phase, targetLang, trial]);
 
   // 언마운트 시 정리 — 분(minute)은 곧 돈이다 (core.md §3-6)
   useEffect(() => {
@@ -880,7 +979,12 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     >
       {/* 상태 바 (docs/05 §4) */}
       <div className="flex h-14 shrink-0 items-center gap-3 rounded-xl border border-border bg-bg-raised px-4">
-        {paused ? (
+        {phase === 'wrapping' ? (
+          <span className="flex items-center gap-2 text-[16px] font-bold text-text-muted">
+            <Loader2 size={15} aria-hidden className="animate-spin" />
+            {t('running.wrapping')}
+          </span>
+        ) : paused ? (
           <span className="flex items-center gap-2 text-[16px] font-bold text-warn">
             <Pause size={15} aria-hidden fill="currentColor" />
             {t('running.paused')}
@@ -945,13 +1049,15 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       <div className="flex shrink-0 items-center gap-2">
         <button
           onClick={() => setConfirmEnd(true)}
-          className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-danger px-4 text-[15px] font-bold text-white sm:px-5"
+          disabled={phase === 'wrapping'}
+          className="flex h-12 shrink-0 items-center gap-2 rounded-xl bg-danger px-4 text-[15px] font-bold text-white disabled:opacity-50 sm:px-5"
         >
           <Square size={14} aria-hidden fill="currentColor" />
           {t('running.end')}
         </button>
         <button
           onClick={togglePause}
+          disabled={phase === 'wrapping'}
           aria-pressed={paused}
           className={`flex h-12 shrink-0 items-center gap-2 rounded-xl border px-4 text-[15px] font-semibold transition-colors duration-150 ${
             paused ? 'border-warn bg-warn-weak text-warn' : 'border-border text-text'
