@@ -88,7 +88,12 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
   }
 
   return (
-    <div className="relative flex min-h-[58vh] flex-1 flex-col overflow-hidden rounded-xl bg-caption-bg">
+    /**
+     * ⚠ min-h를 크게 잡으면(예전 58vh) 모바일에서 컨트롤까지 합한 높이가 화면을 넘겨
+     * 페이지가 스크롤되고, 위쪽 상태 바와 "소리 켜기" 안내가 화면 밖으로 밀려난다.
+     * 실제로 iOS에서 음성이 막혔는데 그 안내를 볼 수 없는 사고가 났다.
+     */
+    <div className="relative flex min-h-[24vh] flex-1 flex-col overflow-hidden rounded-xl bg-caption-bg">
       <div
         ref={scrollRef}
         onScroll={onScroll}

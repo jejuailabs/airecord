@@ -65,6 +65,13 @@ const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
 const TALK_PAIR_KEY = 'sotong-talk-pair';
 const CAP_WARNING_SEC = 30; // 예고 없이 끊지 않는다 (docs/07 §5.2)
+/**
+ * 0.05초짜리 무음 WAV.
+ * 유저가 버튼을 누른 그 순간 이걸 한 번 재생해 오디오 엘리먼트를 열어 둔다 —
+ * 통역 트랙은 몇 초 뒤에 오므로 그때는 이미 제스처가 사라진 뒤다.
+ */
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQAAAAA=';
 /** 종료 시 남은 번역을 기다리는 최대 시간 — 이 시간도 과금되므로 짧게 잡는다 */
 const WRAP_MAX_MS = 5_000;
 /** 이 시간 동안 자막 갱신이 없으면 더 기다리지 않고 닫는다 */
@@ -131,6 +138,11 @@ export function LiveInterpreter({
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
   const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
+  /**
+   * 소리가 안 날 때 실제 상태를 화면에 그대로 적는다.
+   * "안 들려요"만으로는 트랙이 없는 건지, 브라우저가 막은 건지, 음소거인지 구분할 수 없다.
+   */
+  const [audioDiag, setAudioDiag] = useState<string | null>(null);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [trialUsedChars, setTrialUsedChars] = useState(0);
   const [trialBudget, setTrialBudget] = useState(TRIAL_CHAR_LIMIT);
@@ -150,6 +162,8 @@ export function LiveInterpreter({
   const audioElRef = useRef<HTMLAudioElement>(null);
   /** 트랙 도착 시점의 최신 음성 토글 값을 보기 위한 ref */
   const audioOutRef = useRef(false);
+  /** 유저 제스처로 오디오 엘리먼트를 한 번 열었는가 (iOS 자동재생 정책) */
+  const audioUnlockedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const endingRef = useRef(false);
   /** seq → 화면에 처음 뜬 시각. 번역이 끝내 오지 않는 덩어리를 찾는 데 쓴다. */
@@ -210,6 +224,34 @@ export function LiveInterpreter({
     } catch {
       setError('micPermission');
     }
+  }, []);
+
+  /**
+   * 오디오 엘리먼트 잠금 해제.
+   * iOS 사파리는 유저 제스처 안에서 한 번이라도 재생된 엘리먼트만 이후 재생을 허용한다.
+   * 통역 트랙은 몇 초 뒤에야 도착하므로, 그때 play()를 부르면 이미 제스처가 끝나 거부된다.
+   * 그래서 버튼을 누르는 그 순간 무음을 한 번 재생해 엘리먼트를 열어 둔다.
+   * ⚠ 반드시 동기적으로 불러야 한다 — await 뒤에서 부르면 제스처가 소멸한다.
+   */
+  const unlockAudio = useCallback(() => {
+    const el = audioElRef.current;
+    if (!el || audioUnlockedRef.current) return;
+    el.muted = false;
+    el.src = SILENT_WAV;
+    const p = el.play();
+    if (!p) return;
+    void p
+      .then(() => {
+        audioUnlockedRef.current = true;
+        setNeedsAudioGesture(false);
+        el.pause();
+        el.removeAttribute('src');
+        el.load(); // 이후 srcObject를 붙일 수 있게 비워 둔다
+      })
+      .catch(() => {
+        // 여기서 막히면 통역 화면에서 "소리 켜기"를 한 번 더 눌러야 한다
+        setNeedsAudioGesture(true);
+      });
   }, []);
 
   const stopTimers = useCallback(() => {
@@ -290,6 +332,8 @@ export function LiveInterpreter({
 
   const start = useCallback(async () => {
     if (!micStream) return;
+    // ⚠ await보다 먼저. 이 지점이 아직 유저 클릭 안이라 iOS가 오디오를 열어 준다.
+    if (audioOutRef.current) unlockAudio();
     setError(null);
     setPhase('starting');
     endingRef.current = false;
@@ -445,7 +489,7 @@ export function LiveInterpreter({
         /* 하트비트 유실 — 서버가 3회 유실 시 orphan 처리 */
       }
     }, HEARTBEAT_INTERVAL_MS);
-  }, [audioOut, doEnd, micStream, sourceLang, targetLang]);
+  }, [audioOut, doEnd, micStream, sourceLang, targetLang, speakLang, pairKey, unlockAudio]);
 
   // doEnd 클로저에서 최신 phase를 보기 위한 ref
   const phaseRef = useRef<Phase>('setup');
@@ -464,14 +508,44 @@ export function LiveInterpreter({
   useEffect(() => {
     const el = audioElRef.current;
     if (!el || !remoteStream) return;
-    if (el.srcObject !== remoteStream) el.srcObject = remoteStream;
+    if (el.srcObject !== remoteStream) {
+      el.removeAttribute('src'); // 잠금 해제용 무음이 남아 있으면 트랙이 안 붙는다
+      el.srcObject = remoteStream;
+    }
     el.muted = !audioOut;
     if (!audioOut) return;
     void el
       .play()
-      .then(() => setNeedsAudioGesture(false))
-      .catch(() => setNeedsAudioGesture(true)); // 자동재생 차단 — 클릭 유도
+      .then(() => {
+        setNeedsAudioGesture(false);
+        setAudioDiag(null);
+      })
+      .catch((e: DOMException) => {
+        // 자동재생 차단 — 클릭 유도. 원인을 화면에 남겨 추측하지 않게 한다.
+        setNeedsAudioGesture(true);
+        setAudioDiag(e?.name ?? 'play_failed');
+      });
   }, [remoteStream, audioOut, phase]);
+
+  /**
+   * 재생이 실제로 되고 있는지 주기적으로 확인한다.
+   * play()가 성공해도 트랙이 무음이거나 iOS가 경로를 바꾸면 소리가 안 난다 —
+   * 그때 "왜 안 나는지"를 유저 화면에서 바로 읽을 수 있어야 한다.
+   */
+  useEffect(() => {
+    if (phase !== 'live' || !audioOut) return;
+    const id = setInterval(() => {
+      const el = audioElRef.current;
+      if (!el) return;
+      const track = remoteStream?.getAudioTracks()[0];
+      if (!track) return setAudioDiag('no_track');
+      if (track.muted) return setAudioDiag('track_muted');
+      if (el.muted) return setAudioDiag('element_muted');
+      if (el.paused) return setAudioDiag('paused');
+      setAudioDiag(null);
+    }, 3_000);
+    return () => clearInterval(id);
+  }, [phase, audioOut, remoteStream]);
 
   /**
    * 번역이 끝내 오지 않은 덩어리를 텍스트 번역 엔진으로 메운다.
@@ -550,18 +624,22 @@ export function LiveInterpreter({
    * 음성 출력은 재생 측 음소거로만 제어한다.
    * 번역 세션에 session.update를 보내면 출력 언어 설정이 깨져 번역이 멈춘다.
    */
-  const toggleAudioOut = useCallback((on: boolean) => {
+  const toggleAudioOut = useCallback(
+    (on: boolean) => {
     setAudioOut(on);
+    if (on) unlockAudio(); // 이 호출이 유저 제스처 안이다
     const el = audioElRef.current;
     if (!el) return;
     el.muted = !on;
-    if (on) {
+    if (on && el.srcObject) {
       void el
         .play()
         .then(() => setNeedsAudioGesture(false))
         .catch(() => setNeedsAudioGesture(true));
     }
-  }, []);
+    },
+    [unlockAudio],
+  );
 
   /**
    * 일시정지: 마이크 트랙을 비활성화한다.
@@ -658,6 +736,27 @@ export function LiveInterpreter({
 
   // ─────────────────────── 렌더 ───────────────────────
 
+  return (
+    <>
+      {/*
+        번역 오디오는 **셋업 화면부터 계속 마운트해 둔다.**
+        iOS 사파리는 "유저 제스처 안에서 한 번이라도 재생된 엘리먼트"만 이후 재생을 허용한다.
+        예전에는 통역 화면에서만 만들었는데, 그러면 셋업에서 음성 토글을 켜도 엘리먼트가 없어
+        잠금 해제가 일어나지 않고, 통역이 시작된 뒤의 play()는 제스처 밖이라 거부됐다.
+        같은 DOM 노드를 유지해야 의미가 있으므로 화면 분기 바깥에 둔다.
+      */}
+      <audio
+        ref={audioElRef}
+        autoPlay
+        playsInline
+        className="pointer-events-none fixed bottom-0 left-0 h-px w-px opacity-0"
+        aria-hidden
+      />
+      {renderBody()}
+    </>
+  );
+
+  function renderBody() {
   if (phase === 'ended' && summary && trial) {
     // 체험 종료 — 여기가 가입 전환 지점이다
     return (
@@ -889,7 +988,7 @@ export function LiveInterpreter({
             type="button"
             role="switch"
             aria-checked={audioOut}
-            onClick={() => setAudioOut(!audioOut)}
+            onClick={() => toggleAudioOut(!audioOut)}
             title={audioOut ? t('setup.headsetHint') : t('setup.audioOutHint')}
             className="flex w-[68px] shrink-0 flex-col items-center gap-1.5"
           >
@@ -1238,29 +1337,42 @@ export function LiveInterpreter({
         </div>
       ) : null}
 
-      {/* 자동재생이 막힌 경우 — 클릭 한 번으로 소리를 켠다 */}
+      {/*
+        자동재생이 막힌 경우 — 클릭 한 번으로 소리를 켠다.
+        ⚠ 예전에는 얇은 줄이라 모바일에서 화면 밖으로 밀려 보이지 않았다.
+        소리가 안 나오는 것 자체보다 "왜 안 나오는지 모르는 것"이 더 나쁘다.
+      */}
       {audioOut && needsAudioGesture ? (
         <button
           onClick={() => {
+            audioUnlockedRef.current = false;
+            unlockAudio();
             const el = audioElRef.current;
             if (!el) return;
             el.muted = false;
-            void el
-              .play()
-              .then(() => setNeedsAudioGesture(false))
-              .catch(() => undefined);
+            if (el.srcObject) {
+              void el
+                .play()
+                .then(() => setNeedsAudioGesture(false))
+                .catch((e: DOMException) => setAudioDiag(e?.name ?? 'play_failed'));
+            }
           }}
-          className="flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-weak px-5 py-3 text-[16px] font-semibold text-accent"
+          className="btn-gradient flex h-14 shrink-0 animate-pulse items-center justify-center gap-2.5 rounded-xl text-[17px] font-bold"
         >
-          <Volume2 size={18} aria-hidden />
+          <Volume2 size={20} aria-hidden />
           {t('running.enableSound')}
         </button>
       ) : null}
 
-      {/* 음성은 켰는데 트랙이 아직 없을 때 — 원인을 알려준다 */}
-      {audioOut && !remoteStream ? (
+      {/* 음성은 켰는데 소리가 안 나올 때 — 지금 상태를 그대로 보여 준다 */}
+      {audioOut && (!remoteStream || audioDiag) ? (
         <p className="shrink-0 rounded-lg bg-bg-sunken px-5 py-2.5 text-[14px] text-text-muted">
-          {t('running.audioWaiting')}
+          {!remoteStream ? t('running.audioWaiting') : null}
+          {audioDiag ? (
+            <span className="tabular block text-[12.5px] text-text-faint">
+              {t('running.audioDiag', { detail: audioDiag })}
+            </span>
+          ) : null}
         </p>
       ) : null}
 
@@ -1413,18 +1525,6 @@ export function LiveInterpreter({
         </div>
       </div>
 
-      {/*
-        번역 오디오 — WebRTC 라이브 트랙이라 밀린 음성이 쌓이지 않고 실시간을 따라간다.
-        display:none이면 재생을 막는 브라우저가 있어 화면 밖으로만 밀어낸다.
-      */}
-      <audio
-        ref={audioElRef}
-        autoPlay
-        playsInline
-        className="pointer-events-none absolute h-px w-px opacity-0"
-        aria-hidden
-      />
-
       {confirmEnd ? (
         <div
           role="dialog"
@@ -1456,6 +1556,7 @@ export function LiveInterpreter({
       ) : null}
     </div>
   );
+  }
 }
 
 /** 오류는 "무엇이 잘못됐고 어떻게 고치는지"를 항상 쌍으로 (core.md §6) */
