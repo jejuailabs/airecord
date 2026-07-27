@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     // 남은 분보다 긴 세션을 열지 않는다
     maxDurationSec = sessionCapSeconds(ent, baseCapSec);
   }
-  const record = createSession({
+  const record = await createSession({
     mode: 'inperson',
     maxDurationSec,
     sourceLang,

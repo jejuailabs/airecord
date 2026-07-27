@@ -13,13 +13,13 @@ export async function POST(req: Request) {
   }
   const { sessionId, reason, segments } = parsed.data;
 
-  const result = endSession(sessionId, reason);
+  const result = await endSession(sessionId, reason);
   if (!result) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
   const record = result.record;
-  if (record?.uid) {
+  if (record.uid) {
     await saveSegments(sessionId, segments ?? []);
     await finalizeSessionDoc(record);
     // 요약은 응답을 붙잡지 않되 반드시 끝까지 실행돼야 한다.
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const body: SessionEndResponse = {
     billedSeconds: result.billedSeconds,
     segmentCount: result.segmentCount,
-    saved: Boolean(record?.uid),
+    saved: Boolean(record.uid),
   };
   return NextResponse.json(body);
 }

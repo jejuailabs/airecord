@@ -102,6 +102,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const [summary, setSummary] = useState<{ billedSeconds: number; segmentCount: number } | null>(
     null,
   );
+  /** 왜 끝났는지 — 유저가 누른 게 아닌데 끝났으면 화면에서 이유를 밝힌다 */
+  const [endedReason, setEndedReason] = useState<'user' | 'cap' | 'error'>('user');
   /** 일시정지 — 마이크 트랙만 끊는다. 세션은 살아 있어 재개가 즉시 된다. */
   const [paused, setPaused] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -232,6 +234,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       }
       setSavedSessionId(saved ? sessionId : null);
       setSummary({ billedSeconds: billed, segmentCount: segmentsLenRef.current });
+      setEndedReason(reason);
       if (reason === 'error') setError('connectionLost');
       setPhase('ended');
       setMicStream(null);
@@ -676,6 +679,13 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         </div>
 
         {error ? <ErrorBanner k={error} /> : null}
+
+        {/* 유저가 종료를 누르지 않았는데 끝났으면 이유를 밝힌다 */}
+        {endedReason === 'cap' && !error ? (
+          <p className="w-full rounded-lg bg-warn-weak px-5 py-3 text-[15px] text-warn">
+            {t('ended.reasonCap')}
+          </p>
+        ) : null}
 
         {/* 요약 지표 */}
         <dl className="grid w-full gap-3 sm:grid-cols-3">

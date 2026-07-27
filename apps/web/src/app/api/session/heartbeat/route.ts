@@ -24,17 +24,33 @@ export async function POST(req: Request) {
     // 비회원 월 한도에 번역 글자수를 누적한다 (클라이언트 카운터만 믿지 않는다)
     const chars = segments.reduce((sum, s) => sum + s.targetText.length, 0);
     consumeChars(guestKey(req), chars);
-  } else {
-    // 저장 실패가 통역을 멈추면 안 된다 — 내부에서 삼킨다 (docs/01 §6)
-    await saveSegments(sessionId, segments);
   }
 
-  const result = heartbeat(sessionId, segments.length);
+  let result;
+  try {
+    result = await heartbeat(sessionId, segments.length);
+  } catch (e) {
+    /**
+     * Firestore 장애는 "세션 없음"과 다르다.
+     * 여기서 terminate를 내려보내면 멀쩡히 진행 중인 통역이 끊긴다 — 이번에는 살려 두고 다음 하트비트에 맡긴다.
+     */
+    console.error('[session/heartbeat] lookup failed', e);
+    const body: SessionHeartbeatResponse = { terminate: false, remainingSec: 0 };
+    return NextResponse.json(body);
+  }
+
   if (!result) {
     // 세션이 없거나 이미 종료 — 클라이언트는 정리 수순으로
     const body: SessionHeartbeatResponse = { terminate: true, remainingSec: 0 };
     return NextResponse.json(body);
   }
-  const body: SessionHeartbeatResponse = result;
+
+  // 저장 실패가 통역을 멈추면 안 된다 — 내부에서 삼킨다 (docs/01 §6)
+  if (!trial && result.record.uid) await saveSegments(sessionId, segments);
+
+  const body: SessionHeartbeatResponse = {
+    terminate: result.terminate,
+    remainingSec: result.remainingSec,
+  };
   return NextResponse.json(body);
 }

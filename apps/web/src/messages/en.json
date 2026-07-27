@@ -312,6 +312,7 @@
     "ended": {
       "title": "Session ended",
       "backToMain": "Back to main",
+      "reasonCap": "The session ended automatically because the available time ran out.",
       "duration": "Duration",
       "segments": "{count, plural, =0 {No captions} other {# captions}}",
       "segmentsLabel": "Captions",
