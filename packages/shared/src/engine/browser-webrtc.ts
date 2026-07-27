@@ -25,7 +25,23 @@ export interface BrowserTranslationSession {
    * 응답까지 약 0.2초. 무전기 모드(듣기↔말하기)도 이 위에서 돈다.
    */
   setTargetLang(lang: string): void;
+  /**
+   * 수신 오디오 실측치.
+   * "소리가 안 난다"를 추측으로 다루지 않기 위한 계기다.
+   * 패킷이 0이면 전송 문제, 패킷은 오는데 레벨이 0이면 모델이 무음을 보낸 것,
+   * 둘 다 정상인데 안 들리면 기기(iOS 출력 경로) 문제로 확정할 수 있다.
+   */
+  getAudioStats(): Promise<AudioInboundStats | null>;
   readonly model: string;
+}
+
+export interface AudioInboundStats {
+  packetsReceived: number;
+  bytesReceived: number;
+  /** 0~1. 마지막 관측 구간의 입력 레벨 */
+  audioLevel: number;
+  /** 누적 에너지 — 0이면 세션 내내 무음이었다는 뜻 */
+  totalAudioEnergy: number;
 }
 
 export async function connectBrowserSession(
@@ -92,6 +108,33 @@ export async function connectBrowserSession(
     // 번역 엔드포인트는 output_modalities를 모르며, 잘못된 session.update를 보내면
     // 세션 설정이 깨져 번역이 멈춘다 — 재생 측에서 음소거로만 제어한다.
     // 반면 audio.output.language 패치는 실측으로 안전함을 확인했다.
+    async getAudioStats() {
+      try {
+        const report = await pc.getStats();
+        let found: AudioInboundStats | null = null;
+        report.forEach((s) => {
+          const stat = s as RTCStats & {
+            kind?: string;
+            mediaType?: string;
+            packetsReceived?: number;
+            bytesReceived?: number;
+            audioLevel?: number;
+            totalAudioEnergy?: number;
+          };
+          if (stat.type !== 'inbound-rtp') return;
+          if ((stat.kind ?? stat.mediaType) !== 'audio') return;
+          found = {
+            packetsReceived: stat.packetsReceived ?? 0,
+            bytesReceived: stat.bytesReceived ?? 0,
+            audioLevel: stat.audioLevel ?? 0,
+            totalAudioEnergy: stat.totalAudioEnergy ?? 0,
+          };
+        });
+        return found;
+      } catch {
+        return null;
+      }
+    },
     setTargetLang(lang) {
       if (dc.readyState !== 'open') return;
       assembler.setTargetLang(lang);

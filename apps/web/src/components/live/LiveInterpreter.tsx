@@ -534,15 +534,28 @@ export function LiveInterpreter({
    */
   useEffect(() => {
     if (phase !== 'live' || !audioOut) return;
+    let lastEnergy = 0;
     const id = setInterval(() => {
       const el = audioElRef.current;
       if (!el) return;
       const track = remoteStream?.getAudioTracks()[0];
-      if (!track) return setAudioDiag('no_track');
-      if (track.muted) return setAudioDiag('track_muted');
-      if (el.muted) return setAudioDiag('element_muted');
-      if (el.paused) return setAudioDiag('paused');
-      setAudioDiag(null);
+      if (!track) return setAudioDiag('트랙 없음');
+      if (el.muted) return setAudioDiag('음소거됨');
+      if (el.paused) return setAudioDiag('재생 멈춤');
+
+      void sessionRef.current?.getAudioStats().then((s) => {
+        if (!s) return setAudioDiag(null);
+        if (s.packetsReceived === 0) return setAudioDiag('수신 없음 (0패킷)');
+        const grew = s.totalAudioEnergy > lastEnergy;
+        lastEnergy = s.totalAudioEnergy;
+        /**
+         * 여기까지 왔는데 안 들리면 기기 출력 경로 문제다.
+         * iOS는 마이크를 쓰는 동안 소리를 수화부로 보낼 수 있고, 그건 웹이 못 바꾼다.
+         */
+        setAudioDiag(
+          grew ? null : `재생 중 · 소리 신호 없음 (${s.packetsReceived}패킷 수신)`,
+        );
+      });
     }, 3_000);
     return () => clearInterval(id);
   }, [phase, audioOut, remoteStream]);
