@@ -1,15 +1,27 @@
 /**
  * gpt-realtime-translate 이벤트 스트림 → EngineSegment 조립.
  *
- * ⚠ 실측(2026-07)으로 확인한 사실:
- * 1. 서버 이벤트는 `session.input_transcript.delta` / `session.output_transcript.delta`
- *    / `session.output_audio.delta` 세 가지뿐이고, **종료(done/completed) 이벤트가 없다.**
- * 2. **원문 전사가 번역보다 1~2초 먼저 도착한다.**
+ * ── 이 조립기는 **번역을 주인으로 삼는다.** ──────────────────────────────
  *
- * 그래서 이 조립기는 **원문을 기준으로 자막 덩어리를 만든다.**
- * 예전에는 번역을 기준으로 만들고 원문을 나중에 붙였는데, 그러면
- * 긴 번역이 여러 덩어리로 쪼개질 때 뒤쪽 덩어리의 원문이 구조적으로 비어 버렸다.
- * 먼저 오는 쪽(원문)으로 뼈대를 세우면 원문이 빌 수가 없다.
+ * 번역 텍스트는 통역 음성과 **같은 생성에서 나온 한 쌍**이다(문서·실측 확인).
+ * 그래서 번역 문자열은 자르거나 옮겨 담을 뿐 **내용을 바꾸지 않는다** —
+ * 화면 글자와 귀에 들리는 말이 100% 같아야 한다.
+ * 원문(영어)은 보조 정보라 번역 칸에 맞춰 묶어 붙인다.
+ *
+ * ⚠ 예전에는 원문을 주인으로 삼았다. 원문이 자주 안 왔기 때문인데, 두 가지가 바뀌었다:
+ *  1. 전용 전사 레그가 생겨 원문이 안 죽는다 (열화 오디오 45초 741자 vs 부가 전사 144초 30자).
+ *  2. 원문 주도는 **원문이 죽으면 자막이 통째로 멈춘다** — 실제로 세 줄에서 얼어붙는 사고가 났다.
+ *     번역 주도면 원문이 죽어도 번역 자막은 멀쩡하고 영어 줄만 빈다. 더 불안정한 쪽을 주인으로
+ *     두는 게 거꾸로였다.
+ *
+ * ⚠ "긴 번역이 여러 칸으로 쪼개지면 뒤쪽 칸의 원문이 빈다"는 예전 문제는
+ *    원문을 **큐에 쌓아 칸마다 필요한 만큼 꺼내 쓰는** 방식으로 막았다.
+ *    남으면 다음 칸이 가져가고 모자라면 기다린다 — 구조적으로 빌 수 없다.
+ *
+ * 실측(2026-07) 프로토콜 사실:
+ * - 통역 세션 서버 이벤트는 input_transcript / output_transcript / output_audio 델타뿐,
+ *   **종료(done) 이벤트가 없다** → 문장 경계는 직접 잡는다.
+ * - 전용 전사 레그는 발화마다 VAD 경계(audio_start_ms/audio_end_ms)와 확정 원문을 준다.
  */
 import type { EngineSegment } from './types';
 import { scriptOfLang } from './types';
@@ -35,24 +47,22 @@ export interface SegmentAssembler {
 export interface AssemblerOptions {
   /** 표시 언어 코드 — 원문이 같은 언어일 때 "번역 없음"으로 처리하는 데 쓴다 */
   targetLang?: string;
-  /** 번역 델타가 이 시간 동안 없으면 현재 덩어리를 확정한다 */
+  /** 번역 델타가 이 시간 동안 없으면 열린 칸을 확정한다 */
   pauseMs?: number;
   /** 번역이 이 시간 동안 전혀 없으면 같은 언어로 보고 원문을 자막으로 내보낸다 */
   untranslatedIdleMs?: number;
-  /** 원문 한 덩어리가 이 길이를 넘으면 문장 단위로 끊는다 */
-  maxSourceChars?: number;
-  /** 원문 전사가 이 시간 동안 안 오면 번역만으로 자막을 만든다 */
-  sourceStallMs?: number;
+  /** 자막 한 줄 목표 길이 (유저 요청: 30~50자 수준) */
+  minRowChars?: number;
+  maxRowChars?: number;
+  /** 원문이 이 시간을 넘겨도 안 차면 있는 만큼 붙인다 */
+  sourceWaitMs?: number;
 }
 
-const SENTENCE_SPLIT = /[^.!?。！？]+[.!?。！？]+\s*/g;
-const HAS_WORD = /[\p{L}\p{N}]/u;
 const SENTENCE_MARK = '.!?。！？…';
-
-/** 절 경계 — 마침표가 없을 때의 차선책 */
 const CLAUSE_MARK = ',、，;；';
+const HAS_WORD = /[\p{L}\p{N}]/u;
 
-/** from 이후로 문장이 처음 끝나는 위치. 없으면 -1 */
+/** from 이후 첫 문장 끝 위치. 없으면 -1 */
 function sentenceEndAtOrAfter(s: string, from: number): number {
   for (let i = Math.max(0, from); i < s.length; i++) {
     if (SENTENCE_MARK.includes(s.charAt(i))) return i;
@@ -60,21 +70,26 @@ function sentenceEndAtOrAfter(s: string, from: number): number {
   return -1;
 }
 
-/**
- * from~until 사이의 절 경계(쉼표 등).
- *
- * 모델이 원문 두 문장을 번역 한 문장으로 합치는 일이 흔하다(실측:
- * "Our small business segment was flat." + "And I will come back to why that matters."
- * → "중소기업 부문은 보합이었고, 그 이유가 왜 중요한지는 다시 말씀드리겠습니다.").
- * 그러면 마침표로는 못 자르고 분량 상한에서 문장 한복판이 잘린다. 쉼표에서 자르면 짝이 맞는다.
- */
-function clauseEndBetween(s: string, from: number, until: number): number {
-  const end = Math.min(s.length, until);
-  for (let i = Math.max(0, from); i < end; i++) {
+/** until 이전의 마지막 절 경계(쉼표·공백). 문장부호가 끝내 안 올 때의 차선책 */
+function softBreakBefore(s: string, until: number): number {
+  const end = Math.min(s.length, until) - 1;
+  for (let i = end; i > 0; i--) {
     if (CLAUSE_MARK.includes(s.charAt(i))) return i;
+  }
+  for (let i = end; i > 0; i--) {
+    if (s.charAt(i) === ' ') return i;
   }
   return -1;
 }
+
+/** 원문 큐 항목 — 붙일 분량을 오디오 길이로 잰다 (언어쌍에 무관) */
+interface SourceChunk {
+  text: string;
+  audioMs: number;
+}
+
+/** 원문 글자수로 오디오 길이를 어림잡을 때 쓰는 값 (부가 전사 폴백 경로) */
+const SOURCE_CHARS_PER_SEC = 15;
 
 export function createSegmentAssembler(
   onSegment: (s: EngineSegment) => void,
@@ -82,337 +97,231 @@ export function createSegmentAssembler(
   options: AssemblerOptions = {},
 ): SegmentAssembler {
   /**
-   * ⚠ 실측(2026-07-27, 60초 연속 발화): 번역 델타 사이 최대 공백 1.6초, 원문 1.2초.
-   * 그보다 짧으면(예전 1.2초) 문장이 끝나기 전에 확정해 자막이 한 칸씩 밀리고,
-   * 너무 길면(한때 2.5초) 확정이 굼떠 자막이 덩어리로 다닌다. 1.8초가 실측 여유선이다.
+   * 실측(60초 연속 발화): 번역 델타 사이 최대 공백 1.6초.
+   * 그보다 짧으면 문장 도중에 확정되고, 너무 길면 자막이 덩어리로 다닌다.
    */
   const pauseMs = options.pauseMs ?? 1_800;
   const untranslatedIdleMs = options.untranslatedIdleMs ?? 3_500;
-  const maxSourceChars = options.maxSourceChars ?? 160;
-  const sourceStallMs = options.sourceStallMs ?? 1_800;
+  const minRowChars = options.minRowChars ?? 28;
+  const maxRowChars = options.maxRowChars ?? 55;
   let targetLang = options.targetLang;
 
   const startedAt = Date.now();
   let nextSeq = 0;
 
-  /** 원문으로 만들어졌고 아직 번역이 덜 붙은 덩어리들 (오래된 것부터) */
-  const open: EngineSegment[] = [];
-  /** 아직 문장이 끝나지 않은 원문 조각 */
+  /** 번역을 받고 있는 칸 */
+  let openRow: EngineSegment | null = null;
+  /** 확정됐지만 아직 원문이 안 붙은 칸들 (오래된 것부터) */
+  const awaitingSource: EngineSegment[] = [];
+  /** seq → 원문을 기다리기 시작한 시각. 너무 오래 기다린 칸은 있는 만큼만 붙인다. */
+  const awaitingSince = new Map<number, number>();
+  /** 원문이 이 시간을 넘겨도 안 차면 있는 만큼 붙인다 (원문 지연 실측 2~3초) */
+  const sourceWaitMs = options.sourceWaitMs ?? 6_000;
+  /** 붙기를 기다리는 원문 조각들 */
+  const sourceQueue: SourceChunk[] = [];
+
+  /** 부가 전사(텍스트만 오는 폴백) 누적 버퍼 */
   let sourcePartial = '';
-  /**
-   * 원문 덩어리가 만들어지기 전에 도착한 번역.
-   * 빈 덩어리를 만들어 담으면 이후 모든 번역이 한 칸씩 밀린다.
-   */
-  let pendingTarget = '';
-  /** 문장이 끝나기 전 미리 띄워 둔 덩어리 (완성되면 이 덩어리를 확정한다) */
-  let livePreview: EngineSegment | null = null;
+  /** VAD 모드 여부 — 전용 전사 레그가 붙으면 켜진다 */
+  let vadMode = false;
+  /** item_id → 그 발화의 오디오 구간 */
+  const vadWindows = new Map<string, { startMs: number; endMs?: number }>();
+
   let detectedLang: string | undefined;
   let lastOutputAt = 0;
-  /** 마지막 원문 전사 도착 시각. 0이면 아직 한 번도 안 왔다. */
   let lastSourceAt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   /**
-   * 원문 대비 번역 길이 비율. 언어쌍마다 다르다 — 영어→한국어는 짧아지고, 한국어→영어는 길어진다.
-   * 이 비율로 "이 덩어리가 가져갈 번역 분량"을 가늠해 한 덩어리가 전부 삼키는 것을 막는다.
-   *
-   * ⚠ 진행 중 누적치(도착한 원문/번역 총량)로 재면 안 된다.
-   * 번역은 원문보다 1.5초쯤 늦게 오므로 그 비율은 항상 실제보다 낮게 나온다
-   * (실측: 진행 중 0.30 vs 세션 전체 0.43). 낮게 잡히면 자를 지점을 너무 앞에서 찾아
-   * 원문 한 문장의 번역이 첫 마침표에서 잘려 뒤 문장이 다음 덩어리로 밀린다.
-   *
-   * 그래서 **확정된 덩어리만** 센다. 확정된 것끼리는 원문·번역이 같은 구간을 덮으므로 편향이 없다.
+   * 오디오 1초당 번역 글자수 — 원문을 얼마나 꺼내 붙일지 정하는 기준.
+   * 실측(영어→한국어) 7.6~9.8자/초. 붙인 실적으로만 보정한다.
    */
-  let closedSource = 0;
-  let closedTarget = 0;
-  const targetPerSource = () => (closedSource < 40 ? 0.6 : closedTarget / closedSource);
-
-  /**
-   * 오디오 1초당 번역 글자수 — VAD 모드의 분량 기준.
-   * 실측(영어→한국어): 7.6~9.8자/초. 확정된 덩어리로만 보정한다(진행 중 누적은 지연 때문에 편향).
-   */
-  let closedAudioSec = 0;
-  let closedAudioTargetChars = 0;
-  const targetCharsPerSec = () =>
-    closedAudioSec < 3 ? 9 : closedAudioTargetChars / closedAudioSec;
+  let pairedAudioSec = 0;
+  let pairedTargetChars = 0;
+  const charsPerSec = () => (pairedAudioSec < 3 ? 9 : pairedTargetChars / pairedAudioSec);
 
   const emit = (s: EngineSegment) => onSegment({ ...s });
 
-  function newSegment(sourceText: string): EngineSegment {
+  function newRow(): EngineSegment {
     const seg: EngineSegment = {
       seq: nextSeq++,
       startMs: Date.now() - startedAt,
-      sourceText,
+      sourceText: '',
       targetText: '',
       isFinal: false,
       detectedLang,
     };
-    open.push(seg);
-    // 내용이 있을 때만 화면에 올린다 — VAD로 미리 만든 빈 칸은 아직 보여줄 게 없다
-    if (sourceText) emit(seg);
     return seg;
   }
 
-  /**
-   * ── VAD 주도 조립 (전용 전사 레그가 붙었을 때) ──────────────────────
-   *
-   * 전용 레그는 발화가 시작되는 순간 `speech_started`를 준다(실측: 번역보다 0.26초 빠름).
-   * 그래서 **번역이 도착하기 전에 빈 칸을 만들어 둘 수 있다.**
-   *
-   * 왜 필요했나 (실사용 2026-07-28): 전용 레그의 원문은 발화가 끝나야 나오므로
-   * 번역보다 2~3초 늦다. "원문이 먼저 온다"를 전제한 텍스트 주도 조립에서는
-   * 번역이 먼저 도착해 원문 없는 칸이 생기고, 그때부터 모든 자막이 한 칸씩 밀렸다
-   * (화면: 한글 "모두 무료입니다" ↔ 원문 "One.").
-   *
-   * 분량 기준도 글자수가 아니라 **오디오 길이**를 쓴다. 언어쌍마다 글자수 비율은 제각각이지만
-   * "1초 말하면 번역 몇 글자"는 훨씬 안정적이다.
-   */
-  let vadMode = false;
-  /** item_id → 그 발화가 담당하는 자막 칸 */
-  const shells = new Map<string, EngineSegment>();
-
-  function shellFor(itemId: string | undefined): EngineSegment | undefined {
-    return itemId ? shells.get(itemId) : undefined;
-  }
-
-  /**
-   * 원문 덩어리가 생기기 전에 도착해 대기하던 번역을 흘려보낸다.
-   * ⚠ newSegment 안에서 부르면 안 된다 — 갓 만든 미리보기 덩어리가 그 자리에서 닫히는데
-   * 아직 livePreview에 대입되기 전이라 sourcePartial 정리가 건너뛰어지고 원문이 중복된다.
-   */
-  function flushPendingTarget(force = false) {
-    drainTarget(force);
-  }
-
-  /**
-   * 완성된 원문 문장이 나올 때마다 덩어리를 하나 만든다.
-   * 문장이 끝나기 전이라도 진행 중인 조각을 화면에 즉시 보여준다 —
-   * 문장 완성을 기다리면 자막이 한꺼번에 뭉쳐 나오고 음성보다 한참 늦게 뜬다.
-   */
-  function drainSourceSentences() {
-    const matches = sourcePartial.match(SENTENCE_SPLIT);
-    if (matches) {
-      sourcePartial = sourcePartial.slice(matches.join('').length);
-      for (const raw of matches) {
-        const s = raw.trim();
-        if (!s || !HAS_WORD.test(s)) continue;
-        // 미리 보여주던 조각이 있으면 그 덩어리를 완성된 문장으로 확정한다
-        if (livePreview) {
-          livePreview.sourceText = s;
-          emit(livePreview);
-          livePreview = null;
-        } else {
-          newSegment(s);
-        }
-      }
-    }
-
-    // 구두점 없이 길게 이어지면 강제로 끊는다
-    if (sourcePartial.length >= maxSourceChars) {
-      const cut = sourcePartial.lastIndexOf(' ', maxSourceChars);
-      const at = cut > maxSourceChars / 2 ? cut : maxSourceChars;
-      const head = sourcePartial.slice(0, at).trim();
-      sourcePartial = sourcePartial.slice(at);
-      if (head && HAS_WORD.test(head)) {
-        if (livePreview) {
-          livePreview.sourceText = head;
-          emit(livePreview);
-          livePreview = null;
-        } else {
-          newSegment(head);
-        }
-      }
-    }
-
-    // 아직 문장이 안 끝났으면 조각만이라도 즉시 띄운다
-    const partial = sourcePartial.trim();
-    if (partial && HAS_WORD.test(partial)) {
-      if (!livePreview) livePreview = newSegment(partial);
-      else {
-        livePreview.sourceText = partial;
-        emit(livePreview);
-      }
-    }
-
-    // 덩어리가 생겼으니, 먼저 도착해 대기하던 번역을 이제 흘려보낸다
-    flushPendingTarget();
-  }
-
-  /** 가장 오래된, 아직 열려 있는 덩어리 */
-  function currentOpen(): EngineSegment | undefined {
-    return open[0];
-  }
-
-  /**
-   * 번역 델타를 받는 유일한 입구.
-   *
-   * ⚠ 반드시 버퍼 뒤에 붙인다. 예전에는 대기 중인 버퍼가 있어도 새 델타를
-   * 덩어리에 바로 썼는데, 그러면 나중에 버퍼가 풀리며 이미 쓴 글 뒤에 끼어들어
-   * 번역 글자 순서가 깨졌다("기 리뷰좋은 이 분에…" — 실측으로 확인).
-   * 순서는 절대 어겨선 안 된다.
-   */
+  // ── 번역: 주인 스트림. 자르기만 하고 내용은 건드리지 않는다 ──────────────
   function feedTarget(text: string) {
-    pendingTarget += text;
-    drainTarget();
+    let rest = text;
+    while (rest) {
+      if (!openRow) openRow = newRow();
+      openRow.targetText += rest;
+      rest = '';
+      emit(openRow);
+
+      const t = openRow.targetText;
+      if (t.length < minRowChars) return;
+
+      // 문장 끝에서 끊는 게 1순위
+      let cut = sentenceEndAtOrAfter(t, minRowChars - 1);
+      // 문장부호가 끝내 안 오면 절 경계나 어절 경계에서 끊는다
+      if (cut < 0 && t.length >= maxRowChars) cut = softBreakBefore(t, maxRowChars);
+      if (cut < 0) return;
+
+      rest = t.slice(cut + 1);
+      openRow.targetText = t.slice(0, cut + 1);
+      closeRow(openRow);
+      openRow = null;
+    }
   }
 
-  /** 버퍼를 앞에서부터 덩어리에 흘려보낸다 */
-  function drainTarget(force = false) {
-    while (pendingTarget) {
-      let seg = currentOpen();
-      if (!seg) {
-        /**
-         * 원문 전사가 끊겼는데 번역은 계속 오는 경우 (실사용 사고 2026-07-27).
-         * 원문 주도 구조라 열린 덩어리가 없으면 번역이 여기 영영 갇혀,
-         * 통역 음성은 잘 나오는데 자막만 세 줄에서 멈춰 버렸다.
-         * 원문을 못 붙이더라도 번역만으로 자막을 계속 내보낸다.
-         */
-        const quiet = Date.now() - (lastSourceAt || startedAt);
-        // 글자수 하한을 높게 잡으면(한때 8자) 덩어리 사이마다 버퍼가 차기를 기다려
-        // 자막이 뚝뚝 끊겨 보인다 — 잡음 한두 글자만 거르면 충분하다
-        const stalled = quiet >= sourceStallMs && pendingTarget.trim().length >= 3;
-        if (!(force ? pendingTarget.trim().length > 0 : stalled)) return;
-        seg = newSegment('');
-      }
+  function closeRow(row: EngineSegment) {
+    row.isFinal = true;
+    row.endMs = Date.now() - startedAt;
+    row.targetText = row.targetText.replace(/^[\s.,!?。、！？]+/, '').trim();
+    if (!row.targetText && !row.sourceText) return; // 빈 줄은 화면에 올리지 않는다
+    awaitingSource.push(row);
+    awaitingSince.set(row.seq, Date.now());
+    emit(row);
+    attachSources();
+  }
 
-      seg.targetText += pendingTarget;
-      pendingTarget = '';
-      emit(seg);
+  // ── 원문: 보조 스트림. 칸마다 필요한 만큼 큐에서 꺼내 붙인다 ─────────────
+  function pushSource(text: string, audioMs: number) {
+    const t = text.trim();
+    if (!t || !HAS_WORD.test(t)) return;
+    lastSourceAt = Date.now();
+    sourceQueue.push({ text: t, audioMs: Math.max(200, audioMs) });
+    attachSources();
+  }
+
+  /**
+   * 칸이 가져갈 원문 분량 = 그 칸의 번역 글자수 ÷ (초당 글자수).
+   * 남는 원문은 큐에 그대로 두어 다음 칸이 가져간다 → 뒤쪽 칸이 구조적으로 비지 않는다.
+   */
+  function attachSources(force = false) {
+    while (awaitingSource.length > 0 && sourceQueue.length > 0) {
+      const row = awaitingSource[0]!;
+      const needMs = (row.targetText.length / charsPerSec()) * 1000;
 
       /**
-       * 미리보기(문장 미완성 원문)는 원칙적으로 여기서 닫지 않는다 —
-       * 닫으면 원문이 문장 한복판에서 잘린다("Good m" / "orning").
-       *
-       * ⚠ 단, 원문 전사가 멈춘 채 번역만 흐르면 이 조각이 번역을 무한정 삼킨다.
-       * 확정 타이머는 번역 델타마다 리셋되므로 영영 안 울리고,
-       * 자막 하나가 1분 넘게 부풀다 한 번에 쏟아졌다 (실사용 회귀 2026-07-28).
-       * 원문이 조용해졌고 번역 문장이 완성됐으면 조각 원문 그대로 확정하고 계속 흘린다.
+       * ⚠ 먼저 계산만 하고, 충분히 모였을 때만 실제로 큐에서 뺀다.
+       * 원문은 번역보다 2~3초 늦게 오므로, 도착한 만큼 성급히 붙이면
+       * 뒤 문장이 다음 칸으로 밀려 자막 전체가 한 칸씩 어긋난다(실측으로 확인).
        */
-      /**
-       * 발화가 아직 안 끝난 VAD 칸은 닫지 않는다 — 오디오 길이를 모르니 분량을 정할 수 없다.
-       * 발화가 끝나면(speech_stopped) audioEndMs가 채워지고 아래 규칙으로 잘린다.
-       */
-      if (seg.audioStartMs != null && seg.audioEndMs == null) return;
+      let gotMs = 0;
+      let consume = 0; // 통째로 소비할 개수
+      let splitAt = -1; // 마지막 항목을 어절 단위로 나눠 쓸 위치
+      let splitRatio = 0;
 
-      if (seg === livePreview) {
-        const srcQuiet = Date.now() - (lastSourceAt || startedAt);
-        if (srcQuiet < sourceStallMs) return;
-        const cutAt = sentenceEndAtOrAfter(seg.targetText, 0);
-        if (cutAt < 0 && seg.targetText.length < 60) return;
-        if (cutAt >= 0 && cutAt < seg.targetText.length - 1) {
-          pendingTarget = seg.targetText.slice(cutAt + 1);
-          seg.targetText = seg.targetText.slice(0, cutAt + 1);
+      for (let i = 0; i < sourceQueue.length; i++) {
+        const head = sourceQueue[i]!;
+        const remainMs = needMs - gotMs;
+        if (gotMs >= needMs * 0.8) break;
+        // 한 발화가 필요한 양보다 훨씬 크면 앞부분만 쓰고 나머지는 남긴다
+        if (head.audioMs > remainMs * 1.8 && remainMs > 0) {
+          const ratio = Math.max(0.2, Math.min(0.85, remainMs / head.audioMs));
+          const at = head.text.lastIndexOf(' ', Math.ceil(head.text.length * ratio));
+          if (at > 0) {
+            splitAt = at;
+            splitRatio = ratio;
+            gotMs += head.audioMs * ratio;
+            break;
+          }
         }
-        closeSegment(seg); // livePreview 정리(원문 조각 소비)는 closeSegment가 한다
-        continue;
+        gotMs += head.audioMs;
+        consume = i + 1;
       }
 
-      /**
-       * 이 칸이 가져갈 번역 분량.
-       * VAD가 준 오디오 길이가 있으면 그걸 쓴다 — 언어쌍에 무관해 가장 안정적이다.
-       * 없으면 원문 글자수 비례, 원문조차 없으면 문장부호로만 끊는다.
-       */
-      const audioMs =
-        seg.audioStartMs != null && seg.audioEndMs != null
-          ? seg.audioEndMs - seg.audioStartMs
-          : null;
-      const quota =
-        audioMs != null
-          ? Math.max(6, (audioMs / 1000) * targetCharsPerSec())
-          : seg.sourceText
-            ? Math.max(6, seg.sourceText.length * targetPerSource())
-            : 40;
-      /**
-       * 자를 지점은 예상 분량의 60%를 넘긴 뒤부터 찾는다.
-       * 50%로 두면 원문 한 문장이 번역 두 문장으로 갈릴 때 첫 문장에서 끊겨
-       * 자막이 한 칸씩 밀린다(실측으로 확인).
-       */
-      const from = Math.ceil(quota * 0.6) - 1;
-      let idx = sentenceEndAtOrAfter(seg.targetText, from);
-      /**
-       * 분량을 넘겼는데도 마침표가 안 나오면 절 경계(쉼표)에서 자른다.
-       * 안 그러면 아래 상한에서 문장 한복판이 잘려 "…중요한지는 다시 / 말씀드리겠습니다."가 된다.
-       */
-      if (idx < 0 && seg.targetText.length >= quota) {
-        idx = clauseEndBetween(seg.targetText, from, Math.ceil(quota * 1.6));
+      const enough = gotMs >= needMs * 0.8 || splitAt > 0;
+      const waited = Date.now() - (awaitingSince.get(row.seq) ?? Date.now());
+      // 오래 기다린 칸은 있는 만큼이라도 붙인다 — 영영 비워두지 않는다
+      if (!enough && !force && waited < sourceWaitMs) return;
+      if (consume === 0 && splitAt < 0) return;
+
+      const parts: string[] = [];
+      for (let i = 0; i < consume; i++) parts.push(sourceQueue[i]!.text);
+      sourceQueue.splice(0, consume);
+      if (splitAt > 0) {
+        const head = sourceQueue[0]!;
+        parts.push(head.text.slice(0, splitAt).trim());
+        head.text = head.text.slice(splitAt).trim();
+        head.audioMs = head.audioMs * (1 - splitRatio);
       }
-      if (idx >= 0 && idx < seg.targetText.length - 1) {
-        // 문장이 끝난 지점에서 자르고, 나머지는 버퍼로 되돌려 다음 덩어리가 받게 한다
-        pendingTarget = seg.targetText.slice(idx + 1);
-        seg.targetText = seg.targetText.slice(0, idx + 1);
-        closeSegment(seg);
-        continue;
+
+      awaitingSource.shift();
+      awaitingSince.delete(row.seq);
+      row.sourceText = parts.join(' ').replace(/\s+/g, ' ').trim();
+      if (row.targetText) {
+        pairedAudioSec += gotMs / 1000;
+        pairedTargetChars += row.targetText.length;
       }
-      if (idx >= 0) {
-        closeSegment(seg);
+      emit(row);
+    }
+  }
+
+  /**
+   * 번역이 전혀 안 오는 경우(표시 언어와 같은 말).
+   * 원문만으로 자막을 만들어 화면이 멈추지 않게 한다.
+   */
+  function drainSourceOnly() {
+    const idle = lastOutputAt ? Date.now() - lastOutputAt : Infinity;
+    if (idle < untranslatedIdleMs) return;
+    if (awaitingSource.length > 0 || openRow) return;
+    while (sourceQueue.length > 0) {
+      const chunk = sourceQueue.shift()!;
+      const sameScript =
+        !targetLang || guessScript(chunk.text) === scriptOfLang(targetLang);
+      if (!sameScript) {
+        sourceQueue.unshift(chunk); // 다른 언어인데 번역이 안 왔다 — 조금 더 기다린다
         return;
       }
-      /**
-       * 구두점이 끝내 안 오는 경우의 안전장치 — 한 덩어리가 전부 삼키지 못하게 한다.
-       * 절대 하한(24자)을 함께 두지 않으면, 짧은 원문에서 문장이 끝나기도 전에
-       * 강제로 잘려 번역이 중간에서 토막 난다("Understood" / ". Thank y").
-       */
-      if (seg.targetText.length >= Math.max(24, quota * 1.6)) closeSegment(seg);
-      return;
+      const row = newRow();
+      row.sourceText = chunk.text;
+      row.targetText = chunk.text;
+      row.sameAsTarget = true;
+      row.isFinal = true;
+      row.endMs = Date.now() - startedAt;
+      emit(row);
     }
   }
 
-  function closeSegment(seg: EngineSegment, sameAsTarget = false) {
-    const idx = open.indexOf(seg);
-    if (idx >= 0) open.splice(idx, 1);
-    if (livePreview === seg) {
-      livePreview = null;
-      /**
-       * 미리 보여주던 조각이 확정됐다.
-       * 그 부분을 남은 원문에서 지우지 않으면, 다음 델타가 붙을 때
-       * 같은 말이 새 덩어리에 한 번 더 들어간다.
-       */
-      const i = sourcePartial.indexOf(seg.sourceText);
-      if (i >= 0) sourcePartial = sourcePartial.slice(i + seg.sourceText.length);
-    }
-    seg.isFinal = true;
-    seg.endMs = Date.now() - startedAt;
-    if (sameAsTarget) {
-      seg.sameAsTarget = true;
-      // 표시 언어와 같은 말이라 번역이 없다 — 원문을 그대로 자막으로 쓴다
-      if (!seg.targetText.trim()) seg.targetText = seg.sourceText;
-    }
-    seg.targetText = seg.targetText.replace(/^[\s.,!?。、！？]+/, '');
-    // 언어쌍 비율은 확정된 덩어리로만 갱신한다 (위 주석 참고)
-    if (!sameAsTarget && seg.sourceText.trim() && seg.targetText.trim()) {
-      closedSource += seg.sourceText.length;
-      closedTarget += seg.targetText.length;
-    }
-    if (!sameAsTarget && seg.audioStartMs != null && seg.audioEndMs != null && seg.targetText.trim()) {
-      closedAudioSec += (seg.audioEndMs - seg.audioStartMs) / 1000;
-      closedAudioTargetChars += seg.targetText.length;
-    }
-    emit(seg);
-  }
-
-  /**
-   * 번역이 멈췄을 때 정리한다.
-   * - 번역이 붙은 덩어리는 확정한다.
-   * - 번역이 오래 안 온 덩어리는 같은 언어로 보고 원문을 자막으로 내보낸다.
-   */
+  /** 번역이 멈추면 열린 칸을 확정한다 */
   function onPause() {
-    const idle = lastOutputAt ? Date.now() - lastOutputAt : Infinity;
-    // 대기 중인 번역이 남아 있으면 지금 흘려보낸다 — 여기서 안 보내면 영영 못 보낸다
-    flushPendingTarget(true);
-    for (const seg of [...open]) {
-      if (seg.targetText.trim()) {
-        closeSegment(seg);
-        continue;
-      }
-      const sameScript =
-        !targetLang || guessScript(seg.sourceText) === scriptOfLang(targetLang);
-      if (idle >= untranslatedIdleMs && sameScript) closeSegment(seg, true);
+    if (openRow && openRow.targetText.trim()) {
+      closeRow(openRow);
+      openRow = null;
     }
+    attachSources(); // 오래 기다린 칸은 여기서 있는 만큼 붙는다
+    drainSourceOnly();
   }
 
   function armTimer() {
     if (timer) clearTimeout(timer);
     timer = setTimeout(onPause, pauseMs);
+  }
+
+  /** 부가 전사(텍스트만) 경로 — 문장 단위로 잘라 큐에 넣는다 */
+  function drainSourceText() {
+    for (;;) {
+      const idx = sentenceEndAtOrAfter(sourcePartial, 0);
+      if (idx < 0) break;
+      const sentence = sourcePartial.slice(0, idx + 1);
+      sourcePartial = sourcePartial.slice(idx + 1);
+      pushSource(sentence, (sentence.length / SOURCE_CHARS_PER_SEC) * 1000);
+    }
+    // 구두점 없이 길어지면 강제로 끊는다
+    if (sourcePartial.length >= 160) {
+      const at = sourcePartial.lastIndexOf(' ', 160);
+      const cut = at > 80 ? at : 160;
+      const head = sourcePartial.slice(0, cut);
+      sourcePartial = sourcePartial.slice(cut);
+      pushSource(head, (head.length / SOURCE_CHARS_PER_SEC) * 1000);
+    }
   }
 
   return {
@@ -424,63 +333,49 @@ export function createSegmentAssembler(
       const itemId = typeof evt.item_id === 'string' ? evt.item_id : undefined;
 
       switch (evt.type) {
-        // ── VAD: 발화가 시작되는 순간 빈 칸을 만든다 (번역보다 먼저 온다) ──
+        // ── VAD 경계: 발화의 오디오 구간을 기록한다 ──
         case 'input_audio_buffer.speech_started': {
           vadMode = true;
-          if (!itemId || shells.has(itemId)) break;
-          const seg = newSegment('');
-          seg.audioStartMs = typeof evt.audio_start_ms === 'number' ? evt.audio_start_ms : undefined;
-          shells.set(itemId, seg);
+          if (itemId && typeof evt.audio_start_ms === 'number') {
+            vadWindows.set(itemId, { startMs: evt.audio_start_ms });
+          }
+          break;
+        }
+        case 'input_audio_buffer.speech_stopped': {
+          const w = itemId ? vadWindows.get(itemId) : undefined;
+          if (w && typeof evt.audio_end_ms === 'number') w.endMs = evt.audio_end_ms;
+          break;
+        }
+
+        // ── 전용 전사 레그의 확정 원문 ──
+        case 'conversation.item.input_audio_transcription.completed': {
+          const transcript = typeof evt.transcript === 'string' ? evt.transcript : '';
+          if (!transcript.trim()) break;
+          const w = itemId ? vadWindows.get(itemId) : undefined;
+          const audioMs =
+            w && w.endMs != null
+              ? w.endMs - w.startMs
+              : (transcript.length / SOURCE_CHARS_PER_SEC) * 1000;
+          if (itemId) vadWindows.delete(itemId);
+          pushSource(transcript, audioMs);
           armTimer();
           break;
         }
 
-        // ── VAD: 발화가 끝나면 오디오 길이가 확정된다 → 분량 기준이 생긴다 ──
-        case 'input_audio_buffer.speech_stopped': {
-          const seg = shellFor(itemId);
-          if (seg && typeof evt.audio_end_ms === 'number') {
-            seg.audioEndMs = evt.audio_end_ms;
-            drainTarget(); // 이제 자를 수 있다 — 대기 중인 번역을 흘린다
-          }
-          break;
-        }
-
-        // ── 원문 확정본 (전용 레그) ──────────────────
-        case 'conversation.item.input_audio_transcription.completed': {
-          const seg = shellFor(itemId);
-          const transcript = typeof evt.transcript === 'string' ? evt.transcript : '';
-          if (seg && transcript.trim()) {
-            lastSourceAt = Date.now();
-            seg.sourceText = transcript.trim();
-            emit(seg);
-          }
-          break;
-        }
-
-        // ── 원문: 자막 덩어리의 뼈대 ─────────────────
+        // ── 부가 전사(폴백): 텍스트만 온다 ──
         case 'session.input_transcript.delta':
         case 'conversation.item.input_audio_transcription.delta': {
           if (evt.language) detectedLang = evt.language;
+          // VAD 모드에서는 확정본(completed)만 쓴다 — 델타까지 받으면 같은 말이 두 번 들어간다
+          if (vadMode) break;
           lastSourceAt = Date.now();
-
-          // VAD 모드에서는 칸이 이미 있다 — 해당 칸에만 흘려 넣는다
-          if (vadMode) {
-            const seg = shellFor(itemId);
-            if (seg) {
-              seg.sourceText += evt.delta ?? '';
-              emit(seg);
-            }
-            armTimer();
-            break;
-          }
-
           sourcePartial += evt.delta ?? '';
-          drainSourceSentences();
+          drainSourceText();
           armTimer();
           break;
         }
 
-        // ── 번역: 가장 오래된 덩어리부터 채운다 ──────
+        // ── 번역: 주인 스트림 ──
         case 'session.output_transcript.delta':
         case 'response.output_text.delta':
         case 'response.output_audio_transcript.delta': {
@@ -507,22 +402,41 @@ export function createSegmentAssembler(
         clearTimeout(timer);
         timer = null;
       }
-      // 남은 원문 조각도 덩어리로 만들어 유실을 막는다
+      // 남은 원문 조각도 큐에 넣어 유실을 막는다
       const tail = sourcePartial.trim();
       sourcePartial = '';
-      if (tail && HAS_WORD.test(tail) && !livePreview) newSegment(tail);
-      livePreview = null;
-      flushPendingTarget(true);
-      for (const seg of [...open]) {
-        // VAD가 발화 시작만 알리고 끝난 세션 — 내용 없는 빈 칸은 화면에 올리지 않는다
-        if (!seg.sourceText.trim() && !seg.targetText.trim()) {
-          const i = open.indexOf(seg);
-          if (i >= 0) open.splice(i, 1);
-          continue;
+      if (tail) pushSource(tail, (tail.length / SOURCE_CHARS_PER_SEC) * 1000);
+
+      if (openRow && (openRow.targetText.trim() || openRow.sourceText.trim())) {
+        closeRow(openRow);
+      }
+      openRow = null;
+
+      // 아직 원문이 못 붙은 칸에 남은 원문을 몰아 붙인다
+      while (awaitingSource.length > 0) {
+        const row = awaitingSource.shift()!;
+        if (sourceQueue.length > 0) {
+          const take = awaitingSource.length === 0 ? sourceQueue.splice(0) : sourceQueue.splice(0, 1);
+          row.sourceText = take.map((c) => c.text).join(' ').trim();
         }
-        const sameScript =
-          !targetLang || guessScript(seg.sourceText) === scriptOfLang(targetLang);
-        closeSegment(seg, !seg.targetText.trim() && sameScript);
+        emit(row);
+      }
+
+      // 번역이 끝내 없던 원문은 그대로 자막으로 내보낸다
+      lastOutputAt = 0;
+      drainSourceOnly();
+
+      /**
+       * 여기까지 남은 원문은 표시 언어와 문자가 달라 자막으로 못 쓴 것들이다.
+       * 그래도 버리지 않는다 — 세션 기록에서 원문이 사라지면 안 된다.
+       */
+      while (sourceQueue.length > 0) {
+        const chunk = sourceQueue.shift()!;
+        const row = newRow();
+        row.sourceText = chunk.text;
+        row.isFinal = true;
+        row.endMs = Date.now() - startedAt;
+        emit(row);
       }
     },
   };

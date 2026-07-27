@@ -26,11 +26,6 @@ export interface EngineSegment {
    */
   audioStartMs?: number;
   audioEndMs?: number;
-  /**
-   * 통역 모델이 끝내 번역을 보내지 않아 텍스트 번역 엔진으로 메운 자막.
-   * (입력이 문장 도중 끊기면 마지막 발화의 번역이 오지 않는다 — 실측 2026-07)
-   */
-  recovered?: boolean;
 }
 
 export interface EngineError {

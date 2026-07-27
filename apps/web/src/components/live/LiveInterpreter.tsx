@@ -188,10 +188,6 @@ export function LiveInterpreter({
   const audioUnlockedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const endingRef = useRef(false);
-  /** seq → 화면에 처음 뜬 시각. 번역이 끝내 오지 않는 덩어리를 찾는 데 쓴다. */
-  const seenAtRef = useRef(new Map<number, number>());
-  /** 이미 텍스트 번역으로 메운(또는 메우는 중인) seq */
-  const recoveredRef = useRef(new Set<number>());
   /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
   const lastSegmentAtRef = useRef(0);
   /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
@@ -436,7 +432,6 @@ export function LiveInterpreter({
         {
           onSegment: (seg) => {
             lastSegmentAtRef.current = Date.now();
-            if (!seenAtRef.current.has(seg.seq)) seenAtRef.current.set(seg.seq, Date.now());
             setSegments((prev) => {
               const idx = prev.findIndex((p) => p.seq === seg.seq);
               const next = idx >= 0 ? [...prev.slice(0, idx), seg, ...prev.slice(idx + 1)] : [...prev, seg];
@@ -480,8 +475,6 @@ export function LiveInterpreter({
     setRemainingSec(grant.maxDurationSec);
     setSegments([]);
     segmentsLenRef.current = 0;
-    seenAtRef.current.clear();
-    recoveredRef.current.clear();
     lastSegmentAtRef.current = Date.now();
     setPhase('live');
 
@@ -632,67 +625,15 @@ export function LiveInterpreter({
   }, [isTalk, targetLang, speakLang, audioOut]);
 
   /**
-   * 번역이 끝내 오지 않은 덩어리를 텍스트 번역 엔진으로 메운다.
+   * ⚠ 번역 누락을 gpt-5로 메우던 로직은 걷어냈다.
    *
-   * 실측(2026-07): 입력이 문장 도중에 끊기면(유튜브 일시정지 등) 원문 전사는 끝까지 오는데
-   * 그 마지막 발화의 번역은 통역 모델이 영영 내보내지 않는다. 세션은 살아 있으므로
-   * 화면에는 원문만 남고 자막이 멈춘 것처럼 보인다.
-   * 통역 모델을 기다리게 둘 수 없으니, 일정 시간이 지나면 같은 문장을 텍스트 번역으로 채운다.
+   * 통역 음성과 번역 자막은 **같은 생성에서 나온 한 쌍**이다. 빈 칸을 다른 모델로 채우면
+   * 그 줄만 귀에 들리는 말과 완전히 다른 문장이 된다 — 실사용에서
+   * "음성은 훌륭한데 텍스트는 못 봐줄 수준"의 주된 원인이었다.
+   * 화면 글자는 음성과 100% 같아야 하므로, 못 채우면 비워 두는 편이 낫다.
+   *
+   * 애초에 빈 칸이 생기던 이유(원문 주도 조립)는 조립기를 번역 주도로 바꿔 해결했다.
    */
-  useEffect(() => {
-    if (phase !== 'live' || trial) return;
-    const RECOVER_AFTER_MS = 4_000;
-    const id = setInterval(() => {
-      const now = Date.now();
-      for (const seg of segmentsRef.current) {
-        if (seg.sameAsTarget) continue;
-        if (seg.targetText.trim()) continue;
-        if (seg.sourceText.trim().length < 2) continue;
-        if (recoveredRef.current.has(seg.seq)) continue;
-        const seenAt = seenAtRef.current.get(seg.seq) ?? now;
-        if (now - seenAt < RECOVER_AFTER_MS) continue;
-
-        recoveredRef.current.add(seg.seq);
-        const source = seg.sourceText;
-        void fetch('/api/translate/text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          // 무전기로 말하는 중이면 상대 언어로 메워야 한다
-          body: JSON.stringify({
-            text: source,
-            sourceLang: 'auto',
-            targetLang: talkingRef.current ? speakLangRef.current : targetLangRef.current,
-            tone: 'plain',
-          }),
-        })
-          .then((r) => (r.ok ? r.json() : null))
-          .then((body: { translated?: string } | null) => {
-            const translated = body?.translated?.trim();
-            if (!translated) return;
-            setSegments((prev) =>
-              prev.map((p) =>
-                // 그 사이 통역 모델이 번역을 보냈다면 그쪽을 존중한다
-                p.seq === seg.seq && !p.targetText.trim()
-                  ? { ...p, targetText: translated, isFinal: true, recovered: true }
-                  : p,
-              ),
-            );
-            const patched = segmentsRef.current.find((p) => p.seq === seg.seq);
-            if (patched) {
-              pendingFinalsRef.current.set(seg.seq, {
-                ...patched,
-                targetText: translated,
-                isFinal: true,
-              });
-            }
-          })
-          .catch(() => {
-            /* 복구 실패 — 원문만이라도 남는다 */
-          });
-      }
-    }, 1_200);
-    return () => clearInterval(id);
-  }, [phase, targetLang, trial]);
 
   // 언마운트 시 정리 — 분(minute)은 곧 돈이다 (core.md §3-6)
   useEffect(() => {
