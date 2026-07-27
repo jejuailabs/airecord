@@ -27,6 +27,8 @@ import {
   ArrowLeft,
   Radio,
   ArrowLeftRight,
+  Activity,
+  Download,
 } from 'lucide-react';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
@@ -38,7 +40,8 @@ import {
   languageLabel,
 } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
-import type { EngineSegment } from '@sotong/shared/engine';
+import type { EngineSegment, DiagSnapshot } from '@sotong/shared/engine';
+import { summarizeDiag } from '@sotong/shared/engine';
 import {
   connectBrowserSession,
   type BrowserTranslationSession,
@@ -143,6 +146,10 @@ export function LiveInterpreter({
    * "안 들려요"만으로는 트랙이 없는 건지, 브라우저가 막은 건지, 음소거인지 구분할 수 없다.
    */
   const [audioDiag, setAudioDiag] = useState<string | null>(null);
+  /** 원문·번역·음성 한 줄 요약. 화면에서 바로 읽고, 파일로도 내려받는다. */
+  const [trace, setTrace] = useState<string | null>(null);
+  const [showTrace, setShowTrace] = useState(false);
+  const diagRef = useRef<DiagSnapshot | null>(null);
   const [savedSessionId, setSavedSessionId] = useState<string | null>(null);
   const [trialUsedChars, setTrialUsedChars] = useState(0);
   const [trialBudget, setTrialBudget] = useState(TRIAL_CHAR_LIMIT);
@@ -284,6 +291,13 @@ export function LiveInterpreter({
         while (Date.now() < deadline && Date.now() - lastSegmentAtRef.current < WRAP_IDLE_MS) {
           await new Promise((r) => setTimeout(r, 200));
         }
+      }
+
+      // 세션을 닫기 전에 계측을 떠 둔다 — 닫은 뒤에는 읽을 수 없다
+      const finalDiag = sessionRef.current?.getDiagnostics();
+      if (finalDiag) {
+        diagRef.current = finalDiag;
+        setTrace(summarizeDiag(finalDiag));
       }
 
       sessionRef.current?.close();
@@ -533,9 +547,18 @@ export function LiveInterpreter({
    * 그때 "왜 안 나는지"를 유저 화면에서 바로 읽을 수 있어야 한다.
    */
   useEffect(() => {
-    if (phase !== 'live' || !audioOut) return;
+    if (phase !== 'live' && phase !== 'wrapping') return;
     let lastEnergy = 0;
     const id = setInterval(() => {
+      const session = sessionRef.current;
+      if (!session) return;
+
+      // 원문·번역·자막 계측은 음성 토글과 무관하게 항상 돈다
+      const snap = session.getDiagnostics();
+      diagRef.current = snap;
+      setTrace(summarizeDiag(snap));
+
+      if (!audioOut) return setAudioDiag(null);
       const el = audioElRef.current;
       if (!el) return;
       const track = remoteStream?.getAudioTracks()[0];
@@ -543,7 +566,7 @@ export function LiveInterpreter({
       if (el.muted) return setAudioDiag('음소거됨');
       if (el.paused) return setAudioDiag('재생 멈춤');
 
-      void sessionRef.current?.getAudioStats().then((s) => {
+      void session.getAudioStats().then((s) => {
         if (!s) return setAudioDiag(null);
         if (s.packetsReceived === 0) return setAudioDiag('수신 없음 (0패킷)');
         const grew = s.totalAudioEnergy > lastEnergy;
@@ -552,13 +575,44 @@ export function LiveInterpreter({
          * 여기까지 왔는데 안 들리면 기기 출력 경로 문제다.
          * iOS는 마이크를 쓰는 동안 소리를 수화부로 보낼 수 있고, 그건 웹이 못 바꾼다.
          */
-        setAudioDiag(
-          grew ? null : `재생 중 · 소리 신호 없음 (${s.packetsReceived}패킷 수신)`,
-        );
+        setAudioDiag(grew ? null : `재생 중 · 소리 신호 없음 (${s.packetsReceived}패킷 수신)`);
       });
-    }, 3_000);
+    }, 2_000);
     return () => clearInterval(id);
   }, [phase, audioOut, remoteStream]);
+
+  /** 진단 로그 내려받기 — 폰에서 본 걸 그대로 붙여넣을 수 있게 파일로 남긴다 */
+  const downloadTrace = useCallback(() => {
+    const snap = diagRef.current;
+    if (!snap) return;
+    const lines = [
+      `InterLive 진단 로그`,
+      `모드: ${isTalk ? '대화 통역' : '대면 통역'}`,
+      `표시 언어: ${targetLang} / 상대 언어: ${speakLang} / 음성출력: ${audioOut ? 'on' : 'off'}`,
+      `요약: ${summarizeDiag(snap)}`,
+      ``,
+      `[채널]`,
+      ...(Object.entries(snap.channels) as Array<[string, (typeof snap.channels)['source']]>).map(
+        ([k, v]) =>
+          `${k.padEnd(7)} events=${v.events} chars=${v.chars} first=${v.firstAtMs} last=${v.lastAtMs} maxGap=${v.maxGapMs}`,
+      ),
+      ``,
+      `[자막] total=${snap.segments.total} missingSource=${snap.segments.missingSource} missingTarget=${snap.segments.missingTarget} passthrough=${snap.segments.passthrough}`,
+      ``,
+      `[기록]`,
+      ...snap.notes,
+      ``,
+      `[타임라인] atMs,channel,chars`,
+      ...snap.timeline.map((t) => `${t.atMs},${t.ch},${t.chars}`),
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `interlive-trace-${snap.elapsedMs}ms.txt`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5_000);
+  }, [isTalk, targetLang, speakLang, audioOut]);
 
   /**
    * 번역이 끝내 오지 않은 덩어리를 텍스트 번역 엔진으로 메운다.
@@ -890,6 +944,20 @@ export function LiveInterpreter({
           <p className="w-full rounded-lg bg-warn-weak px-5 py-3 text-[15px] text-warn">
             {t('ended.reasonCap')}
           </p>
+        ) : null}
+
+        {/* 진단 — 원문/번역/음성이 어디서 끊겼는지 그대로 남긴다 */}
+        {trace ? (
+          <div className="flex w-full flex-col gap-2 rounded-xl border border-border bg-bg-sunken p-4">
+            <p className="tabular break-all text-[12px] leading-relaxed text-text-muted">{trace}</p>
+            <button
+              onClick={downloadTrace}
+              className="flex h-10 w-fit items-center gap-2 rounded-lg border border-border px-3 text-[13.5px] font-semibold text-text-muted"
+            >
+              <Download size={15} aria-hidden />
+              {t('ended.downloadTrace')}
+            </button>
+          </div>
         ) : null}
 
         {/* 요약 지표 */}
@@ -1392,6 +1460,16 @@ export function LiveInterpreter({
       <CaptionPanel segments={segments} scale={SIZE_SCALE[captionSize]} live />
 
       {/*
+        진단 줄 — 원문/번역/음성이 각각 몇 개 왔고 마지막이 언제인지.
+        "원문이 안 나온다"가 전사가 멈춘 건지, 조립이 잘못된 건지 바로 갈린다.
+      */}
+      {showTrace && trace ? (
+        <p className="tabular shrink-0 break-all rounded-lg bg-bg-sunken px-3 py-2 text-[11.5px] leading-relaxed text-text-faint">
+          {trace}
+        </p>
+      ) : null}
+
+      {/*
         무전기 — 듣기가 기본, 누르고 있는 동안만 내 말이 상대 언어로 나간다.
         토글이 아니라 '누르고 있기'로 둔 이유: 손을 떼면 반드시 듣기로 돌아와야
         상대 말을 놓치지 않는다.
@@ -1491,6 +1569,18 @@ export function LiveInterpreter({
             }`}
           >
             {audioOut ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
+          </button>
+
+          <button
+            onClick={() => setShowTrace((v) => !v)}
+            aria-pressed={showTrace}
+            aria-label={t('running.trace')}
+            title={t('running.trace')}
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-150 ${
+              showTrace ? 'border-accent bg-accent-weak text-accent' : 'border-border text-text-muted'
+            }`}
+          >
+            <Activity size={18} aria-hidden />
           </button>
 
           <button

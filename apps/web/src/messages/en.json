@@ -322,6 +322,7 @@
       "sizeMd": "Normal",
       "sizeLg": "Large",
       "sizeXl": "Extra large",
+      "trace": "Show diagnostics",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
       "latest": "Jump to latest",
@@ -342,6 +343,7 @@
     "ended": {
       "title": "Session ended",
       "backToMain": "Back to main",
+      "downloadTrace": "Download diagnostics",
       "reasonCap": "The session ended automatically because the available time ran out.",
       "duration": "Duration",
       "segments": "{count, plural, =0 {No captions} other {# captions}}",

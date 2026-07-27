@@ -7,6 +7,7 @@
  */
 import type { EngineError, EngineSegment, EphemeralGrant } from './types';
 import { createSegmentAssembler } from './segment-assembler';
+import { createDiagnostics, type DiagSnapshot } from './diagnostics';
 
 export interface BrowserSessionCallbacks {
   onSegment: (s: EngineSegment) => void;
@@ -32,6 +33,8 @@ export interface BrowserTranslationSession {
    * 둘 다 정상인데 안 들리면 기기(iOS 출력 경로) 문제로 확정할 수 있다.
    */
   getAudioStats(): Promise<AudioInboundStats | null>;
+  /** 원문·번역·음성 세 갈래 계측 — 어디서 끊겼는지 특정하는 데 쓴다 */
+  getDiagnostics(): DiagSnapshot;
   readonly model: string;
 }
 
@@ -51,19 +54,6 @@ export async function connectBrowserSession(
 ): Promise<BrowserTranslationSession> {
   const pc = new RTCPeerConnection();
 
-  // 번역 오디오 수신 채널 (옵션 — 음성은 2순위, core.md §3-2)
-  pc.addEventListener('track', (ev) => {
-    if (ev.track.kind === 'audio' && ev.streams[0]) {
-      cbs.onAudioTrack?.(ev.streams[0]);
-    }
-  });
-  pc.addEventListener('connectionstatechange', () => {
-    cbs.onStateChange?.(pc.connectionState);
-    if (pc.connectionState === 'failed') {
-      cbs.onError?.({ code: 'webrtc_failed', message: 'WebRTC connection failed', fatal: true });
-    }
-  });
-
   // addTrack이 만드는 sendrecv 트랜시버 하나로 송신·수신을 모두 처리한다.
   // 여기에 recvonly 트랜시버를 추가하면 오디오 m-line이 둘이 되어 협상이 어긋난다.
   for (const track of micStream.getAudioTracks()) {
@@ -71,16 +61,69 @@ export async function connectBrowserSession(
   }
 
   const dc = pc.createDataChannel('oai-events');
+  const diag = createDiagnostics();
   const assembler = createSegmentAssembler(
-    (s) => cbs.onSegment(s),
-    (code, message) => cbs.onError?.({ code, message, fatal: false }),
+    (s) => {
+      if (s.isFinal) diag.recordSegment(s);
+      cbs.onSegment(s);
+    },
+    (code, message) => {
+      diag.record('error', 0);
+      diag.note(`engine error: ${code} ${message}`.slice(0, 160));
+      cbs.onError?.({ code, message, fatal: false });
+    },
     { targetLang: grant.targetLang },
   );
+
+  /** 이벤트를 세 갈래로 분류한다 — 계측의 기준이자 조립기의 기준과 같아야 한다 */
+  const channelOf = (type: string) => {
+    if (type.includes('input_transcript') || type.includes('input_audio_transcription')) {
+      return 'source' as const;
+    }
+    if (type.includes('output_transcript') || type.includes('output_text')) return 'target' as const;
+    if (type.includes('output_audio')) return 'audio' as const;
+    if (type === 'error' || type.endsWith('.error')) return 'error' as const;
+    return 'other' as const;
+  };
+
   dc.addEventListener('message', (ev) => {
+    let parsed: { type?: string; delta?: string; error?: unknown };
     try {
-      assembler.handle(JSON.parse(ev.data as string));
+      parsed = JSON.parse(ev.data as string);
     } catch {
-      /* 비JSON 프레임 무시 */
+      return; // 비JSON 프레임 무시
+    }
+    const type = parsed.type ?? '';
+    const ch = channelOf(type);
+    diag.record(ch, (parsed.delta ?? '').length);
+    if (ch === 'error' || parsed.error) {
+      diag.note(`server: ${JSON.stringify(parsed).slice(0, 200)}`);
+    } else if (ch === 'other') {
+      // 예상 못 한 이벤트가 오면 그것도 남긴다 — 프로토콜이 바뀌면 여기서 먼저 보인다
+      diag.note(`event: ${type}`);
+    }
+    assembler.handle(parsed as Parameters<typeof assembler.handle>[0]);
+  });
+
+  dc.addEventListener('open', () => diag.note('datachannel open'));
+  dc.addEventListener('close', () => diag.note('datachannel close'));
+
+  // 번역 오디오 수신 채널 (옵션 — 음성은 2순위, core.md §3-2)
+  pc.addEventListener('track', (ev) => {
+    if (ev.track.kind !== 'audio') return;
+    // msid가 없으면 streams가 비어 온다 — 트랙만으로 스트림을 만들어 유실을 막는다
+    const stream = ev.streams[0] ?? new MediaStream([ev.track]);
+    diag.note(`audio track (streams=${ev.streams.length}, muted=${ev.track.muted})`);
+    ev.track.addEventListener('mute', () => diag.note('audio track muted'));
+    ev.track.addEventListener('unmute', () => diag.note('audio track unmuted'));
+    ev.track.addEventListener('ended', () => diag.note('audio track ended'));
+    cbs.onAudioTrack?.(stream);
+  });
+  pc.addEventListener('connectionstatechange', () => {
+    diag.note(`pc ${pc.connectionState}`);
+    cbs.onStateChange?.(pc.connectionState);
+    if (pc.connectionState === 'failed') {
+      cbs.onError?.({ code: 'webrtc_failed', message: 'WebRTC connection failed', fatal: true });
     }
   });
 
@@ -108,6 +151,9 @@ export async function connectBrowserSession(
     // 번역 엔드포인트는 output_modalities를 모르며, 잘못된 session.update를 보내면
     // 세션 설정이 깨져 번역이 멈춘다 — 재생 측에서 음소거로만 제어한다.
     // 반면 audio.output.language 패치는 실측으로 안전함을 확인했다.
+    getDiagnostics() {
+      return diag.snapshot();
+    },
     async getAudioStats() {
       try {
         const report = await pc.getStats();

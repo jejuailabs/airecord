@@ -19,3 +19,5 @@ export function getEngine(provider?: Provider): TranslationEngine {
 
 export * from './types';
 export { createSegmentAssembler } from './segment-assembler';
+export { createDiagnostics, summarizeDiag } from './diagnostics';
+export type { DiagSnapshot, DiagChannel, ChannelStat } from './diagnostics';

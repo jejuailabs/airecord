@@ -322,6 +322,7 @@
       "sizeMd": "보통",
       "sizeLg": "크게",
       "sizeXl": "아주 크게",
+      "trace": "진단 보기",
       "fullscreen": "전체화면",
       "exitFullscreen": "전체화면 종료",
       "latest": "최신으로",
@@ -341,6 +342,7 @@
     },
     "ended": {
       "title": "통역이 끝났습니다",
+      "downloadTrace": "진단 로그 내려받기",
       "reasonCap": "남은 시간이 끝나 자동으로 종료되었습니다.",
       "duration": "통역 시간",
       "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
