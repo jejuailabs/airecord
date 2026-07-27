@@ -94,6 +94,38 @@ export const translateTextResponseSchema = z.object({
 });
 export type TranslateTextResponse = z.infer<typeof translateTextResponseSchema>;
 
+// ── POST /api/translate/file ────────────────────────
+export const translateFilePageSchema = z.object({
+  page: z.number().int().positive(),
+  text: z.string(),
+});
+
+export const translateFileRequestSchema = z.object({
+  kind: z.enum(['pdf', 'image']),
+  fileName: z.string().max(200),
+  sourceLang: sourceLangSchema,
+  targetLang: langCodeSchema,
+  /** kind === 'pdf' — 클라이언트에서 뽑은 페이지별 텍스트 */
+  pages: z.array(translateFilePageSchema).max(200).optional(),
+  /** kind === 'image' — data URL */
+  dataUrl: z.string().max(12_000_000).optional(),
+});
+export type TranslateFileRequest = z.infer<typeof translateFileRequestSchema>;
+
+export const translateFileResponseSchema = z.object({
+  fileName: z.string(),
+  pages: z.array(
+    z.object({
+      page: z.number(),
+      source: z.string(),
+      translated: z.string(),
+      notes: z.array(z.string()).optional(),
+    }),
+  ),
+  totalChars: z.number(),
+});
+export type TranslateFileResponse = z.infer<typeof translateFileResponseSchema>;
+
 // ── POST /api/meeting/join (모드 A — Phase 4) ───────
 export const meetingJoinRequestSchema = z.object({
   url: z.string().url(),

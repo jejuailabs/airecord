@@ -6,6 +6,7 @@
       "live": "In-person",
       "meeting": "Meeting",
       "translate": "Text",
+      "translateFile": "Files",
       "sessions": "Sessions",
       "pricing": "Pricing",
       "settings": "Settings",
@@ -405,6 +406,53 @@
       "tooLong": {
         "title": "This text is longer than your remaining free characters",
         "action": "Shorten it, or sign up and continue."
+      }
+    }
+  },
+  "translateFile": {
+    "title": "File translation",
+    "lead": "Drop a PDF or image and get it side by side with the original.",
+    "sourceLang": "Source language",
+    "targetLang": "Target language",
+    "autoDetect": "Detect language",
+    "dropTitle": "Drop your file here",
+    "dropHint": "PDF or image, up to {mb}MB. Files are never stored on our server.",
+    "choose": "Choose file",
+    "reading": "Reading the file",
+    "translating": "Translating",
+    "pageProgress": "{done} / {total} pages",
+    "newFile": "New file",
+    "page": "Page {page}",
+    "pages": "{count} pages",
+    "chars": " chars",
+    "original": "Original",
+    "translated": "Translation",
+    "downloadPdf": "Save as PDF",
+    "printHint": "Use this window's Print (Ctrl+P) and choose \"Save as PDF\". The print dialog opens shortly.",
+    "errors": {
+      "unsupported": {
+        "title": "Unsupported file type",
+        "action": "Upload a PDF or a PNG, JPG or WEBP image."
+      },
+      "tooLarge": {
+        "title": "File is too large",
+        "action": "Split it into parts under 10MB."
+      },
+      "noTextLayer": {
+        "title": "This PDF has no text layer",
+        "action": "It looks scanned. Export the pages as images and upload those — we read the text from the picture."
+      },
+      "authRequired": {
+        "title": "Sign-in required",
+        "action": "File translation is available after signing in."
+      },
+      "keyMissing": {
+        "title": "Translation engine key is not configured",
+        "action": "Set OPENAI_API_KEY and try again."
+      },
+      "failed": {
+        "title": "Could not translate",
+        "action": "Try again in a moment. If the document is long, split it into parts."
       }
     }
   },

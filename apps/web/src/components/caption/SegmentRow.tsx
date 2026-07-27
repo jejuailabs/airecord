@@ -44,9 +44,10 @@ export const SegmentRow = memo(
             lineHeight: 1.4,
           }}
         >
-          {seg.targetText || ' '}
+          {/* 번역이 아직 없으면 원문을 주 자막으로 보여준다 — 빈 줄을 남기지 않는다 */}
+          {seg.targetText || seg.sourceText || ' '}
         </p>
-        {showSource && seg.sourceText ? (
+        {showSource && seg.sourceText && seg.targetText ? (
           <p
             className="text-caption-source"
             style={{

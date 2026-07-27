@@ -425,14 +425,38 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     });
   }, [micStream]);
 
+  /**
+   * 전체화면.
+   * iOS 사파리는 일반 요소의 requestFullscreen을 지원하지 않아 버튼이 아무 반응도 없었다.
+   * 네이티브 API가 있으면 그걸 쓰고, 없으면 화면을 덮는 몰입 모드로 대체한다.
+   */
   const toggleFullscreen = useCallback(async () => {
-    if (document.fullscreenElement) {
-      await document.exitFullscreen();
-      setIsFullscreen(false);
-    } else if (containerRef.current) {
-      await containerRef.current.requestFullscreen();
-      setIsFullscreen(true);
+    const el = containerRef.current;
+    const supported = typeof el?.requestFullscreen === 'function';
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+        return;
+      }
+      if (supported && el) {
+        await el.requestFullscreen();
+        setIsFullscreen(true);
+        return;
+      }
+    } catch {
+      /* 브라우저가 거부하면 아래 몰입 모드로 떨어진다 */
     }
+    setIsFullscreen((v) => !v);
+  }, []);
+
+  // 네이티브 전체화면을 ESC 등으로 빠져나온 경우 상태를 맞춘다
+  useEffect(() => {
+    const onChange = () => {
+      if (!document.fullscreenElement && document.fullscreenEnabled) setIsFullscreen(false);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
   }, []);
 
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -849,7 +873,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   return (
     <div
       ref={containerRef}
-      className="flex flex-col gap-3 bg-bg"
+      className={`flex flex-col gap-3 bg-bg ${
+        isFullscreen ? 'fixed inset-0 z-50 p-3' : ''
+      }`}
       style={{ height: isFullscreen ? '100dvh' : 'calc(100dvh - 6.5rem)' }}
     >
       {/* 상태 바 (docs/05 §4) */}
@@ -954,32 +980,6 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
             {audioOut ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
           </button>
 
-          <div
-            role="radiogroup"
-            aria-label={t('running.captionSize')}
-            className="flex h-12 items-center rounded-xl border border-border px-1"
-          >
-            {(['md', 'lg', 'xl'] as const).map((s, i) => (
-              <button
-                key={s}
-                role="radio"
-                aria-checked={captionSize === s}
-                aria-label={
-                  s === 'md' ? t('running.sizeMd') : s === 'lg' ? t('running.sizeLg') : t('running.sizeXl')
-                }
-                onClick={() => setCaptionSize(s)}
-                className={`flex h-10 w-9 items-center justify-center rounded-lg font-bold transition-colors duration-150 ${
-                  captionSize === s
-                    ? 'bg-accent text-accent-text'
-                    : 'text-text-muted hover:text-text'
-                }`}
-                style={{ fontSize: `${12 + i * 3}px` }}
-              >
-                가
-              </button>
-            ))}
-          </div>
-
           <button
             onClick={toggleFullscreen}
             aria-label={isFullscreen ? t('running.exitFullscreen') : t('running.fullscreen')}
@@ -988,6 +988,40 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
           >
             {isFullscreen ? <Minimize2 size={18} aria-hidden /> : <Maximize2 size={18} aria-hidden />}
           </button>
+        </div>
+      </div>
+
+      {/* 글자 크기 — 가운데 아래로 내려 화면 밖으로 밀리지 않게 한다 */}
+      <div className="flex shrink-0 justify-center">
+        <div
+          role="radiogroup"
+          aria-label={t('running.captionSize')}
+          className="flex h-12 items-center gap-1 rounded-xl border border-border px-1.5"
+        >
+          {(['md', 'lg', 'xl'] as const).map((s, i) => (
+            <button
+              key={s}
+              role="radio"
+              aria-checked={captionSize === s}
+              onClick={() => setCaptionSize(s)}
+              className={`flex h-10 items-center gap-1.5 rounded-lg px-3 transition-colors duration-150 ${
+                captionSize === s
+                  ? 'bg-accent text-accent-text'
+                  : 'text-text-muted hover:text-text'
+              }`}
+            >
+              <span className="font-bold" style={{ fontSize: `${12 + i * 4}px` }}>
+                가
+              </span>
+              <span className="text-[13px] font-semibold">
+                {s === 'md'
+                  ? t('running.sizeMd')
+                  : s === 'lg'
+                    ? t('running.sizeLg')
+                    : t('running.sizeXl')}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 

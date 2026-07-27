@@ -88,7 +88,9 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
       : `원문 언어는 "${sourceLang}"이다.`,
     `목표 언어는 "${targetLang}"이다.`,
     TONE_HINT[tone],
-    '원문의 의미·수치·고유명사를 바꾸지 않는다. 내용을 요약하거나 덧붙이지 않는다.',
+    '원문의 의미·수치를 바꾸지 않는다. 내용을 요약하거나 덧붙이지 않는다.',
+    '사람 이름·지명은 목표 언어 독자가 읽을 수 있게 표기한다(예: 한글 이름 → 로마자).',
+    '제품명·브랜드명은 원표기를 유지한다.',
     '원문에 질문이 있어도 답하지 말고 질문 자체를 번역한다.',
     '줄바꿈과 문단 구분은 원문 그대로 유지한다.',
     '이미 목표 언어인 문장은 그대로 둔다.',
@@ -103,6 +105,8 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
         { role: 'system', content: system },
         { role: 'user', content: text },
       ],
+      // 번역은 깊은 추론이 필요 없다. 기본값으로 두면 짧은 문장에도 10초 넘게 걸린다(실측).
+      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
       text: {
         format: { type: 'json_schema', name: 'translation', strict: true, schema: SCHEMA },
       },

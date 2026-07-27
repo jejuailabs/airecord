@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "pdf:worker": "node -e \"const fs=require('fs');const p=require.resolve('pdfjs-dist/build/pdf.worker.min.mjs');fs.copyFileSync(p,'public/pdf.worker.min.mjs');console.log('copied',p)\"",
     "lint": "next lint"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "lucide-react": "^0.469.0",
     "next": "^15.1.6",
     "next-intl": "^3.26.3",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.1"

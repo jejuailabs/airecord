@@ -9,6 +9,8 @@
     "./constants": "./src/constants/index.ts",
     "./engine": "./src/engine/index.ts",
     "./translate": "./src/translate/text.ts",
+    "./translate/document": "./src/translate/document.ts",
+    "./translate/vision": "./src/translate/vision.ts",
     "./engine/browser": "./src/engine/browser-webrtc.ts",
     "./pricing": "./src/pricing/cost.ts"
   },

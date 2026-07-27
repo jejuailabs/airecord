@@ -6,6 +6,7 @@
       "live": "대면 통역",
       "meeting": "회의 통역",
       "translate": "텍스트 번역",
+      "translateFile": "파일 번역",
       "sessions": "세션 기록",
       "pricing": "요금제",
       "settings": "설정",
@@ -410,6 +411,53 @@
       "tooLong": {
         "title": "남은 무료 글자수보다 내용이 깁니다",
         "action": "내용을 줄이거나 가입 후 이어서 번역해 주세요."
+      }
+    }
+  },
+  "translateFile": {
+    "title": "파일 번역",
+    "lead": "PDF나 이미지를 올리면 원문과 나란히 번역해 드립니다.",
+    "sourceLang": "입력 언어",
+    "targetLang": "번역 언어",
+    "autoDetect": "언어 감지",
+    "dropTitle": "여기에 파일을 놓으세요",
+    "dropHint": "PDF · 이미지, 최대 {mb}MB. 파일은 서버에 저장되지 않습니다.",
+    "choose": "파일 선택",
+    "reading": "파일을 읽는 중",
+    "translating": "번역하는 중",
+    "pageProgress": "{done} / {total} 페이지",
+    "newFile": "새 파일",
+    "page": "{page}쪽",
+    "pages": "{count}쪽",
+    "chars": "자",
+    "original": "원문",
+    "translated": "번역",
+    "downloadPdf": "PDF로 저장",
+    "printHint": "이 창의 인쇄(Ctrl+P)에서 대상을 \"PDF로 저장\"으로 선택하세요. 잠시 후 인쇄 창이 열립니다.",
+    "errors": {
+      "unsupported": {
+        "title": "지원하지 않는 형식입니다",
+        "action": "PDF 또는 PNG·JPG·WEBP 이미지를 올려 주세요."
+      },
+      "tooLarge": {
+        "title": "파일이 너무 큽니다",
+        "action": "10MB 이하로 나눠서 올려 주세요."
+      },
+      "noTextLayer": {
+        "title": "이 PDF에는 글자 정보가 없습니다",
+        "action": "스캔한 문서로 보입니다. 페이지를 이미지로 저장해서 올리면 사진에서 글자를 읽어 번역합니다."
+      },
+      "authRequired": {
+        "title": "로그인이 필요합니다",
+        "action": "파일 번역은 로그인 후 사용할 수 있습니다."
+      },
+      "keyMissing": {
+        "title": "번역 엔진 키가 설정되지 않았습니다",
+        "action": "OPENAI_API_KEY를 설정한 뒤 다시 시도해 주세요."
+      },
+      "failed": {
+        "title": "번역하지 못했습니다",
+        "action": "잠시 후 다시 시도해 주세요. 페이지가 많으면 나눠서 올려 보세요."
       }
     }
   },

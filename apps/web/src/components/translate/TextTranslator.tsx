@@ -38,14 +38,20 @@ export function TextTranslator() {
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqIdRef = useRef(0);
+  /** 같은 내용·같은 설정으로 두 번 호출하지 않는다 (비회원 글자 한도가 낭비된다) */
+  const lastKeyRef = useRef('');
 
   const run = useCallback(
     async (text: string, sl: SourceLangSetting, tl: LangCode, tn: Tone) => {
       if (!text.trim()) {
         setResult(null);
         setError(null);
+        lastKeyRef.current = '';
         return;
       }
+      const key = `${sl}|${tl}|${tn}|${text}`;
+      if (key === lastKeyRef.current) return;
+      lastKeyRef.current = key;
       const id = ++reqIdRef.current;
       setBusy(true);
       setError(null);
@@ -57,6 +63,7 @@ export function TextTranslator() {
         });
         if (id !== reqIdRef.current) return; // 더 최근 요청이 있다
         if (!res.ok) {
+          lastKeyRef.current = ''; // 실패했으면 다시 시도할 수 있게 한다
           const body = (await res.json().catch(() => ({}))) as { error?: string };
           setError(
             body.error === 'key_missing'
