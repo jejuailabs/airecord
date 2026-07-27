@@ -29,6 +29,7 @@ import {
   ArrowLeftRight,
   Activity,
   Download,
+  AlignVerticalJustifyCenter,
 } from 'lucide-react';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
@@ -79,6 +80,12 @@ const SILENT_WAV =
 const WRAP_MAX_MS = 5_000;
 /** 이 시간 동안 자막 갱신이 없으면 더 기다리지 않고 닫는다 */
 const WRAP_IDLE_MS = 1_500;
+/**
+ * 발화가 끝난 뒤 AI 음성이 그 대목을 읽기까지 걸리는 시간(대략).
+ * 실측: 번역 텍스트가 원문보다 2.2~3.1초 늦고, 음성은 그 뒤에 이어진다.
+ * '음성에 맞추기'를 켰을 때 자막을 이만큼 늦춰 지금 들리는 대목이 화면 아래에 오게 한다.
+ */
+const VOICE_LAG_MS = 3_000;
 
 function fmtSec(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -138,6 +145,14 @@ export function LiveInterpreter({
   const [speakLang, setSpeakLang] = useState<LangCode>('en');
   /** 말하기 버튼을 누르고 있는 동안 true */
   const [talking, setTalking] = useState(false);
+  /**
+   * 자막을 음성 속도에 맞춰 내보낸다.
+   *
+   * 자막은 번역이 도착하는 즉시 뜨고 AI 음성은 그걸 읽는 데 시간이 걸린다. 그래서 자막이
+   * 몇 문장 앞서 나가고, 지금 들리는 대목이 화면 위로 밀려 올라간다.
+   * 음성을 켰을 땐 둘이 맞는 게 낫고, 자막만 볼 땐 빠른 게 낫다 — 그래서 음성 토글을 따라간다.
+   */
+  const [syncToVoice, setSyncToVoice] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
   const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
@@ -696,6 +711,8 @@ export function LiveInterpreter({
   const toggleAudioOut = useCallback(
     (on: boolean) => {
     setAudioOut(on);
+    // 음성을 켜면 자막도 음성에 맞춘다 (끄면 자막은 다시 즉시 표시)
+    setSyncToVoice(on);
     if (on) unlockAudio(); // 이 호출이 유저 제스처 안이다
     const el = audioElRef.current;
     if (!el) return;
@@ -1319,6 +1336,18 @@ export function LiveInterpreter({
     );
   }
 
+  /**
+   * 음성에 맞추기가 켜져 있으면, 아직 음성이 읽지 않은 자막은 잠시 숨긴다.
+   * 자막의 오디오 구간(VAD 실측)이 기준이라 발화별로 정확히 맞춘다.
+   * 구간 정보가 없는 자막(부가 전사 폴백)은 지연 없이 그대로 보여준다 — 숨기면 영영 안 나온다.
+   */
+  const shownSegments =
+    syncToVoice && phase === 'live'
+      ? segments.filter(
+          (s) => s.audioEndMs == null || s.audioEndMs + VOICE_LAG_MS <= elapsedSec * 1000,
+        )
+      : segments;
+
   // ── LIVE ──
   const capWarning =
     remainingSec !== null && remainingSec <= CAP_WARNING_SEC && remainingSec > 0;
@@ -1459,7 +1488,7 @@ export function LiveInterpreter({
         </p>
       ) : null}
 
-      <CaptionPanel segments={segments} scale={SIZE_SCALE[captionSize]} live />
+      <CaptionPanel segments={shownSegments} scale={SIZE_SCALE[captionSize]} live />
 
       {/*
         진단 줄 — 원문/번역/음성이 각각 몇 개 왔고 마지막이 언제인지.
@@ -1571,6 +1600,21 @@ export function LiveInterpreter({
             }`}
           >
             {audioOut ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
+          </button>
+
+          {/* 자막을 음성에 맞출지 — 켜면 지금 들리는 대목이 화면 아래에 온다 */}
+          <button
+            onClick={() => setSyncToVoice((v) => !v)}
+            aria-pressed={syncToVoice}
+            aria-label={t('running.syncToVoice')}
+            title={t('running.syncToVoice')}
+            className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-150 ${
+              syncToVoice
+                ? 'border-accent-2 bg-accent-2-weak text-accent-2'
+                : 'border-border text-text-muted'
+            }`}
+          >
+            <AlignVerticalJustifyCenter size={18} aria-hidden />
           </button>
 
           <button

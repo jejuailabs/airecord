@@ -188,10 +188,17 @@ export async function connectBrowserSession(
           diag.note(`transcribe: ${JSON.stringify(parsed).slice(0, 200)}`);
           return;
         }
-        if (!type.includes('input_audio_transcription')) return; // VAD 신호 등은 계측만 안 한다
+        /**
+         * VAD 경계(speech_started/stopped)도 조립기에 넘긴다 — 자막 칸의 뼈대가 된다.
+         * 이게 번역보다 먼저 오기 때문에 자막이 밀리지 않는다.
+         */
+        const isVad =
+          type === 'input_audio_buffer.speech_started' ||
+          type === 'input_audio_buffer.speech_stopped';
+        if (!isVad && !type.includes('input_audio_transcription')) return;
 
         if (!mux.acceptDedicated()) return; // 이미 부가 전사로 넘어갔다 — 섞지 않는다
-        diag.record('source', (parsed.delta ?? '').length);
+        if (!isVad) diag.record('source', (parsed.delta ?? '').length);
         assembler.handle(parsed as Parameters<typeof assembler.handle>[0]);
       });
 

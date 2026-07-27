@@ -322,6 +322,7 @@
       "sizeMd": "Normal",
       "sizeLg": "Large",
       "sizeXl": "Extra large",
+      "syncToVoice": "Match captions to the voice",
       "trace": "Show diagnostics",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",

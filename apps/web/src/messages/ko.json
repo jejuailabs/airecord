@@ -322,6 +322,7 @@
       "sizeMd": "보통",
       "sizeLg": "크게",
       "sizeXl": "아주 크게",
+      "syncToVoice": "자막을 음성에 맞추기",
       "trace": "진단 보기",
       "fullscreen": "전체화면",
       "exitFullscreen": "전체화면 종료",

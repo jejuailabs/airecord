@@ -49,10 +49,29 @@ const SENTENCE_SPLIT = /[^.!?。！？]+[.!?。！？]+\s*/g;
 const HAS_WORD = /[\p{L}\p{N}]/u;
 const SENTENCE_MARK = '.!?。！？…';
 
+/** 절 경계 — 마침표가 없을 때의 차선책 */
+const CLAUSE_MARK = ',、，;；';
+
 /** from 이후로 문장이 처음 끝나는 위치. 없으면 -1 */
 function sentenceEndAtOrAfter(s: string, from: number): number {
   for (let i = Math.max(0, from); i < s.length; i++) {
     if (SENTENCE_MARK.includes(s.charAt(i))) return i;
+  }
+  return -1;
+}
+
+/**
+ * from~until 사이의 절 경계(쉼표 등).
+ *
+ * 모델이 원문 두 문장을 번역 한 문장으로 합치는 일이 흔하다(실측:
+ * "Our small business segment was flat." + "And I will come back to why that matters."
+ * → "중소기업 부문은 보합이었고, 그 이유가 왜 중요한지는 다시 말씀드리겠습니다.").
+ * 그러면 마침표로는 못 자르고 분량 상한에서 문장 한복판이 잘린다. 쉼표에서 자르면 짝이 맞는다.
+ */
+function clauseEndBetween(s: string, from: number, until: number): number {
+  const end = Math.min(s.length, until);
+  for (let i = Math.max(0, from); i < end; i++) {
+    if (CLAUSE_MARK.includes(s.charAt(i))) return i;
   }
   return -1;
 }
@@ -108,6 +127,15 @@ export function createSegmentAssembler(
   let closedTarget = 0;
   const targetPerSource = () => (closedSource < 40 ? 0.6 : closedTarget / closedSource);
 
+  /**
+   * 오디오 1초당 번역 글자수 — VAD 모드의 분량 기준.
+   * 실측(영어→한국어): 7.6~9.8자/초. 확정된 덩어리로만 보정한다(진행 중 누적은 지연 때문에 편향).
+   */
+  let closedAudioSec = 0;
+  let closedAudioTargetChars = 0;
+  const targetCharsPerSec = () =>
+    closedAudioSec < 3 ? 9 : closedAudioTargetChars / closedAudioSec;
+
   const emit = (s: EngineSegment) => onSegment({ ...s });
 
   function newSegment(sourceText: string): EngineSegment {
@@ -120,8 +148,31 @@ export function createSegmentAssembler(
       detectedLang,
     };
     open.push(seg);
-    emit(seg); // 원문을 먼저 화면에 띄운다 — 번역은 곧 따라 붙는다
+    // 내용이 있을 때만 화면에 올린다 — VAD로 미리 만든 빈 칸은 아직 보여줄 게 없다
+    if (sourceText) emit(seg);
     return seg;
+  }
+
+  /**
+   * ── VAD 주도 조립 (전용 전사 레그가 붙었을 때) ──────────────────────
+   *
+   * 전용 레그는 발화가 시작되는 순간 `speech_started`를 준다(실측: 번역보다 0.26초 빠름).
+   * 그래서 **번역이 도착하기 전에 빈 칸을 만들어 둘 수 있다.**
+   *
+   * 왜 필요했나 (실사용 2026-07-28): 전용 레그의 원문은 발화가 끝나야 나오므로
+   * 번역보다 2~3초 늦다. "원문이 먼저 온다"를 전제한 텍스트 주도 조립에서는
+   * 번역이 먼저 도착해 원문 없는 칸이 생기고, 그때부터 모든 자막이 한 칸씩 밀렸다
+   * (화면: 한글 "모두 무료입니다" ↔ 원문 "One.").
+   *
+   * 분량 기준도 글자수가 아니라 **오디오 길이**를 쓴다. 언어쌍마다 글자수 비율은 제각각이지만
+   * "1초 말하면 번역 몇 글자"는 훨씬 안정적이다.
+   */
+  let vadMode = false;
+  /** item_id → 그 발화가 담당하는 자막 칸 */
+  const shells = new Map<string, EngineSegment>();
+
+  function shellFor(itemId: string | undefined): EngineSegment | undefined {
+    return itemId ? shells.get(itemId) : undefined;
   }
 
   /**
@@ -237,6 +288,12 @@ export function createSegmentAssembler(
        * 자막 하나가 1분 넘게 부풀다 한 번에 쏟아졌다 (실사용 회귀 2026-07-28).
        * 원문이 조용해졌고 번역 문장이 완성됐으면 조각 원문 그대로 확정하고 계속 흘린다.
        */
+      /**
+       * 발화가 아직 안 끝난 VAD 칸은 닫지 않는다 — 오디오 길이를 모르니 분량을 정할 수 없다.
+       * 발화가 끝나면(speech_stopped) audioEndMs가 채워지고 아래 규칙으로 잘린다.
+       */
+      if (seg.audioStartMs != null && seg.audioEndMs == null) return;
+
       if (seg === livePreview) {
         const srcQuiet = Date.now() - (lastSourceAt || startedAt);
         if (srcQuiet < sourceStallMs) return;
@@ -250,15 +307,35 @@ export function createSegmentAssembler(
         continue;
       }
 
-      // 원문이 없는 덩어리는 길이 비례가 불가능하다 — 문장부호에서만 끊는다
-      // 하한을 크게 잡으면 "네." → "Yes." 같은 짧은 문장이 다음 문장까지 물고 간다
-      const quota = seg.sourceText ? Math.max(6, seg.sourceText.length * targetPerSource()) : 40;
+      /**
+       * 이 칸이 가져갈 번역 분량.
+       * VAD가 준 오디오 길이가 있으면 그걸 쓴다 — 언어쌍에 무관해 가장 안정적이다.
+       * 없으면 원문 글자수 비례, 원문조차 없으면 문장부호로만 끊는다.
+       */
+      const audioMs =
+        seg.audioStartMs != null && seg.audioEndMs != null
+          ? seg.audioEndMs - seg.audioStartMs
+          : null;
+      const quota =
+        audioMs != null
+          ? Math.max(6, (audioMs / 1000) * targetCharsPerSec())
+          : seg.sourceText
+            ? Math.max(6, seg.sourceText.length * targetPerSource())
+            : 40;
       /**
        * 자를 지점은 예상 분량의 60%를 넘긴 뒤부터 찾는다.
        * 50%로 두면 원문 한 문장이 번역 두 문장으로 갈릴 때 첫 문장에서 끊겨
        * 자막이 한 칸씩 밀린다(실측으로 확인).
        */
-      const idx = sentenceEndAtOrAfter(seg.targetText, Math.ceil(quota * 0.6) - 1);
+      const from = Math.ceil(quota * 0.6) - 1;
+      let idx = sentenceEndAtOrAfter(seg.targetText, from);
+      /**
+       * 분량을 넘겼는데도 마침표가 안 나오면 절 경계(쉼표)에서 자른다.
+       * 안 그러면 아래 상한에서 문장 한복판이 잘려 "…중요한지는 다시 / 말씀드리겠습니다."가 된다.
+       */
+      if (idx < 0 && seg.targetText.length >= quota) {
+        idx = clauseEndBetween(seg.targetText, from, Math.ceil(quota * 1.6));
+      }
       if (idx >= 0 && idx < seg.targetText.length - 1) {
         // 문장이 끝난 지점에서 자르고, 나머지는 버퍼로 되돌려 다음 덩어리가 받게 한다
         pendingTarget = seg.targetText.slice(idx + 1);
@@ -306,6 +383,10 @@ export function createSegmentAssembler(
       closedSource += seg.sourceText.length;
       closedTarget += seg.targetText.length;
     }
+    if (!sameAsTarget && seg.audioStartMs != null && seg.audioEndMs != null && seg.targetText.trim()) {
+      closedAudioSec += (seg.audioEndMs - seg.audioStartMs) / 1000;
+      closedAudioTargetChars += seg.targetText.length;
+    }
     emit(seg);
   }
 
@@ -340,12 +421,59 @@ export function createSegmentAssembler(
     },
 
     handle(evt) {
+      const itemId = typeof evt.item_id === 'string' ? evt.item_id : undefined;
+
       switch (evt.type) {
+        // ── VAD: 발화가 시작되는 순간 빈 칸을 만든다 (번역보다 먼저 온다) ──
+        case 'input_audio_buffer.speech_started': {
+          vadMode = true;
+          if (!itemId || shells.has(itemId)) break;
+          const seg = newSegment('');
+          seg.audioStartMs = typeof evt.audio_start_ms === 'number' ? evt.audio_start_ms : undefined;
+          shells.set(itemId, seg);
+          armTimer();
+          break;
+        }
+
+        // ── VAD: 발화가 끝나면 오디오 길이가 확정된다 → 분량 기준이 생긴다 ──
+        case 'input_audio_buffer.speech_stopped': {
+          const seg = shellFor(itemId);
+          if (seg && typeof evt.audio_end_ms === 'number') {
+            seg.audioEndMs = evt.audio_end_ms;
+            drainTarget(); // 이제 자를 수 있다 — 대기 중인 번역을 흘린다
+          }
+          break;
+        }
+
+        // ── 원문 확정본 (전용 레그) ──────────────────
+        case 'conversation.item.input_audio_transcription.completed': {
+          const seg = shellFor(itemId);
+          const transcript = typeof evt.transcript === 'string' ? evt.transcript : '';
+          if (seg && transcript.trim()) {
+            lastSourceAt = Date.now();
+            seg.sourceText = transcript.trim();
+            emit(seg);
+          }
+          break;
+        }
+
         // ── 원문: 자막 덩어리의 뼈대 ─────────────────
         case 'session.input_transcript.delta':
         case 'conversation.item.input_audio_transcription.delta': {
           if (evt.language) detectedLang = evt.language;
           lastSourceAt = Date.now();
+
+          // VAD 모드에서는 칸이 이미 있다 — 해당 칸에만 흘려 넣는다
+          if (vadMode) {
+            const seg = shellFor(itemId);
+            if (seg) {
+              seg.sourceText += evt.delta ?? '';
+              emit(seg);
+            }
+            armTimer();
+            break;
+          }
+
           sourcePartial += evt.delta ?? '';
           drainSourceSentences();
           armTimer();
@@ -386,6 +514,12 @@ export function createSegmentAssembler(
       livePreview = null;
       flushPendingTarget(true);
       for (const seg of [...open]) {
+        // VAD가 발화 시작만 알리고 끝난 세션 — 내용 없는 빈 칸은 화면에 올리지 않는다
+        if (!seg.sourceText.trim() && !seg.targetText.trim()) {
+          const i = open.indexOf(seg);
+          if (i >= 0) open.splice(i, 1);
+          continue;
+        }
         const sameScript =
           !targetLang || guessScript(seg.sourceText) === scriptOfLang(targetLang);
         closeSegment(seg, !seg.targetText.trim() && sameScript);
