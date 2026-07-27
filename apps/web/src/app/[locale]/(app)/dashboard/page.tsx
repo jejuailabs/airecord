@@ -62,18 +62,22 @@ async function loadData(): Promise<DashData> {
     const user = await verifySessionCookie(cookie);
     if (!user) return fallback;
 
-    const sessions = await listSessions(user.uid, 20);
+    /**
+     * 세션 목록과 사용 권한은 서로 의존하지 않는다 — 나란히 읽는다.
+     * 순서대로 기다리면 Firestore 왕복이 그대로 더해져 화면이 늦게 뜬다.
+     *
+     * 사용량은 반드시 entitlement를 거친다. Firestore billing을 직접 읽으면
+     * 주기 갱신(무료=매일 초기화)과 운영자 무제한이 빠져 사이드바와 숫자가 어긋난다.
+     * (레이아웃이 이미 부른 경우 React cache 덕에 왕복은 한 번뿐이다)
+     */
+    const [sessions, ent] = await Promise.all([
+      listSessions(user.uid, 20),
+      getEntitlement(user.uid, user.email),
+    ]);
     const minutesOf = (mode: 'meeting' | 'inperson') =>
       sessions
         .filter((s) => (mode === 'meeting' ? s.mode === 'meeting' : s.mode !== 'meeting'))
         .reduce((sum, s) => sum + Math.ceil(s.billedSeconds / 60), 0);
-
-    /**
-     * 사용량은 반드시 entitlement를 거친다.
-     * Firestore billing을 직접 읽으면 주기 갱신(무료=매일 초기화)과 운영자 무제한이 빠져
-     * 사이드바와 대시보드가 서로 다른 숫자를 보여준다.
-     */
-    const ent = await getEntitlement(user.uid, user.email);
 
     return {
       includedMinutes: ent.includedMinutes,

@@ -113,13 +113,23 @@ export function createDiagnostics(now: () => number = Date.now): EngineDiagnosti
 }
 
 /** 사람이 읽는 한 줄 요약 — 화면과 로그에 같은 문장을 쓴다 */
+/** 원문을 어느 출처로 받고 있는지 — 기록에서 뽑아낸다 */
+export function sourceProviderOf(d: DiagSnapshot): '전용전사' | '부가전사' {
+  for (let i = d.notes.length - 1; i >= 0; i--) {
+    const n = d.notes[i] ?? '';
+    if (n.includes('원문은 이쪽만')) return '전용전사';
+    if (n.includes('부가 전사로')) return '부가전사';
+  }
+  return '부가전사';
+}
+
 export function summarizeDiag(d: DiagSnapshot): string {
   const sec = (ms: number | null) => (ms === null ? '없음' : `${(ms / 1000).toFixed(1)}s`);
   const since = (ms: number | null) =>
     ms === null ? '—' : `${((d.elapsedMs - ms) / 1000).toFixed(0)}초 전`;
   return [
     `경과 ${(d.elapsedMs / 1000).toFixed(0)}초`,
-    `원문 ${d.channels.source.events}회/${d.channels.source.chars}자 (마지막 ${since(d.channels.source.lastAtMs)}, 최대공백 ${sec(d.channels.source.maxGapMs)})`,
+    `원문[${sourceProviderOf(d)}] ${d.channels.source.events}회/${d.channels.source.chars}자 (마지막 ${since(d.channels.source.lastAtMs)}, 최대공백 ${sec(d.channels.source.maxGapMs)})`,
     `번역 ${d.channels.target.events}회/${d.channels.target.chars}자 (마지막 ${since(d.channels.target.lastAtMs)}, 최대공백 ${sec(d.channels.target.maxGapMs)})`,
     `음성 ${d.channels.audio.events}회`,
     `자막 ${d.segments.total}개 (원문없음 ${d.segments.missingSource}, 번역없음 ${d.segments.missingTarget}, 동일언어 ${d.segments.passthrough})`,

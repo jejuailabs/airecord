@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { redirect } from '@/i18n/navigation';
-import { adminDb, SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement } from '@/lib/server/entitlement';
 import { AppSidebar, type SidebarAccount, type SidebarUsage } from '@/components/shell/AppSidebar';
 import { AppTopbar } from '@/components/shell/AppTopbar';
@@ -20,11 +20,9 @@ async function loadShellData(
   };
   const account: SidebarAccount = { name: fallbackName, role: 'owner' };
   try {
+    // ⚠ 워크스페이스를 여기서 또 읽지 않는다 — getEntitlement가 이미 읽었고,
+    //   같은 문서를 두 번 왕복하면 화면이 그만큼 늦게 뜬다 (실측 왕복 32~46ms).
     const ent = await getEntitlement(uid, email);
-    const db = adminDb();
-    const ws = ent.workspaceId
-      ? await db.collection('workspaces').doc(ent.workspaceId).get()
-      : null;
     return {
       usage: {
         usedMinutes: ent.usedMinutes,
@@ -34,8 +32,8 @@ async function loadShellData(
         daily: getPlan(ent.plan)?.cycle === 'daily',
       },
       account: {
-        name: (ws?.get('name') as string) || fallbackName,
-        role: ent.isAdmin ? 'admin' : (ws?.get('ownerUid') as string) === uid ? 'owner' : 'member',
+        name: ent.workspaceName || fallbackName,
+        role: ent.isAdmin ? 'admin' : ent.isOwner ? 'owner' : 'member',
       },
     };
   } catch {

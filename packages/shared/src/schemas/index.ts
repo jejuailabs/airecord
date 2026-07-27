@@ -31,6 +31,21 @@ export const sessionStartResponseSchema = z.object({
   maxDurationSec: z.number(),
   /** 체험 세션에 허용된 번역 글자수. 비체험이면 null */
   charBudget: z.number().nullable().default(null),
+  /**
+   * 원문 자막 전용 전사 레그(선택).
+   * 통역 모델에 딸린 부가 전사가 실환경 오디오에서 죽는 문제 때문에 분리했다
+   * (실측 2026-07-28: 부가 전사 144초에 30자 vs 전용 레그 45초에 741자).
+   * 발급 실패 시 null — 그때는 기존 부가 전사로 돌아간다.
+   */
+  transcribe: z
+    .object({
+      ephemeralKey: z.string(),
+      model: z.string(),
+      callUrl: z.string(),
+      keyExpiresAt: z.number(),
+    })
+    .nullable()
+    .default(null),
 });
 export type SessionStartResponse = z.infer<typeof sessionStartResponseSchema>;
 

@@ -8,6 +8,7 @@
 import type { EngineError, EngineSegment, EphemeralGrant } from './types';
 import { createSegmentAssembler } from './segment-assembler';
 import { createDiagnostics, type DiagSnapshot } from './diagnostics';
+import { createSourceMux } from './source-mux';
 
 export interface BrowserSessionCallbacks {
   onSegment: (s: EngineSegment) => void;
@@ -47,10 +48,18 @@ export interface AudioInboundStats {
   totalAudioEnergy: number;
 }
 
+/** 원문 자막 전용 전사 레그 — 통역과 별개 세션 (openai-transcribe.ts 참고) */
+export interface TranscribeLegGrant {
+  ephemeralKey: string;
+  model: string;
+  callUrl: string;
+}
+
 export async function connectBrowserSession(
   grant: EphemeralGrant,
   micStream: MediaStream,
   cbs: BrowserSessionCallbacks,
+  transcribeGrant?: TranscribeLegGrant | null,
 ): Promise<BrowserTranslationSession> {
   const pc = new RTCPeerConnection();
 
@@ -86,6 +95,9 @@ export async function connectBrowserSession(
     return 'other' as const;
   };
 
+  /** 원문 출처는 항상 하나만 — 판단 로직은 source-mux.ts (검증 가능하게 분리) */
+  const mux = createSourceMux({ useDedicated: Boolean(transcribeGrant) });
+
   dc.addEventListener('message', (ev) => {
     let parsed: { type?: string; delta?: string; error?: unknown };
     try {
@@ -95,6 +107,13 @@ export async function connectBrowserSession(
     }
     const type = parsed.type ?? '';
     const ch = channelOf(type);
+
+    if (ch === 'source') {
+      const before = mux.mode();
+      if (!mux.acceptBuiltin()) return; // 전용 레그가 살아 있다 — 부가 전사는 버린다
+      if (before !== 'builtin') diag.note('전용 전사 침묵 — 부가 전사로 폴백');
+    }
+
     diag.record(ch, (parsed.delta ?? '').length);
     if (ch === 'error' || parsed.error) {
       diag.note(`server: ${JSON.stringify(parsed).slice(0, 200)}`);
@@ -144,6 +163,69 @@ export async function connectBrowserSession(
     throw new Error(`Realtime SDP exchange failed: ${res.status} ${body.slice(0, 300)}`);
   }
   await pc.setRemoteDescription({ type: 'answer', sdp: await res.text() });
+
+  /**
+   * 원문 자막 전용 전사 레그 — 같은 마이크 트랙을 두 번째 세션에도 보낸다.
+   * 통역 레그는 이미 연결된 뒤이므로, 여기서 실패해도 통역은 그대로 간다.
+   */
+  let transcribePc: RTCPeerConnection | null = null;
+  if (transcribeGrant) {
+    try {
+      const tpc = new RTCPeerConnection();
+      for (const track of micStream.getAudioTracks()) tpc.addTrack(track, micStream);
+      const tdc = tpc.createDataChannel('oai-events');
+
+      tdc.addEventListener('message', (ev) => {
+        let parsed: { type?: string; delta?: string; error?: unknown };
+        try {
+          parsed = JSON.parse(ev.data as string);
+        } catch {
+          return;
+        }
+        const type = parsed.type ?? '';
+        if (type === 'error' || parsed.error) {
+          diag.record('error', 0);
+          diag.note(`transcribe: ${JSON.stringify(parsed).slice(0, 200)}`);
+          return;
+        }
+        if (!type.includes('input_audio_transcription')) return; // VAD 신호 등은 계측만 안 한다
+
+        if (!mux.acceptDedicated()) return; // 이미 부가 전사로 넘어갔다 — 섞지 않는다
+        diag.record('source', (parsed.delta ?? '').length);
+        assembler.handle(parsed as Parameters<typeof assembler.handle>[0]);
+      });
+
+      tpc.addEventListener('connectionstatechange', () => {
+        if (tpc.connectionState === 'failed' || tpc.connectionState === 'closed') {
+          diag.note(`transcribe pc ${tpc.connectionState}`);
+        }
+      });
+
+      const toffer = await tpc.createOffer();
+      await tpc.setLocalDescription(toffer);
+      const tres = await fetch(transcribeGrant.callUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${transcribeGrant.ephemeralKey}`,
+          'Content-Type': 'application/sdp',
+        },
+        body: toffer.sdp,
+      });
+      if (!tres.ok) {
+        mux.fallbackToBuiltin();
+        diag.note(`transcribe SDP 실패 ${tres.status} — 부가 전사로 복귀`);
+        tpc.close();
+      } else {
+        await tpc.setRemoteDescription({ type: 'answer', sdp: await tres.text() });
+        transcribePc = tpc;
+        diag.note(`transcribe leg connected (${transcribeGrant.model}) — 원문은 이쪽만 쓴다`);
+      }
+    } catch (e) {
+      // 원문 레그 실패가 통역을 멈추게 하면 안 된다
+      mux.fallbackToBuiltin();
+      diag.note(`transcribe leg error: ${String(e).slice(0, 120)} — 부가 전사로 복귀`);
+    }
+  }
 
   return {
     model: grant.model,
@@ -195,6 +277,12 @@ export async function connectBrowserSession(
       assembler.dispose();
       try {
         dc.close();
+      } catch {
+        /* noop */
+      }
+      // ⚠ 전사 레그를 먼저 닫는다. 같은 트랙을 공유하므로 트랙 정지는 아래에서 한 번만 한다.
+      try {
+        transcribePc?.close();
       } catch {
         /* noop */
       }

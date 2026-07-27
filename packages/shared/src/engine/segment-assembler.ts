@@ -63,15 +63,14 @@ export function createSegmentAssembler(
   options: AssemblerOptions = {},
 ): SegmentAssembler {
   /**
-   * ⚠ 1.2초는 너무 짧았다.
-   * 실측(2026-07-27, 60초 연속 발화): 번역 델타 사이 최대 공백 1.6초, 원문 1.2초.
-   * 타이머가 그보다 짧으면 문장이 끝나기도 전에 덩어리를 확정해,
-   * 원문 한 문장이 번역 두 문장으로 갈릴 때 뒤 문장이 다음 덩어리로 밀린다.
+   * ⚠ 실측(2026-07-27, 60초 연속 발화): 번역 델타 사이 최대 공백 1.6초, 원문 1.2초.
+   * 그보다 짧으면(예전 1.2초) 문장이 끝나기 전에 확정해 자막이 한 칸씩 밀리고,
+   * 너무 길면(한때 2.5초) 확정이 굼떠 자막이 덩어리로 다닌다. 1.8초가 실측 여유선이다.
    */
-  const pauseMs = options.pauseMs ?? 2_500;
+  const pauseMs = options.pauseMs ?? 1_800;
   const untranslatedIdleMs = options.untranslatedIdleMs ?? 3_500;
   const maxSourceChars = options.maxSourceChars ?? 160;
-  const sourceStallMs = options.sourceStallMs ?? 2_500;
+  const sourceStallMs = options.sourceStallMs ?? 1_800;
   let targetLang = options.targetLang;
 
   const startedAt = Date.now();
@@ -218,7 +217,9 @@ export function createSegmentAssembler(
          * 원문을 못 붙이더라도 번역만으로 자막을 계속 내보낸다.
          */
         const quiet = Date.now() - (lastSourceAt || startedAt);
-        const stalled = quiet >= sourceStallMs && pendingTarget.trim().length >= 8;
+        // 글자수 하한을 높게 잡으면(한때 8자) 덩어리 사이마다 버퍼가 차기를 기다려
+        // 자막이 뚝뚝 끊겨 보인다 — 잡음 한두 글자만 거르면 충분하다
+        const stalled = quiet >= sourceStallMs && pendingTarget.trim().length >= 3;
         if (!(force ? pendingTarget.trim().length > 0 : stalled)) return;
         seg = newSegment('');
       }
@@ -228,11 +229,26 @@ export function createSegmentAssembler(
       emit(seg);
 
       /**
-       * 아직 문장이 안 끝난 미리보기 조각은 여기서 닫지 않는다.
-       * 닫으면 원문이 문장 한복판에서 잘려 "Good m" / "orning" 같은 자막이 나온다.
-       * 문장이 완성될 때 정상 덩어리가 되고, 그때 아래 규칙으로 잘린다.
+       * 미리보기(문장 미완성 원문)는 원칙적으로 여기서 닫지 않는다 —
+       * 닫으면 원문이 문장 한복판에서 잘린다("Good m" / "orning").
+       *
+       * ⚠ 단, 원문 전사가 멈춘 채 번역만 흐르면 이 조각이 번역을 무한정 삼킨다.
+       * 확정 타이머는 번역 델타마다 리셋되므로 영영 안 울리고,
+       * 자막 하나가 1분 넘게 부풀다 한 번에 쏟아졌다 (실사용 회귀 2026-07-28).
+       * 원문이 조용해졌고 번역 문장이 완성됐으면 조각 원문 그대로 확정하고 계속 흘린다.
        */
-      if (seg === livePreview) return;
+      if (seg === livePreview) {
+        const srcQuiet = Date.now() - (lastSourceAt || startedAt);
+        if (srcQuiet < sourceStallMs) return;
+        const cutAt = sentenceEndAtOrAfter(seg.targetText, 0);
+        if (cutAt < 0 && seg.targetText.length < 60) return;
+        if (cutAt >= 0 && cutAt < seg.targetText.length - 1) {
+          pendingTarget = seg.targetText.slice(cutAt + 1);
+          seg.targetText = seg.targetText.slice(0, cutAt + 1);
+        }
+        closeSegment(seg); // livePreview 정리(원문 조각 소비)는 closeSegment가 한다
+        continue;
+      }
 
       // 원문이 없는 덩어리는 길이 비례가 불가능하다 — 문장부호에서만 끊는다
       // 하한을 크게 잡으면 "네." → "Yes." 같은 짧은 문장이 다음 문장까지 물고 간다

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { getEngine } from '@sotong/shared/engine';
+import { getEngine, mintTranscriptionKey } from '@sotong/shared/engine';
 import { sessionStartRequestSchema, type SessionStartResponse } from '@sotong/shared/schemas';
 import { createSession, maxDurationSecFromEnv } from '@/lib/server/session-store';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
@@ -77,12 +77,14 @@ export async function POST(req: Request) {
   });
 
   try {
-    const grant = await engine.mintEphemeralKey({
-      sourceLang,
-      targetLang,
-      audioOut,
-      sessionId: record.id,
-    });
+    /**
+     * 통역 키와 원문 전사 키를 나란히 발급한다.
+     * 전사는 실패해도 통역을 막지 않는다 — null이면 클라이언트가 부가 전사로 돌아간다.
+     */
+    const [grant, transcribe] = await Promise.all([
+      engine.mintEphemeralKey({ sourceLang, targetLang, audioOut, sessionId: record.id }),
+      mintTranscriptionKey().catch(() => null),
+    ]);
     const body: SessionStartResponse = {
       sessionId: record.id,
       ephemeralKey: grant.key,
@@ -92,6 +94,7 @@ export async function POST(req: Request) {
       keyExpiresAt: grant.expiresAt,
       maxDurationSec,
       charBudget,
+      transcribe,
     };
     return NextResponse.json(body);
   } catch (e) {

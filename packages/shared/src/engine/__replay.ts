@@ -16,9 +16,18 @@ import fs from 'node:fs';
 import { createSegmentAssembler } from './segment-assembler';
 import type { EngineSegment } from './types';
 
-const raw = JSON.parse(
+let raw = JSON.parse(
   fs.readFileSync(new URL('./__fixture.json', import.meta.url), 'utf8'),
 ) as Array<[number, 's' | 't', string]>;
+
+/**
+ * TRICKLE=1: 원문 전사가 20초에 죽는 프로덕션 상황 재현.
+ * (실사용 2026-07-28: 원문 8회/30자에서 멈추고 번역 316회는 계속 — 자막 하나가 부풀었다)
+ */
+if (process.env.TRICKLE === '1') {
+  raw = raw.filter(([at, ch]) => ch === 't' || at < 20_000);
+  console.log('⚠ TRICKLE 모드 — 원문은 20초까지만, 번역은 끝까지');
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const SPEED = Number(process.env.SPEED ?? 1);

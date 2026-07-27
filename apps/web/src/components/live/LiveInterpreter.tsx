@@ -450,6 +450,8 @@ export function LiveInterpreter({
             }
           },
         },
+        // 원문 자막 전용 전사 레그 — 없으면(null) 기존 부가 전사로 돈다
+        grant.transcribe,
       );
       sessionRef.current = session;
     } catch {

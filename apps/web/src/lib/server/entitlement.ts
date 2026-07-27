@@ -5,6 +5,7 @@
  * 화면에 남은 시간을 표시하면서 실제로 막지 않으면 표시가 거짓말이 된다.
  * 세션을 여는 모든 경로는 반드시 이 파일을 거친다.
  */
+import { cache } from 'react';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/admin';
 import { cycleKey, getPlan } from '@sotong/shared/constants';
@@ -13,6 +14,10 @@ import type { PlanId } from '@sotong/shared/types';
 export interface Entitlement {
   uid: string;
   workspaceId?: string;
+  /** 워크스페이스 이름 — 사이드바가 이걸 또 읽지 않도록 여기서 같이 준다 */
+  workspaceName?: string;
+  /** 이 워크스페이스의 주인인가 */
+  isOwner: boolean;
   plan: PlanId;
   /** 운영자 계정 — 한도 없이 사용 */
   isAdmin: boolean;
@@ -42,8 +47,13 @@ export function isAdminEmail(email: string | undefined | null): boolean {
   return adminEmails().includes(email.toLowerCase());
 }
 
-/** 사용자의 현재 사용 권한을 읽는다. 실패해도 서비스가 멈추지 않도록 보수적으로 판정한다. */
-export async function getEntitlement(
+/**
+ * 사용자의 현재 사용 권한을 읽는다. 실패해도 서비스가 멈추지 않도록 보수적으로 판정한다.
+ *
+ * ⚠ React cache로 감싸 **요청당 한 번만** 조회한다.
+ * 레이아웃과 페이지가 각각 부르면 Firestore 왕복이 두 배가 된다 (실측 왕복 32~46ms).
+ */
+export const getEntitlement = cache(async function getEntitlement(
   uid: string,
   email?: string | null,
 ): Promise<Entitlement> {
@@ -53,6 +63,7 @@ export async function getEntitlement(
     uid,
     plan: 'free',
     isAdmin: admin,
+    isOwner: true,
     includedMinutes: free?.includedMinutes ?? 10,
     usedMinutes: 0,
     remainingMinutes: admin ? Number.POSITIVE_INFINITY : (free?.includedMinutes ?? 10),
@@ -68,7 +79,13 @@ export async function getEntitlement(
     const isAdmin = admin || roleAdmin;
 
     const workspaceId = userSnap.get('lastWorkspaceId') as string | undefined;
-    if (!workspaceId) return { ...fallback, isAdmin, remainingMinutes: isAdmin ? Infinity : fallback.remainingMinutes };
+    if (!workspaceId) {
+      return {
+        ...fallback,
+        isAdmin,
+        remainingMinutes: isAdmin ? Infinity : fallback.remainingMinutes,
+      };
+    }
 
     const wsRef = db.collection('workspaces').doc(workspaceId);
     const ws = await wsRef.get();
@@ -94,7 +111,8 @@ export async function getEntitlement(
     let usedMinutes = billing?.usedMinutes ?? 0;
     if (billing?.cycleKey !== nowKey) {
       usedMinutes = 0;
-      await wsRef
+      // 화면을 이 쓰기 때문에 기다리게 하지 않는다 — 다음 요청에서 반영돼도 무방하다
+      void wsRef
         .set(
           {
             billing: {
@@ -115,6 +133,8 @@ export async function getEntitlement(
     return {
       uid,
       workspaceId,
+      workspaceName: (ws.get('name') as string | undefined) ?? undefined,
+      isOwner: (ws.get('ownerUid') as string | undefined) === uid,
       plan,
       isAdmin,
       includedMinutes,
@@ -128,7 +148,7 @@ export async function getEntitlement(
     console.error('[entitlement] lookup failed', e);
     return fallback;
   }
-}
+});
 
 /**
  * 이번 세션에 허용할 최대 길이(초).
