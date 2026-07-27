@@ -18,6 +18,13 @@ export interface BrowserSessionCallbacks {
 
 export interface BrowserTranslationSession {
   close(): void;
+  /**
+   * 통역 중 출력 언어 교체.
+   * 실측(2026-07-27): 번역 엔드포인트는 `session.update`로 `audio.output.language`만
+   * 부분 패치해도 `session.updated`로 확인해 준다 — 재연결이 필요 없다.
+   * 응답까지 약 0.2초. 무전기 모드(듣기↔말하기)도 이 위에서 돈다.
+   */
+  setTargetLang(lang: string): void;
   readonly model: string;
 }
 
@@ -81,9 +88,20 @@ export async function connectBrowserSession(
 
   return {
     model: grant.model,
-    // ⚠ 음성 on/off를 session.update로 바꾸지 않는다.
+    // ⚠ 음성 on/off는 session.update로 바꾸지 않는다.
     // 번역 엔드포인트는 output_modalities를 모르며, 잘못된 session.update를 보내면
-    // 세션 설정(출력 언어)이 깨져 번역이 멈춘다 — 재생 측에서 음소거로만 제어한다.
+    // 세션 설정이 깨져 번역이 멈춘다 — 재생 측에서 음소거로만 제어한다.
+    // 반면 audio.output.language 패치는 실측으로 안전함을 확인했다.
+    setTargetLang(lang) {
+      if (dc.readyState !== 'open') return;
+      assembler.setTargetLang(lang);
+      dc.send(
+        JSON.stringify({
+          type: 'session.update',
+          session: { audio: { output: { language: lang } } },
+        }),
+      );
+    },
     close() {
       assembler.dispose();
       try {

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Mic, Link2, Inbox, Clock, ChevronRight } from 'lucide-react';
+import { Mic, Link2, Inbox, Clock, ChevronRight, Type, FileText, Radio } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement } from '@/lib/server/entitlement';
@@ -115,23 +115,52 @@ export default async function DashboardPage({
       {/* ── 시작 카드 — 화면의 주인공 ── */}
       <section className="flex flex-col items-center gap-6 pt-2">
         <h1 className="text-[28px] font-bold tracking-tight">{t('title')}</h1>
-        <div className="flex w-full flex-col items-center justify-center gap-5 sm:flex-row sm:items-stretch">
-          <ActionCard
-            href="/live"
-            tone="teal"
-            icon={<Mic size={40} />}
-            title={t('startInPerson.title')}
-            subtitle={t('startInPerson.subtitle')}
-            cta={t('startInPerson.cta')}
-          />
-          <ActionCard
-            href="/meeting"
-            tone="violet"
-            icon={<Link2 size={40} />}
-            title={t('startMeeting.title')}
-            subtitle={t('startMeeting.subtitle')}
-            cta={t('startMeeting.cta')}
-          />
+        {/* 윗줄 통역 3개 / 아랫줄 번역 2개 — 좁은 화면에서는 2열로 접힌다 */}
+        <div className="flex w-full max-w-4xl flex-col gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+            <ActionCard
+              href="/live"
+              tone="teal"
+              compact
+              icon={<Mic size={30} />}
+              title={t('startInPerson.title')}
+              subtitle={t('startInPerson.subtitle')}
+            />
+            <ActionCard
+              href="/talk"
+              tone="teal"
+              compact
+              icon={<Radio size={30} />}
+              title={t('startTalk.title')}
+              subtitle={t('startTalk.subtitle')}
+            />
+            <ActionCard
+              href="/meeting"
+              tone="violet"
+              compact
+              icon={<Link2 size={30} />}
+              title={t('startMeeting.title')}
+              subtitle={t('startMeeting.subtitle')}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <ActionCard
+              href="/translate"
+              tone="violet"
+              compact
+              icon={<Type size={30} />}
+              title={t('startText.title')}
+              subtitle={t('startText.subtitle')}
+            />
+            <ActionCard
+              href="/translate/file"
+              tone="teal"
+              compact
+              icon={<FileText size={30} />}
+              title={t('startFile.title')}
+              subtitle={t('startFile.subtitle')}
+            />
+          </div>
         </div>
       </section>
 

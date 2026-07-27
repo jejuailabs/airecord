@@ -25,6 +25,8 @@ import {
   Loader2,
   Pause,
   ArrowLeft,
+  Radio,
+  ArrowLeftRight,
 } from 'lucide-react';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
@@ -61,6 +63,7 @@ type ErrorKey =
 
 const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
+const TALK_PAIR_KEY = 'sotong-talk-pair';
 const CAP_WARNING_SEC = 30; // 예고 없이 끊지 않는다 (docs/07 §5.2)
 /** 종료 시 남은 번역을 기다리는 최대 시간 — 이 시간도 과금되므로 짧게 잡는다 */
 const WRAP_MAX_MS = 5_000;
@@ -73,9 +76,19 @@ function fmtSec(sec: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
+/**
+ * 'stream' — 대면 통역. 상대가 계속 말하고 나는 자막을 읽는다(단방향, 긴 세션).
+ * 'talk'   — 대화 통역(무전기). 짧게 주고받는다(양방향). 엔진은 같고 화면만 다르다.
+ */
+export type InterpreterVariant = 'stream' | 'talk';
+
+export function LiveInterpreter({
+  trial = false,
+  variant = 'stream',
+}: { trial?: boolean; variant?: InterpreterVariant } = {}) {
   const t = useTranslations('live');
   const tTry = useTranslations('try');
+  const isTalk = variant === 'talk';
 
   const [phase, setPhase] = useState<Phase>('setup');
   /** 시작 화면 단계 (1 마이크 → 2 입력 언어 → 3 표시 언어) */
@@ -106,6 +119,15 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   const [endedReason, setEndedReason] = useState<'user' | 'cap' | 'error'>('user');
   /** 일시정지 — 마이크 트랙만 끊는다. 세션은 살아 있어 재개가 즉시 된다. */
   const [paused, setPaused] = useState(false);
+  /**
+   * 무전기 모드 — 내가 말할 때 상대가 들을 언어.
+   * 듣기: 상대 발화 → targetLang(내가 읽는 언어)
+   * 말하기: 내 발화 → speakLang(상대가 듣는 언어)
+   * 입력 언어는 어차피 자동 감지라, 출력 언어만 뒤집으면 두 방향이 다 된다.
+   */
+  const [speakLang, setSpeakLang] = useState<LangCode>('en');
+  /** 말하기 버튼을 누르고 있는 동안 true */
+  const [talking, setTalking] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
   const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
@@ -141,20 +163,41 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   useEffect(() => {
     segmentsRef.current = segments;
   }, [segments]);
+  /** 무전기 핸들러가 최신 값을 보기 위한 ref (핸들러는 리스너에 한 번만 붙는다) */
+  const talkingRef = useRef(false);
+  const speakLangRef = useRef<LangCode>('en');
+  const targetLangRef = useRef<LangCode>('en');
+  useEffect(() => {
+    speakLangRef.current = speakLang;
+  }, [speakLang]);
+  useEffect(() => {
+    targetLangRef.current = targetLang;
+  }, [targetLang]);
 
   // 마지막 언어쌍 기억 → 다음에 미리 채움 (docs/06 §2.1)
+  // 대면 통역과 대화 통역은 고르는 값이 달라 저장 칸을 따로 쓴다
+  const pairKey = isTalk ? TALK_PAIR_KEY : LAST_PAIR_KEY;
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(LAST_PAIR_KEY);
+      const saved = localStorage.getItem(pairKey);
       if (saved) {
-        const { s, tgt } = JSON.parse(saved) as { s: SourceLangSetting; tgt: LangCode };
+        const { s, tgt, spk } = JSON.parse(saved) as {
+          s?: SourceLangSetting;
+          tgt?: LangCode;
+          spk?: LangCode;
+        };
         if (s) setSourceLang(s);
         if (tgt) setTargetLang(tgt);
+        if (spk) setSpeakLang(spk);
+      } else if (isTalk) {
+        // 대화 통역 기본값: 내가 읽는 건 화면 언어, 상대는 영어
+        setTargetLang('ko');
+        setSpeakLang('en');
       }
     } catch {
       /* noop */
     }
-  }, []);
+  }, [pairKey, isTalk]);
 
   const requestMic = useCallback(async () => {
     setError(null);
@@ -180,6 +223,8 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     async (reason: 'user' | 'cap' | 'error') => {
       if (endingRef.current) return;
       endingRef.current = true;
+      talkingRef.current = false;
+      setTalking(false);
       stopTimers();
 
       /**
@@ -249,7 +294,10 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
     setPhase('starting');
     endingRef.current = false;
     try {
-      localStorage.setItem(LAST_PAIR_KEY, JSON.stringify({ s: sourceLang, tgt: targetLang }));
+      localStorage.setItem(
+        pairKey,
+        JSON.stringify({ s: sourceLang, tgt: targetLang, spk: speakLang }),
+      );
     } catch {
       /* noop */
     }
@@ -451,7 +499,13 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         void fetch('/api/translate/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: source, sourceLang: 'auto', targetLang, tone: 'plain' }),
+          // 무전기로 말하는 중이면 상대 언어로 메워야 한다
+          body: JSON.stringify({
+            text: source,
+            sourceLang: 'auto',
+            targetLang: talkingRef.current ? speakLangRef.current : targetLangRef.current,
+            tone: 'plain',
+          }),
         })
           .then((r) => (r.ok ? r.json() : null))
           .then((body: { translated?: string } | null) => {
@@ -515,6 +569,7 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
    * ⚠ 세션이 열려 있는 동안은 계속 과금되므로 (core.md §3-6) 하드 캡·하트비트는 그대로 돈다.
    */
   const togglePause = useCallback(() => {
+    stopTalking(); // 말하는 중에 일시정지하면 듣기 언어로 반드시 되돌린다
     setPaused((prev) => {
       const next = !prev;
       micStream?.getAudioTracks().forEach((tr) => {
@@ -526,6 +581,44 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
       return next;
     });
   }, [micStream]);
+
+  /**
+   * 통역 중 표시 언어 교체.
+   * 실측으로 확인: 번역 엔드포인트는 session.update로 출력 언어만 바꿀 수 있다(약 0.2초).
+   * 급할 때 처음부터 다시 시작하게 만들지 않는다.
+   */
+  const changeTargetLang = useCallback((next: LangCode) => {
+    setTargetLang(next);
+    // 말하는 중에는 상대 언어가 나가야 하므로 세션에는 즉시 반영하지 않는다
+    if (!talkingRef.current) sessionRef.current?.setTargetLang(next);
+  }, []);
+
+  /**
+   * 무전기 — 누르고 있는 동안 내 말을 상대 언어로 내보낸다.
+   * 입력 언어는 자동 감지라 출력 언어만 뒤집으면 된다.
+   * 말하는 동안은 상대가 들어야 하므로 스피커를 강제로 켠다.
+   */
+  const startTalking = useCallback(() => {
+    if (phaseRef.current !== 'live' || talkingRef.current) return;
+    talkingRef.current = true;
+    setTalking(true);
+    sessionRef.current?.setTargetLang(speakLangRef.current);
+    const el = audioElRef.current;
+    if (el) {
+      el.muted = false;
+      // pointerdown은 유저 제스처라 여기서의 play()는 모바일에서도 막히지 않는다
+      void el.play().then(() => setNeedsAudioGesture(false)).catch(() => undefined);
+    }
+  }, []);
+
+  const stopTalking = useCallback(() => {
+    if (!talkingRef.current) return;
+    talkingRef.current = false;
+    setTalking(false);
+    sessionRef.current?.setTargetLang(targetLangRef.current);
+    const el = audioElRef.current;
+    if (el) el.muted = !audioOutRef.current;
+  }, []);
 
   /**
    * 전체화면.
@@ -740,7 +833,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   }
 
   if (phase === 'setup' || phase === 'starting') {
-    const langOptions = INTERPRET_LANGUAGES;
+    const targetOptions = INTERPRET_LANGUAGES.filter((l) =>
+      TRANSLATE_TARGET_LANGS.includes(l.code),
+    );
     const micActive = micLevel > 0.03;
     const micReady = Boolean(micStream);
 
@@ -778,13 +873,15 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
             }}
             aria-hidden
           >
-            <Mic size={22} />
+            {isTalk ? <Radio size={22} /> : <Mic size={22} />}
           </span>
           <div className="min-w-0 flex-1">
             <h1 className="text-[26px] font-bold leading-tight tracking-tight sm:text-[30px]">
-              {t('title')}
+              {isTalk ? t('talk.title') : t('title')}
             </h1>
-            <p className="text-[14px] text-text-muted">{t('setup.lead')}</p>
+            <p className="text-[14px] text-text-muted">
+              {isTalk ? t('talk.lead') : t('setup.lead')}
+            </p>
           </div>
 
           {/* 음성 번역 토글 — 스위치 모양 + 아래 라벨. 아이콘만 두면 무슨 기능인지 모른다. */}
@@ -900,24 +997,84 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
                   <span className="text-[17px] font-bold">A</span>
                 </span>
                 <div>
-                  <h2 className="text-[17px] font-semibold">{t('setup.targetLang')}</h2>
-                  <p className="text-[13.5px] text-text-faint">{t('setup.targetHint')}</p>
+                  <h2 className="text-[17px] font-semibold">
+                    {isTalk ? t('setup.langPair') : t('setup.targetLang')}
+                  </h2>
+                  <p className="text-[13.5px] text-text-faint">
+                    {isTalk ? t('setup.langPairHint') : t('setup.targetHint')}
+                  </p>
                 </div>
               </div>
-              <FieldSelect
-                id="target-lang"
-                value={targetLang}
-                onChange={(e) => setTargetLang(e.target.value as LangCode)}
-              >
-                {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
-                {langOptions
-                  .filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code))
-                  .map((l) => (
+
+              {isTalk ? (
+                /* 대화 통역은 언어가 둘이다 — 내가 읽을 언어와 상대가 들을 언어 */
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <label
+                      htmlFor="target-lang"
+                      className="mb-1 block text-[13px] font-semibold text-text-muted"
+                    >
+                      {t('setup.iHear')}
+                    </label>
+                    <FieldSelect
+                      id="target-lang"
+                      value={targetLang}
+                      onChange={(e) => setTargetLang(e.target.value as LangCode)}
+                    >
+                      {targetOptions.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </FieldSelect>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const mine = targetLang;
+                      setTargetLang(speakLang);
+                      setSpeakLang(mine);
+                    }}
+                    aria-label={t('setup.swapLangs')}
+                    title={t('setup.swapLangs')}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted"
+                  >
+                    <ArrowLeftRight size={18} aria-hidden />
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <label
+                      htmlFor="speak-lang"
+                      className="mb-1 block text-[13px] font-semibold text-text-muted"
+                    >
+                      {t('setup.theyHear')}
+                    </label>
+                    <FieldSelect
+                      id="speak-lang"
+                      value={speakLang}
+                      onChange={(e) => setSpeakLang(e.target.value as LangCode)}
+                    >
+                      {targetOptions.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </FieldSelect>
+                  </div>
+                </div>
+              ) : (
+                <FieldSelect
+                  id="target-lang"
+                  value={targetLang}
+                  onChange={(e) => setTargetLang(e.target.value as LangCode)}
+                >
+                  {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
+                  {targetOptions.map((l) => (
                     <option key={l.code} value={l.code}>
                       {l.label}
                     </option>
                   ))}
-              </FieldSelect>
+                </FieldSelect>
+              )}
 
               {/* 제목은 선택 사항 — 비워두면 AI가 요약할 때 붙여준다 */}
               <div className="flex flex-col gap-1.5">
@@ -939,7 +1096,12 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
               {/* 입력 언어는 엔진이 발화마다 자동 감지한다 (지정 파라미터가 없다) */}
               <p className="flex items-start gap-2 rounded-lg bg-bg-sunken px-4 py-2.5 text-[13.5px] text-text-muted">
                 <Globe size={15} aria-hidden className="mt-0.5 shrink-0 text-accent" />
-                {t('setup.autoDetectFixed', { target: languageLabel(targetLang) })}
+                {isTalk
+                  ? t('setup.talkHint', {
+                      mine: languageLabel(targetLang),
+                      theirs: languageLabel(speakLang),
+                    })
+                  : t('setup.autoDetectFixed', { target: languageLabel(targetLang) })}
               </p>
             </div>
           ) : null}
@@ -978,6 +1140,9 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
   // ── LIVE ──
   const capWarning =
     remainingSec !== null && remainingSec <= CAP_WARNING_SEC && remainingSec > 0;
+  const targetSelectOptions = INTERPRET_LANGUAGES.filter((l) =>
+    TRANSLATE_TARGET_LANGS.includes(l.code),
+  );
 
   return (
     <div
@@ -999,16 +1164,63 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
             <Pause size={15} aria-hidden fill="currentColor" />
             {t('running.paused')}
           </span>
+        ) : isTalk && talking ? (
+          <span className="flex items-center gap-2 text-[16px] font-bold text-accent-2">
+            <Radio size={15} aria-hidden />
+            {t('talk.speaking')}
+          </span>
+        ) : isTalk ? (
+          <span className="flex items-center gap-2 text-[16px] font-bold text-accent">
+            <span aria-hidden className="live-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" />
+            {t('talk.listening')}
+          </span>
         ) : (
           <span className="flex items-center gap-2 text-[16px] font-bold text-accent">
             <span aria-hidden className="live-dot inline-block h-2.5 w-2.5 rounded-full bg-accent" />
             {t('running.live')}
           </span>
         )}
-        <span className="hidden items-center gap-2 text-[16px] text-text-muted sm:flex">
-          <span>{sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)}</span>
-          <span aria-hidden className="text-text-faint">→</span>
-          <span className="font-semibold text-text">{languageLabel(targetLang)}</span>
+        {/* 언어는 통역 중에도 바꿀 수 있다 — 급할 때 처음부터 다시 하게 두지 않는다 */}
+        <span className="flex min-w-0 items-center gap-1.5 text-[15px] text-text-muted">
+          {!isTalk ? (
+            <>
+              <span className="hidden sm:inline">{t('setup.autoDetect')}</span>
+              <span aria-hidden className="hidden text-text-faint sm:inline">
+                →
+              </span>
+            </>
+          ) : null}
+          <select
+            value={targetLang}
+            onChange={(e) => changeTargetLang(e.target.value as LangCode)}
+            aria-label={isTalk ? t('setup.iHear') : t('running.changeTarget')}
+            disabled={talking || phase === 'wrapping'}
+            className="h-9 min-w-0 max-w-[8rem] rounded-lg border border-border bg-bg-raised px-2 text-[15px] font-semibold text-text disabled:opacity-60"
+          >
+            {targetSelectOptions.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+          {isTalk ? (
+            <>
+              <ArrowLeftRight size={14} aria-hidden className="shrink-0 text-text-faint" />
+              <select
+                value={speakLang}
+                onChange={(e) => setSpeakLang(e.target.value as LangCode)}
+                aria-label={t('setup.theyHear')}
+                disabled={talking || phase === 'wrapping'}
+                className="h-9 min-w-0 max-w-[8rem] rounded-lg border border-border bg-bg-raised px-2 text-[15px] font-semibold text-text disabled:opacity-60"
+              >
+                {targetSelectOptions.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
         </span>
         {trial ? (
           <span className="tabular ml-auto rounded-md bg-accent-weak px-3 py-1 text-[15px] font-semibold text-accent">
@@ -1054,6 +1266,37 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
 
       <CaptionPanel segments={segments} scale={SIZE_SCALE[captionSize]} live />
 
+      {/*
+        무전기 — 듣기가 기본, 누르고 있는 동안만 내 말이 상대 언어로 나간다.
+        토글이 아니라 '누르고 있기'로 둔 이유: 손을 떼면 반드시 듣기로 돌아와야
+        상대 말을 놓치지 않는다.
+        대화 통역에서는 이게 화면의 주인공이고, 대면 통역에서는 보조 컨트롤이다.
+      */}
+      {isTalk ? (
+        <button
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            startTalking();
+          }}
+          onPointerUp={stopTalking}
+          onPointerCancel={stopTalking}
+          onContextMenu={(e) => e.preventDefault()}
+          disabled={phase === 'wrapping' || paused}
+          aria-pressed={talking}
+          className={`flex h-20 shrink-0 select-none items-center justify-center gap-3 rounded-2xl text-[19px] font-bold transition-colors duration-150 disabled:opacity-50 ${
+            talking
+              ? 'cta-orb-teal text-white'
+              : 'border border-accent-2/50 bg-accent-2-weak text-accent-2'
+          }`}
+          style={{ touchAction: 'none' }}
+        >
+          <Radio size={24} aria-hidden />
+          {talking
+            ? t('running.talkingNow', { lang: languageLabel(speakLang) })
+            : t('running.pushToTalk', { lang: languageLabel(speakLang) })}
+        </button>
+      ) : null}
+
       {/* 컨트롤 4개를 넘지 않는다: 종료 / 음성 출력 / 자막 크기 / 전체화면 (docs/06 §2.2) */}
       {/* 컨트롤 한 줄 — 좁은 화면에서는 보조 버튼을 아이콘만 남긴다 (docs/06 §2.2) */}
       <div className="flex shrink-0 items-center gap-2">
@@ -1082,6 +1325,35 @@ export function LiveInterpreter({ trial = false }: { trial?: boolean } = {}) {
         </button>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
+          {/*
+            대면 통역 중에도 갑자기 한마디 해야 할 때가 있다(강연 중 질문).
+            그때 세션을 끊고 대화 통역으로 옮기게 하지 않는다 — 보조 버튼으로 남긴다.
+          */}
+          {!isTalk ? (
+            <button
+              onPointerDown={(e) => {
+                e.currentTarget.setPointerCapture(e.pointerId);
+                startTalking();
+              }}
+              onPointerUp={stopTalking}
+              onPointerCancel={stopTalking}
+              onContextMenu={(e) => e.preventDefault()}
+              disabled={phase === 'wrapping' || paused}
+              aria-pressed={talking}
+              aria-label={t('running.pushToTalk', { lang: languageLabel(speakLang) })}
+              title={t('running.pushToTalk', { lang: languageLabel(speakLang) })}
+              className={`flex h-12 select-none items-center gap-2 rounded-xl border px-3 text-[14px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
+                talking
+                  ? 'border-transparent bg-accent-2 text-white'
+                  : 'border-accent-2/50 text-accent-2'
+              }`}
+              style={{ touchAction: 'none' }}
+            >
+              <Radio size={17} aria-hidden />
+              <span className="hidden sm:inline">{languageLabel(speakLang)}</span>
+            </button>
+          ) : null}
+
           <button
             onClick={() => toggleAudioOut(!audioOut)}
             aria-pressed={audioOut}

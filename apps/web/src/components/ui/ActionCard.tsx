@@ -15,13 +15,16 @@ export function ActionCard({
   subtitle,
   cta,
   tone,
+  compact = false,
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   subtitle: string;
-  cta: string;
+  cta?: string;
   tone: 'teal' | 'violet';
+  /** 2열 격자에 들어가는 작은 카드 — 오브를 줄이고 CTA 버튼을 뺀다 */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -35,27 +38,43 @@ export function ActionCard({
       type="button"
       onClick={() => startTransition(() => router.push(href as never))}
       aria-busy={pending}
-      className="group press-card relative flex w-full max-w-[340px] flex-col items-center gap-5 rounded-2xl border border-border bg-bg-raised px-8 py-10 text-center transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-border-strong hover:shadow-token"
+      className={`group press-card relative flex w-full flex-col items-center rounded-2xl border border-border bg-bg-raised text-center transition-[transform,border-color,box-shadow] duration-200 hover:-translate-y-1 hover:border-border-strong hover:shadow-token ${
+        compact ? 'gap-3 px-4 py-6' : 'gap-5 px-8 py-10'
+      }`}
     >
       <span
-        className={`hero-glow orb-float ${orb} text-white`}
+        className={`${compact ? 'hero-glow-sm' : 'hero-glow orb-float'} ${orb} text-white`}
         style={{ ['--glow-color' as string]: glow }}
         aria-hidden
       >
-        {pending ? <Loader2 size={40} className="animate-spin" /> : icon}
+        {pending ? (
+          <Loader2 size={compact ? 26 : 40} className="animate-spin" />
+        ) : (
+          icon
+        )}
       </span>
 
       <span>
-        <span className="block text-[22px] font-bold tracking-tight">{title}</span>
-        <span className="mt-1 block text-[15px] text-text-muted">{subtitle}</span>
+        <span
+          className={`block font-bold tracking-tight ${compact ? 'text-[17px]' : 'text-[22px]'}`}
+        >
+          {title}
+        </span>
+        <span
+          className={`mt-1 block text-text-muted ${compact ? 'text-[13px]' : 'text-[15px]'}`}
+        >
+          {subtitle}
+        </span>
       </span>
 
-      <span
-        className={`${btn} flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[16px] font-bold`}
-      >
-        {pending ? <Loader2 size={17} className="animate-spin" aria-hidden /> : null}
-        {cta}
-      </span>
+      {cta ? (
+        <span
+          className={`${btn} flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[16px] font-bold`}
+        >
+          {pending ? <Loader2 size={17} className="animate-spin" aria-hidden /> : null}
+          {cta}
+        </span>
+      ) : null}
     </button>
   );
 }

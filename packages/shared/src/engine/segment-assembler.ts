@@ -26,6 +26,8 @@ interface RealtimeEvent {
 
 export interface SegmentAssembler {
   handle(evt: RealtimeEvent): void;
+  /** 통역 중 표시 언어가 바뀌면 알려준다 — 같은 언어 판정 기준이 달라진다 */
+  setTargetLang(lang: string): void;
   /** 타이머 정리 — 세션 종료 시 반드시 호출 */
   dispose(): void;
 }
@@ -39,6 +41,8 @@ export interface AssemblerOptions {
   untranslatedIdleMs?: number;
   /** 원문 한 덩어리가 이 길이를 넘으면 문장 단위로 끊는다 */
   maxSourceChars?: number;
+  /** 원문 전사가 이 시간 동안 안 오면 번역만으로 자막을 만든다 */
+  sourceStallMs?: number;
 }
 
 const SENTENCE_SPLIT = /[^.!?。！？]+[.!?。！？]+\s*/g;
@@ -61,7 +65,8 @@ export function createSegmentAssembler(
   const pauseMs = options.pauseMs ?? 1_200;
   const untranslatedIdleMs = options.untranslatedIdleMs ?? 3_500;
   const maxSourceChars = options.maxSourceChars ?? 160;
-  const targetLang = options.targetLang;
+  const sourceStallMs = options.sourceStallMs ?? 2_500;
+  let targetLang = options.targetLang;
 
   const startedAt = Date.now();
   let nextSeq = 0;
@@ -79,6 +84,8 @@ export function createSegmentAssembler(
   let livePreview: EngineSegment | null = null;
   let detectedLang: string | undefined;
   let lastOutputAt = 0;
+  /** 마지막 원문 전사 도착 시각. 0이면 아직 한 번도 안 왔다. */
+  let lastSourceAt = 0;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
   /**
@@ -118,10 +125,10 @@ export function createSegmentAssembler(
      * 거기에 번역을 밀어 넣으면 그 자리에서 조각이 확정돼 원문이 어색하게 쪼개진다
      * ("Good m" / "orning").
      */
-    if (!force && (open.length === 0 || (open.length === 1 && open[0] === livePreview))) return;
+    if (!force && open.length === 1 && open[0] === livePreview) return;
     const carry = pendingTarget;
     pendingTarget = '';
-    feedTarget(carry);
+    feedTarget(carry, force);
   }
 
   /**
@@ -194,21 +201,40 @@ export function createSegmentAssembler(
    * 자를 위치는 원문 길이에 비례한 분량(quota)의 절반을 넘긴 뒤부터 찾는다 —
    * 그러지 않으면 짧은 첫 문장에서 잘려 뒤 덩어리가 번역을 다 가져간다.
    */
-  function feedTarget(text: string) {
+  function feedTarget(text: string, force = false) {
     let rest = text;
     while (rest) {
-      const seg = currentOpen();
+      let seg = currentOpen();
       if (!seg) {
         // 아직 원문 덩어리가 없으면 빈 덩어리를 만들지 않고 잠시 들고 있는다
         pendingTarget += rest;
+        rest = '';
+
+        /**
+         * ⚠ 원문 전사가 끊겼는데 번역은 계속 오는 경우 (실사용 사고 2026-07-27).
+         * 원문 주도 구조라 열린 덩어리가 없으면 번역이 여기 영영 갇혀,
+         * 통역 음성은 2분 넘게 잘 나오는데 자막만 세 줄에서 멈춰 버렸다.
+         * 원문을 못 붙이더라도 번역만으로 자막을 계속 내보낸다 — 자막이 멈추는 것보다 낫다.
+         */
+        const quiet = Date.now() - (lastSourceAt || startedAt);
+        const stalled = quiet >= sourceStallMs && pendingTarget.trim().length >= 8;
+        if (force ? pendingTarget.trim().length > 0 : stalled) {
+          seg = newSegment('');
+          rest = pendingTarget;
+          pendingTarget = '';
+          continue;
+        }
         return;
       }
       seg.targetText += rest;
       rest = '';
       emit(seg);
 
+      // 원문이 없는 덩어리는 길이 비례가 불가능하다 — 문장부호에서만 끊는다
       // 하한을 크게 잡으면 "네." → "Yes." 같은 짧은 문장이 다음 문장까지 물고 간다
-      const quota = Math.max(6, seg.sourceText.length * targetPerSource());
+      const quota = seg.sourceText
+        ? Math.max(6, seg.sourceText.length * targetPerSource())
+        : 40;
       const idx = sentenceEndAtOrAfter(seg.targetText, Math.ceil(quota * 0.5) - 1);
       if (idx >= 0) {
         rest = seg.targetText.slice(idx + 1);
@@ -275,12 +301,17 @@ export function createSegmentAssembler(
   }
 
   return {
+    setTargetLang(lang) {
+      targetLang = lang;
+    },
+
     handle(evt) {
       switch (evt.type) {
         // ── 원문: 자막 덩어리의 뼈대 ─────────────────
         case 'session.input_transcript.delta':
         case 'conversation.item.input_audio_transcription.delta': {
           if (evt.language) detectedLang = evt.language;
+          lastSourceAt = Date.now();
           sourcePartial += evt.delta ?? '';
           seenSource += (evt.delta ?? '').length;
           drainSourceSentences();

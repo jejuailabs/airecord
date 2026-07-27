@@ -4,6 +4,7 @@
     "nav": {
       "dashboard": "대시보드",
       "live": "대면 통역",
+      "talk": "대화 통역",
       "meeting": "회의 통역",
       "translate": "텍스트 번역",
       "translateFile": "파일 번역",
@@ -237,6 +238,18 @@
       "subtitle": "회의 주소만 붙여넣기",
       "cta": "시작하기"
     },
+    "startTalk": {
+      "title": "대화 통역",
+      "subtitle": "누르고 말하는 무전기"
+    },
+    "startText": {
+      "title": "텍스트 번역",
+      "subtitle": "붙여넣고 바로 번역"
+    },
+    "startFile": {
+      "title": "파일 번역",
+      "subtitle": "PDF · 이미지 그대로"
+    },
     "recent": {
       "title": "최근 세션",
       "viewAll": "전체 보기",
@@ -246,6 +259,12 @@
   },
   "live": {
     "title": "대면 통역",
+    "talk": {
+      "title": "대화 통역",
+      "lead": "누르고 말하면 상대 언어로 나갑니다.",
+      "listening": "듣는 중",
+      "speaking": "말하는 중"
+    },
     "consentNotice": "이 대화는 통역과 기록을 위해 처리됩니다.",
     "setup": {
       "lead": "두 단계면 시작합니다.",
@@ -270,6 +289,12 @@
       "autoDetect": "자동 감지",
       "autoDetectHint": "여러 언어가 섞여도 발화마다 자동으로 감지해 통역합니다.",
       "targetLang": "표시 언어",
+      "langPair": "언어 두 개",
+      "langPairHint": "내가 읽을 언어와 상대가 들을 언어를 정합니다.",
+      "iHear": "내가 읽을 언어",
+      "theyHear": "상대가 들을 언어",
+      "swapLangs": "두 언어 바꾸기",
+      "talkHint": "상대가 말하면 {mine}로 보여 주고, 버튼을 누르고 말하면 {theirs}로 내보냅니다. 입력 언어는 자동으로 감지합니다.",
       "audioOut": "음성 번역 (AI 보이스)",
       "audioOutShort": "AI 음성",
       "audioOutStacked": "음성번역 AI",
@@ -283,6 +308,10 @@
       "live": "LIVE",
       "paused": "일시정지",
       "wrapping": "남은 번역 마무리 중…",
+      "changeTarget": "표시 언어 바꾸기",
+      "speakLang": "상대가 들을 언어",
+      "pushToTalk": "누르고 말하기 → {lang}",
+      "talkingNow": "{lang}(으)로 내보내는 중…",
       "pause": "일시정지",
       "resume": "다시 시작",
       "connecting": "연결 중",

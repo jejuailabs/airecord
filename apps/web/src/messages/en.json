@@ -4,6 +4,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "live": "In-person",
+      "talk": "Conversation",
       "meeting": "Meeting",
       "translate": "Text",
       "translateFile": "Files",
@@ -237,6 +238,18 @@
       "subtitle": "Just paste the link",
       "cta": "Start"
     },
+    "startTalk": {
+      "title": "Conversation",
+      "subtitle": "Hold to speak, like a radio"
+    },
+    "startText": {
+      "title": "Text",
+      "subtitle": "Paste and translate"
+    },
+    "startFile": {
+      "title": "Files",
+      "subtitle": "PDF and images"
+    },
     "recent": {
       "title": "Recent sessions",
       "viewAll": "View all",
@@ -246,6 +259,12 @@
   },
   "live": {
     "title": "In-person interpreting",
+    "talk": {
+      "title": "Conversation",
+      "lead": "Hold the button and it goes out in their language.",
+      "listening": "Listening",
+      "speaking": "Speaking"
+    },
     "consentNotice": "This conversation is processed for interpretation and records.",
     "setup": {
       "lead": "Two steps and you're live.",
@@ -270,6 +289,12 @@
       "autoDetect": "Auto-detect",
       "autoDetectHint": "Mixed languages are detected per utterance and interpreted automatically.",
       "targetLang": "Display language",
+      "langPair": "Two languages",
+      "langPairHint": "Pick what you read and what they hear.",
+      "iHear": "I read",
+      "theyHear": "They hear",
+      "swapLangs": "Swap the two languages",
+      "talkHint": "When they speak you see {mine}. Hold the button and speak, and it goes out in {theirs}. The input language is detected automatically.",
       "audioOut": "Voice translation (AI voice)",
       "audioOutShort": "AI voice",
       "audioOutStacked": "AI voice",
@@ -283,6 +308,10 @@
       "live": "LIVE",
       "paused": "Paused",
       "wrapping": "Finishing the remaining translation…",
+      "changeTarget": "Change display language",
+      "speakLang": "Language they hear",
+      "pushToTalk": "Hold to speak → {lang}",
+      "talkingNow": "Sending in {lang}…",
       "pause": "Pause",
       "resume": "Resume",
       "connecting": "Connecting",
