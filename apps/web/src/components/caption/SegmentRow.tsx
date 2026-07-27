@@ -11,6 +11,8 @@ export interface SegmentRowProps {
   showSource: boolean;
   /** "같은 언어라 번역 없음" 배지 문구 */
   sameLangLabel: string;
+  /** 방금 짝지어져 올라온 줄 — 양옆에서 모여 앉는 모션을 준다 */
+  justPaired?: boolean;
 }
 
 /**
@@ -21,10 +23,10 @@ export interface SegmentRowProps {
  * 고정 px로 두면 모바일에서 한 줄에 두세 글자만 보이고, 회의실 모니터에서는 너무 작다.
  */
 export const SegmentRow = memo(
-  function SegmentRow({ seg, scale, showSource, sameLangLabel }: SegmentRowProps) {
+  function SegmentRow({ seg, scale, showSource, sameLangLabel, justPaired }: SegmentRowProps) {
     const langBadge = seg.detectedLang ?? guessScript(seg.sourceText || seg.targetText);
     return (
-      <div className="flex flex-col gap-1.5 py-4">
+      <div className={`flex flex-col gap-1.5 py-4 ${justPaired ? 'row-paired-in' : ''}`}>
         {/* 엔진이 언어 코드를 주지 않으므로 원문 문자로 추정해 표시한다 */}
         <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-caption-source">
           {langBadge}
@@ -36,7 +38,7 @@ export const SegmentRow = memo(
           ) : null}
         </span>
         <p
-          className={`font-semibold tracking-tight text-caption-target ${
+          className={`paired-target font-semibold tracking-tight text-caption-target ${
             seg.isFinal ? '' : 'caption-caret'
           }`}
           style={{
@@ -49,7 +51,7 @@ export const SegmentRow = memo(
         </p>
         {showSource && seg.sourceText && seg.targetText ? (
           <p
-            className="text-caption-source"
+            className="paired-source text-caption-source"
             style={{
               fontSize: `calc(clamp(12px, 2.7vw, 14px) * ${scale})`,
               lineHeight: 1.5,
@@ -69,5 +71,6 @@ export const SegmentRow = memo(
     prev.seg.detectedLang === next.seg.detectedLang &&
     prev.seg.sameAsTarget === next.seg.sameAsTarget &&
     prev.scale === next.scale &&
-    prev.showSource === next.showSource,
+    prev.showSource === next.showSource &&
+    prev.justPaired === next.justPaired,
 );

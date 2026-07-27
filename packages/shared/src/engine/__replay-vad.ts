@@ -1,15 +1,15 @@
 /**
- * VAD 주도 조립 회귀 검사 — 앱 빌드에 들어가지 않는 개발 도구.
+ * 1층(병렬 스트림) 회귀 검사 — 앱 빌드에 들어가지 않는 개발 도구.
  *
  *   SPEED=1 tsx packages/shared/src/engine/__replay-vad.ts
  *
- * __fixture-vad.json은 통역 레그 + 전용 전사 레그를 **동시에** 물려 받은 실제 이벤트다
- * (영어 연속 발화 → 한국어). VAD 경계(VS/VE)와 원문(SD/SC), 번역(T)이 실제 도착 순서 그대로 들어 있다.
+ * __fixture-vad.json은 통역 레그 + 전용 전사 레그를 동시에 물려 받은 실제 이벤트다.
  *
- * 여기서 잡는 사고: 번역이 원문보다 2~3초 먼저 도착해 자막이 한 칸씩 밀리는 것
- * (실사용 2026-07-28: 한글 "모두 무료입니다" ↔ 원문 "One.").
- *
- * 통과 기준: 각 칸의 원문과 번역이 **같은 발화**여야 한다. ⚠ SPEED>1은 타이머가 왜곡돼 무효.
+ * 통과 기준 (짝짓기는 2층 담당이라 여기서 보지 않는다):
+ *  - 번역 스트림이 **한 글자도 변형·유실되지 않을 것** (음성과 100% 일치해야 한다)
+ *  - 원문 스트림이 유실되지 않을 것
+ *  - 두 스트림이 서로 섞이지 않을 것 (한 줄에 둘 다 들어가면 안 된다)
+ * ⚠ SPEED>1은 타이머가 왜곡돼 무효.
  */
 import fs from 'node:fs';
 import { createSegmentAssembler } from './segment-assembler';
@@ -43,68 +43,62 @@ for (const row of raw) {
   const [at, kind] = row;
   await sleep(Math.max(0, (at - prev) / SPEED));
   prev = at;
-  if (kind === 'T') {
-    asm.handle({ type: 'session.output_transcript.delta', delta: row[2] as string });
-  } else if (kind === 'VS') {
+  if (kind === 'T') asm.handle({ type: 'session.output_transcript.delta', delta: row[2] as string });
+  else if (kind === 'VS')
     asm.handle({
       type: 'input_audio_buffer.speech_started',
       item_id: row[2] as string,
       audio_start_ms: row[3] as number,
     });
-  } else if (kind === 'VE') {
+  else if (kind === 'VE')
     asm.handle({
       type: 'input_audio_buffer.speech_stopped',
       item_id: row[2] as string,
       audio_end_ms: row[3] as number,
     });
-  } else if (kind === 'SD') {
+  else if (kind === 'SD')
     asm.handle({
       type: 'conversation.item.input_audio_transcription.delta',
       item_id: row[2] as string,
       delta: row[3] as string,
     });
-  } else {
+  else
     asm.handle({
       type: 'conversation.item.input_audio_transcription.completed',
       item_id: row[2] as string,
       transcript: row[3] as string,
     });
-  }
 }
-await sleep(4_000 / SPEED);
+await sleep(3_000 / SPEED);
 asm.dispose();
 
-/** 정답: 발화별 원문 → 그에 대응하는 한국어 핵심 단어 */
-const EXPECT: Array<[string, string[]]> = [
-  ['quarterly review', ['아침', '리뷰']],
-  ['start with the numbers', ['숫자', '시작']],
-  ['clearest story', ['분명', '이야기']],
-  ['$42 million', ['4,200만', '18%']],
-  ['enterprise segment', ['엔터프라이즈']],
-  ['small business segment was flat', ['중소기업', '보합']],
-  ['why that matters', ['이유', '중요']],
-];
+const norm = (s: string) => s.replace(/\s+/g, '');
+const fullTarget = raw.filter((r) => r[1] === 'T').map((r) => r[2] as string).join('');
+const fullSource = raw.filter((r) => r[1] === 'SC').map((r) => r[3] as string).join(' ');
 
-console.log('─'.repeat(74));
-for (const e of emitted) {
-  const tag = !e.sourceText.trim() ? ' ⚠원문없음' : '';
-  const win =
-    e.audioStartMs != null && e.audioEndMs != null
-      ? `${(e.audioStartMs / 1000).toFixed(1)}~${(e.audioEndMs / 1000).toFixed(1)}s`
-      : '—';
-  console.log(`[${String(e.seq).padStart(2)}] ${win}${tag}`);
-  console.log(`   원문: ${e.sourceText || '(비어 있음)'}`);
-  console.log(`   번역: ${e.targetText || '(비어 있음)'}`);
-}
-console.log('─'.repeat(74));
+const targetRows = emitted.filter((e) => e.kind === 'target');
+const sourceRows = emitted.filter((e) => e.kind === 'source');
+const mixed = emitted.filter((e) => e.sourceText.trim() && e.targetText.trim());
 
-let matched = 0;
-for (const [srcKey, tgtWords] of EXPECT) {
-  const seg = emitted.find((e) => e.sourceText.includes(srcKey));
-  const ok = seg ? tgtWords.some((w) => seg.targetText.includes(w)) : false;
-  if (ok) matched++;
-  console.log(`${ok ? '맞음' : '어긋남'}  "${srcKey}" ↔ ${seg ? `"${seg.targetText.slice(0, 34)}"` : '(칸 없음)'}`);
-}
-const noSource = emitted.filter((e) => !e.sourceText.trim()).length;
-console.log(`\n짝 일치 ${matched}/${EXPECT.length} · 원문없음 ${noSource}개 · 자막 ${emitted.length}개`);
-if (matched < EXPECT.length) process.exitCode = 1;
+const outTarget = targetRows.map((e) => e.targetText).join('');
+const outSource = sourceRows.map((e) => e.sourceText).join(' ');
+
+console.log('─'.repeat(72));
+console.log(`[번역 스트림] ${targetRows.length}줄`);
+for (const e of targetRows.slice(0, 6)) console.log(`   ${e.targetText}`);
+console.log(`[원문 스트림] ${sourceRows.length}줄`);
+for (const e of sourceRows.slice(0, 4)) console.log(`   ${e.sourceText}`);
+console.log('─'.repeat(72));
+
+const tLost = norm(fullTarget).length - norm(outTarget).length;
+const sLost = norm(fullSource).length - norm(outSource).length;
+console.log(`번역 ${norm(fullTarget).length}자 → ${norm(outTarget).length}자 (유실 ${tLost})`);
+console.log(`원문 ${norm(fullSource).length}자 → ${norm(outSource).length}자 (유실 ${sLost})`);
+console.log(`스트림 혼입: ${mixed.length}줄`);
+
+let bad = 0;
+if (tLost !== 0) { console.log('✗ 번역이 변형·유실됐다 — 음성과 달라진다'); bad++; }
+if (sLost !== 0) { console.log('✗ 원문이 유실됐다'); bad++; }
+if (mixed.length !== 0) { console.log('✗ 두 스트림이 한 줄에 섞였다'); bad++; }
+console.log(bad === 0 ? '\n전체 통과' : `\n실패 ${bad}건`);
+if (bad > 0) process.exitCode = 1;

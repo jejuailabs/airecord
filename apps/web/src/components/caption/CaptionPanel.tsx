@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { ArrowDown } from 'lucide-react';
 import type { EngineSegment } from '@sotong/shared/engine';
 import { SegmentRow } from './SegmentRow';
+import { ParallelRows } from './ParallelRows';
 
 const MAX_DOM_SEGMENTS = 400; // 세그먼트 500 초과 대비 — 오래된 것은 DOM에서 뺀다 (docs/04 §3)
 const TICK_MS = 30_000;       // 타임 레일 눈금 주기 (docs/05 §1)
@@ -17,10 +18,22 @@ function fmtMs(ms: number): string {
 }
 
 export interface CaptionPanelProps {
+  /** 정렬기가 짝지어 합친 줄들 — 원문·번역이 한 줄에 같이 온다 */
   segments: EngineSegment[];
   scale: number;
   showSource?: boolean;
   live: boolean;
+  /**
+   * 아직 짝이 안 지어진 구간. 정렬기가 따라잡으면 위 segments로 옮겨간다.
+   * 실시간성은 이쪽이 담당한다 — 정렬을 기다리느라 자막이 늦어지면 안 된다.
+   */
+  pendingTarget?: EngineSegment[];
+  pendingSource?: EngineSegment[];
+  parallelLabels?: { target: string; source: string };
+  /** 지금 가운데로 빨려드는 중인(곧 짝지어질) 줄 번호 */
+  mergingSeqs?: ReadonlySet<number>;
+  /** 방금 짝지어져 올라온 줄 번호 */
+  justPairedSeqs?: ReadonlySet<number>;
 }
 
 /**
@@ -28,7 +41,17 @@ export interface CaptionPanelProps {
  * 배경은 테마와 무관하게 항상 어둡다. 왼쪽에 타임 레일이 흐른다.
  * 자동 스크롤은 rAF 안에서 하되, 유저가 위로 스크롤했으면 따라가지 않는다.
  */
-export function CaptionPanel({ segments, scale, showSource = true, live }: CaptionPanelProps) {
+export function CaptionPanel({
+  segments,
+  scale,
+  showSource = true,
+  live,
+  pendingTarget = [],
+  pendingSource = [],
+  parallelLabels,
+  mergingSeqs,
+  justPairedSeqs,
+}: CaptionPanelProps) {
   const t = useTranslations('live.running');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
@@ -51,7 +74,16 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
       el.scrollTop = el.scrollHeight;
     });
     return () => cancelAnimationFrame(raf);
-  }, [pinned, segments.length, last?.targetText, last?.sourceText]);
+  }, [
+    pinned,
+    segments.length,
+    last?.targetText,
+    last?.sourceText,
+    // 정렬 안 된 구간이 자라도 아래로 따라간다 — 실시간 자막은 이쪽에서 나온다
+    pendingTarget.length,
+    pendingTarget[pendingTarget.length - 1]?.targetText,
+    pendingSource.length,
+  ]);
 
   const jumpToLatest = () => {
     setPinned(true);
@@ -83,6 +115,7 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
         scale={scale}
         showSource={showSource}
         sameLangLabel={t('sameLanguage')}
+        justPaired={justPairedSeqs?.has(seg.seq)}
       />,
     );
   }
@@ -104,11 +137,28 @@ export function CaptionPanel({ segments, scale, showSource = true, live }: Capti
           {omitted > 0 ? (
             <p className="py-2 text-[13px] text-caption-source">{t('omitted', { count: omitted })}</p>
           ) : null}
-          {rows.length > 0 ? (
-            rows
-          ) : (
+          {rows}
+
+          {/*
+            아직 짝이 안 지어진 구간 — 좌우 병렬.
+            정렬기가 따라잡으면 위쪽 짝지어진 줄로 옮겨가며 이 자리는 비워진다.
+          */}
+          {pendingTarget.length > 0 || pendingSource.length > 0 ? (
+            <div className="py-4">
+              <ParallelRows
+                target={pendingTarget}
+                source={pendingSource}
+                mergingSeqs={mergingSeqs}
+                scale={scale}
+                targetLabel={parallelLabels?.target ?? ''}
+                sourceLabel={parallelLabels?.source ?? ''}
+              />
+            </div>
+          ) : null}
+
+          {rows.length === 0 && pendingTarget.length === 0 && pendingSource.length === 0 ? (
             <p className="py-12 text-[22px] text-caption-source">{t('waitingSpeech')}</p>
-          )}
+          ) : null}
           {/* 라이브 중 타임 레일 현재 위치 점 (docs/05 §1) */}
           {live ? (
             <span

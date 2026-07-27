@@ -29,7 +29,6 @@ import {
   ArrowLeftRight,
   Activity,
   Download,
-  AlignVerticalJustifyCenter,
 } from 'lucide-react';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { SetupStepper, type StepDef } from '@/components/live/SetupStepper';
@@ -81,11 +80,12 @@ const WRAP_MAX_MS = 5_000;
 /** 이 시간 동안 자막 갱신이 없으면 더 기다리지 않고 닫는다 */
 const WRAP_IDLE_MS = 1_500;
 /**
- * 발화가 끝난 뒤 AI 음성이 그 대목을 읽기까지 걸리는 시간(대략).
- * 실측: 번역 텍스트가 원문보다 2.2~3.1초 늦고, 음성은 그 뒤에 이어진다.
- * '음성에 맞추기'를 켰을 때 자막을 이만큼 늦춰 지금 들리는 대목이 화면 아래에 오게 한다.
+ * 정렬(2층) 주기.
+ * 너무 잦으면 비용만 늘고, 너무 뜸하면 병렬 구간이 길어진다.
  */
-const VOICE_LAG_MS = 3_000;
+const ALIGN_INTERVAL_MS = 12_000;
+/** 빈 집합 상수 — 매 렌더마다 새 Set을 만들면 자막이 통째로 다시 그려진다 */
+const EMPTY_SEQS: ReadonlySet<number> = new Set<number>();
 
 function fmtSec(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -145,14 +145,6 @@ export function LiveInterpreter({
   const [speakLang, setSpeakLang] = useState<LangCode>('en');
   /** 말하기 버튼을 누르고 있는 동안 true */
   const [talking, setTalking] = useState(false);
-  /**
-   * 자막을 음성 속도에 맞춰 내보낸다.
-   *
-   * 자막은 번역이 도착하는 즉시 뜨고 AI 음성은 그걸 읽는 데 시간이 걸린다. 그래서 자막이
-   * 몇 문장 앞서 나가고, 지금 들리는 대목이 화면 위로 밀려 올라간다.
-   * 음성을 켰을 땐 둘이 맞는 게 낫고, 자막만 볼 땐 빠른 게 낫다 — 그래서 음성 토글을 따라간다.
-   */
-  const [syncToVoice, setSyncToVoice] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   /** 브라우저 자동재생 정책으로 play()가 막혔을 때 — 유저 클릭 한 번을 요청한다 */
   const [needsAudioGesture, setNeedsAudioGesture] = useState(false);
@@ -190,6 +182,13 @@ export function LiveInterpreter({
   const endingRef = useRef(false);
   /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
   const lastSegmentAtRef = useRef(0);
+  /** 합류 모션 — 가운데로 빨려드는 줄 / 방금 앉은 줄 */
+  const [mergingSeqs, setMergingSeqs] = useState<ReadonlySet<number>>(EMPTY_SEQS);
+  const [justPairedSeqs, setJustPairedSeqs] = useState<ReadonlySet<number>>(EMPTY_SEQS);
+  /** 정렬 요청이 겹치지 않게 하는 잠금 */
+  const aligningRef = useRef(false);
+  /** 이미 짝이 지어진 줄 번호 — 다시 정렬 대상에 넣지 않는다 */
+  const alignedRef = useRef(new Set<number>());
   /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
   const segmentsRef = useRef<EngineSegment[]>([]);
   useEffect(() => {
@@ -319,7 +318,15 @@ export function LiveInterpreter({
       let saved = false;
       const sessionId = sessionIdRef.current;
       if (sessionId) {
-        // 아직 하트비트로 못 보낸 확정 세그먼트를 함께 넘긴다 (기록 유실 방지)
+        /**
+         * 아직 하트비트로 못 보낸 확정 줄 + 끝내 짝이 안 지어진 줄을 함께 넘긴다.
+         * 정렬을 못 맞췄다고 원문·번역을 버리면 기록이 비어 버린다 — 한쪽만이라도 남긴다.
+         */
+        for (const s of segmentsRef.current) {
+          if (s.isFinal && s.kind !== 'paired' && (s.sourceText.trim() || s.targetText.trim())) {
+            pendingFinalsRef.current.set(s.seq, s);
+          }
+        }
         const tail = [...pendingFinalsRef.current.values()].map((s) => ({
           seq: s.seq,
           startMs: s.startMs,
@@ -438,7 +445,12 @@ export function LiveInterpreter({
               segmentsLenRef.current = next.length;
               return next;
             });
-            if (seg.isFinal) pendingFinalsRef.current.set(seg.seq, seg);
+            /**
+             * 기록에는 **짝지어진 줄만** 올린다.
+             * 정렬 전 줄까지 보내면 나중에 합쳐질 때 같은 말이 두 번 저장된다.
+             * 끝내 짝이 안 지어진 줄은 종료 시 한꺼번에 보낸다(doEnd).
+             */
+            if (seg.isFinal && seg.kind === 'paired') pendingFinalsRef.current.set(seg.seq, seg);
             if (trial) {
               // 부분 전사도 즉시 계수한다 — 한도를 넘긴 뒤에 끊으면 이미 돈이 나간 뒤다
               charsBySeqRef.current.set(seg.seq, seg.targetText.length);
@@ -591,6 +603,89 @@ export function LiveInterpreter({
     return () => clearInterval(id);
   }, [phase, audioOut, remoteStream]);
 
+  /**
+   * ── 2층: 원문 ↔ 번역 정렬 ─────────────────────────────────────────────
+   *
+   * 실시간(1층)은 두 스트림을 각자 흘린다. 여기서는 쌓인 구간을 주기적으로 AI에 보내
+   * "몇 번 ↔ 몇 번"만 받아 와 합친다. 정렬을 기다리느라 자막이 늦어지면 안 되므로,
+   * 이 요청이 실패하거나 느려도 화면은 그대로 흐른다.
+   *
+   * ⚠ 정렬기는 텍스트를 만들지 않는다 — 대응표만 받는다(align.ts 참고).
+   */
+  useEffect(() => {
+    if (phase !== 'live') return;
+    const id = setInterval(() => {
+      if (aligningRef.current) return;
+      const all = segmentsRef.current;
+      const src = all.filter((s) => s.kind === 'source' && !alignedRef.current.has(s.seq));
+      const tgt = all.filter((s) => s.kind === 'target' && s.isFinal && !alignedRef.current.has(s.seq));
+      // 마지막 줄은 아직 뒷말이 남았을 수 있으니 정렬 대상에서 뺀다
+      const srcPool = src.slice(0, -1);
+      const tgtPool = tgt.slice(0, -1);
+      if (srcPool.length < 2 || tgtPool.length < 2) return;
+
+      aligningRef.current = true;
+      void fetch('/api/session/align', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: srcPool.slice(0, 40).map((s) => ({ seq: s.seq, text: s.sourceText })),
+          target: tgtPool.slice(0, 40).map((s) => ({ seq: s.seq, text: s.targetText })),
+        }),
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then(async (body: { pairs?: Array<{ sourceSeqs: number[]; targetSeqs: number[] }> } | null) => {
+          const pairs = body?.pairs ?? [];
+          if (pairs.length === 0) return;
+
+          /**
+           * 합쳐지는 장면을 보여준다.
+           * 먼저 병렬 구간의 해당 줄들을 가운데로 빨아들이고(320ms), 그 다음 합친 줄을 올린다.
+           * 이 모션이 화면의 유일한 설명이다 — 왜 위아래가 다르게 생겼는지를 이걸로 이해한다.
+           */
+          const consumedSeqs = new Set(pairs.flatMap((p) => [...p.sourceSeqs, ...p.targetSeqs]));
+          setMergingSeqs(consumedSeqs);
+          await new Promise((r) => setTimeout(r, 320));
+          setMergingSeqs(EMPTY_SEQS);
+
+          setSegments((prev) => {
+            const bySeq = new Map(prev.map((s) => [s.seq, s]));
+            const merged: EngineSegment[] = [];
+            for (const p of pairs) {
+              const srcRows = p.sourceSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
+              const tgtRows = p.targetSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
+              if (srcRows.length === 0 || tgtRows.length === 0) continue;
+              // ⚠ 텍스트는 이어 붙이기만 한다. 고쳐 쓰면 음성과 달라진다.
+              merged.push({
+                ...tgtRows[0]!,
+                seq: tgtRows[0]!.seq,
+                kind: 'paired',
+                sourceText: srcRows.map((s) => s.sourceText).join(' ').trim(),
+                targetText: tgtRows.map((s) => s.targetText).join(' ').trim(),
+                isFinal: true,
+              });
+              [...p.sourceSeqs, ...p.targetSeqs].forEach((n) => alignedRef.current.add(n));
+            }
+            if (merged.length === 0) return prev;
+            const kept = prev.filter((s) => !consumedSeqs.has(s.seq));
+            return [...kept, ...merged].sort((a, b) => a.seq - b.seq);
+          });
+
+          // 새로 앉은 줄에 등장 모션을 준다 — 애니메이션이 끝나면 표시를 지운다
+          const arrived = new Set(pairs.map((p) => p.targetSeqs[0]!).filter((n) => n != null));
+          setJustPairedSeqs(arrived);
+          setTimeout(() => setJustPairedSeqs(EMPTY_SEQS), 1_000);
+        })
+        .catch(() => {
+          /* 정렬 실패는 무시 — 다음 주기에 다시 시도한다 */
+        })
+        .finally(() => {
+          aligningRef.current = false;
+        });
+    }, ALIGN_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [phase]);
+
   /** 진단 로그 내려받기 — 폰에서 본 걸 그대로 붙여넣을 수 있게 파일로 남긴다 */
   const downloadTrace = useCallback(() => {
     const snap = diagRef.current;
@@ -652,8 +747,6 @@ export function LiveInterpreter({
   const toggleAudioOut = useCallback(
     (on: boolean) => {
     setAudioOut(on);
-    // 음성을 켜면 자막도 음성에 맞춘다 (끄면 자막은 다시 즉시 표시)
-    setSyncToVoice(on);
     if (on) unlockAudio(); // 이 호출이 유저 제스처 안이다
     const el = audioElRef.current;
     if (!el) return;
@@ -1278,16 +1371,12 @@ export function LiveInterpreter({
   }
 
   /**
-   * 음성에 맞추기가 켜져 있으면, 아직 음성이 읽지 않은 자막은 잠시 숨긴다.
-   * 자막의 오디오 구간(VAD 실측)이 기준이라 발화별로 정확히 맞춘다.
-   * 구간 정보가 없는 자막(부가 전사 폴백)은 지연 없이 그대로 보여준다 — 숨기면 영영 안 나온다.
+   * 화면 구성: 짝지어진 줄은 위에, 아직 안 지어진 구간은 아래 좌우 병렬로.
+   * 정렬기가 따라잡으면 아래 것이 위로 옮겨간다.
    */
-  const shownSegments =
-    syncToVoice && phase === 'live'
-      ? segments.filter(
-          (s) => s.audioEndMs == null || s.audioEndMs + VOICE_LAG_MS <= elapsedSec * 1000,
-        )
-      : segments;
+  const pairedRows = segments.filter((s) => s.kind !== 'source' && s.kind !== 'target');
+  const pendingTargetRows = segments.filter((s) => s.kind === 'target');
+  const pendingSourceRows = segments.filter((s) => s.kind === 'source');
 
   // ── LIVE ──
   const capWarning =
@@ -1429,7 +1518,16 @@ export function LiveInterpreter({
         </p>
       ) : null}
 
-      <CaptionPanel segments={shownSegments} scale={SIZE_SCALE[captionSize]} live />
+      <CaptionPanel
+        segments={pairedRows}
+        pendingTarget={pendingTargetRows}
+        pendingSource={pendingSourceRows}
+        parallelLabels={{ target: languageLabel(targetLang), source: t('setup.autoDetect') }}
+        mergingSeqs={mergingSeqs}
+        justPairedSeqs={justPairedSeqs}
+        scale={SIZE_SCALE[captionSize]}
+        live
+      />
 
       {/*
         진단 줄 — 원문/번역/음성이 각각 몇 개 왔고 마지막이 언제인지.
@@ -1541,21 +1639,6 @@ export function LiveInterpreter({
             }`}
           >
             {audioOut ? <Volume2 size={18} aria-hidden /> : <VolumeX size={18} aria-hidden />}
-          </button>
-
-          {/* 자막을 음성에 맞출지 — 켜면 지금 들리는 대목이 화면 아래에 온다 */}
-          <button
-            onClick={() => setSyncToVoice((v) => !v)}
-            aria-pressed={syncToVoice}
-            aria-label={t('running.syncToVoice')}
-            title={t('running.syncToVoice')}
-            className={`flex h-12 w-12 items-center justify-center rounded-xl border transition-colors duration-150 ${
-              syncToVoice
-                ? 'border-accent-2 bg-accent-2-weak text-accent-2'
-                : 'border-border text-text-muted'
-            }`}
-          >
-            <AlignVerticalJustifyCenter size={18} aria-hidden />
           </button>
 
           <button

@@ -201,6 +201,76 @@ body {
   position: relative;
 }
 
+/* ── 정렬 합류 모션 ────────────────────────────────────────
+   좌우로 따로 흐르던 원문·번역이 짝지어지는 순간을 보여준다.
+   이 모션이 유일한 설명이다 — 왜 위아래가 다르게 생겼는지를 이걸로 이해한다.
+   ⚠ 움직임을 줄이는 설정을 켠 사용자에겐 전부 끈다. */
+
+/* 나가는 쪽: 가운데로 빨려들며 사라진다 */
+.row-merging {
+  animation: row-merge-out 320ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.row-merging-left {
+  --merge-x: 28px;
+}
+.row-merging-right {
+  --merge-x: -28px;
+}
+@keyframes row-merge-out {
+  to {
+    opacity: 0;
+    transform: translateX(var(--merge-x, 0)) scale(0.97);
+    filter: blur(2px);
+  }
+}
+
+/* 들어오는 쪽: 양옆에서 모여 제자리에 앉는다 */
+.row-paired-in {
+  animation: row-paired-glow 900ms ease-out;
+}
+.row-paired-in .paired-target {
+  animation: paired-from-left 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.row-paired-in .paired-source {
+  animation: paired-from-right 460ms cubic-bezier(0.16, 1, 0.3, 1) 60ms both;
+}
+@keyframes paired-from-left {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+}
+@keyframes paired-from-right {
+  from {
+    opacity: 0;
+    transform: translateX(22px);
+  }
+}
+/* 합류 직후 왼쪽 레일에 빛이 한 번 스친다 */
+@keyframes row-paired-glow {
+  0% {
+    box-shadow: -18px 0 22px -18px var(--accent-2, #14b8a6);
+  }
+  60% {
+    box-shadow: -18px 0 22px -18px var(--accent-2, #14b8a6);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-merging,
+  .row-paired-in,
+  .row-paired-in .paired-target,
+  .row-paired-in .paired-source {
+    animation: none;
+  }
+  .row-merging {
+    opacity: 0;
+  }
+}
+
 /* 카드 내부 행 구분선 */
 .row-divide > * + * {
   border-top: 1px solid var(--border);

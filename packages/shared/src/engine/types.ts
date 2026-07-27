@@ -26,6 +26,18 @@ export interface EngineSegment {
    */
   audioStartMs?: number;
   audioEndMs?: number;
+  /**
+   * 이 줄이 어느 스트림에서 왔는가.
+   *
+   * 'target' — 통역 모델이 보낸 번역 자막 (음성과 같은 생성물)
+   * 'source' — 전사 레그가 받아적은 원문
+   * 'paired' — 위 둘을 정렬기가 짝지어 합친 줄
+   *
+   * ⚠ 실시간에는 두 스트림을 **묶지 않는다.** 신뢰도가 달라서(번역은 안정적,
+   * 원문 전사는 자주 굶는다) 묶으면 한쪽이 다른 쪽을 막는다.
+   * 짝짓기는 나중에 양쪽 전문을 다 놓고 하는 편이 훨씬 정확하다.
+   */
+  kind?: 'target' | 'source' | 'paired';
 }
 
 export interface EngineError {
