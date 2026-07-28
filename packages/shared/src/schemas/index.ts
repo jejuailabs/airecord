@@ -43,6 +43,11 @@ export const sessionStartResponseSchema = z.object({
       model: z.string(),
       callUrl: z.string(),
       keyExpiresAt: z.number(),
+      /**
+       * 이 키에 구워진 원문 언어. 'auto'면 브라우저가 첫 발화들의 문자를 보고
+       * `session.update`로 직접 잠근다 — 짧은 발화의 언어 오판을 막는다.
+       */
+      sourceLang: z.string().default('auto'),
     })
     .nullable()
     .default(null),

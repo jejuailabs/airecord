@@ -83,7 +83,8 @@ export async function POST(req: Request) {
      */
     const [grant, transcribe] = await Promise.all([
       engine.mintEphemeralKey({ sourceLang, targetLang, audioOut, sessionId: record.id }),
-      mintTranscriptionKey().catch(() => null),
+      // 원문 언어를 알면 넘긴다 — 짧은 발화에서 전사가 언어를 오판하는 것을 막는다
+      mintTranscriptionKey({ sourceLang }).catch(() => null),
     ]);
     const body: SessionStartResponse = {
       sessionId: record.id,

@@ -270,7 +270,7 @@
       "lead": "두 단계면 시작합니다.",
       "steps": {
         "mic": "마이크",
-        "target": "표시 언어"
+        "target": "통역 언어"
       },
       "autoDetectFixed": "입력 언어는 발화마다 자동으로 감지됩니다. 여러 언어가 섞여도 {target}로 통역합니다.",
       "next": "다음",
@@ -285,7 +285,7 @@
       "micRequest": "마이크 사용 허용",
       "micReady": "마이크 입력이 들어오고 있습니다",
       "micSilent": "소리가 감지되지 않습니다. 마이크 위치를 확인해 주세요.",
-      "sourceLang": "입력 언어",
+      "sourceLang": "원문 언어",
       "autoDetect": "자동 감지",
       "autoDetectHint": "여러 언어가 섞여도 발화마다 자동으로 감지해 통역합니다.",
       "targetLang": "표시 언어",
@@ -302,7 +302,10 @@
       "off": "꺼짐",
       "audioOutHint": "음성 번역은 자막보다 늦을 수 있습니다.",
       "headsetHint": "스피커로 재생하면 번역 음성이 다시 입력됩니다. 헤드셋 사용을 권장합니다.",
-      "start": "통역 시작"
+      "start": "통역 시작",
+      "langs": "통역 언어",
+      "langsHint": "원문은 자동 감지가 기본입니다. 고르면 원문 자막이 더 정확해집니다.",
+      "sourceFixed": "원문을 {source}로 듣고 {target}로 통역합니다. 원문 자막이 다른 언어로 새지 않습니다."
     },
     "running": {
       "live": "LIVE",

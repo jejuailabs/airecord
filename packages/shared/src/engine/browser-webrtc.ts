@@ -28,6 +28,14 @@ export interface BrowserTranslationSession {
    */
   setTargetLang(lang: string): void;
   /**
+   * 원문(입력) 언어 교체.
+   *
+   * 통역 모델은 입력 언어를 받지 않지만 **전사 레그는 받는다.** 그래서 이건 자막 전용이다.
+   * 무전기가 방향을 뒤집으면(듣기↔말하기) 마이크에 들어오는 언어도 뒤집히므로 같이 불러야 한다.
+   * 'auto'를 주면 다시 자동 감지로 돌아간다.
+   */
+  setSourceLang(lang: string): void;
+  /**
    * 수신 오디오 실측치.
    * "소리가 안 난다"를 추측으로 다루지 않기 위한 계기다.
    * 패킷이 0이면 전송 문제, 패킷은 오는데 레벨이 0이면 모델이 무음을 보낸 것,
@@ -53,6 +61,26 @@ export interface TranscribeLegGrant {
   ephemeralKey: string;
   model: string;
   callUrl: string;
+  /** 서버가 알고 있으면 넣어준다. 'auto'이거나 없으면 아래에서 스스로 정한다. */
+  sourceLang?: string;
+}
+
+/**
+ * 전사 결과의 문자만 보고 언어를 가늠한다.
+ * 길게 판별할 필요가 없다 — 여기서 필요한 건 "무슨 문자를 쓰는 언어인가"뿐이다.
+ * 애매하면 null을 돌려 잠그지 않는다 (틀린 언어로 잠그는 것이 가장 나쁘다).
+ */
+function guessTranscriptLang(text: string): string | null {
+  const t = text.trim();
+  if (t.length < 2) return null;
+  if (/[가-힣]/.test(t)) return 'ko';
+  if (/[぀-ヿ]/.test(t)) return 'ja';
+  if (/[一-鿿]/.test(t)) return 'zh';
+  if (/[Ѐ-ӿ]/.test(t)) return 'ru';
+  if (/[฀-๿]/.test(t)) return 'th';
+  if (/[؀-ۿ]/.test(t)) return 'ar';
+  // 라틴 문자는 언어가 갈리지 않으므로 잠그지 않는다
+  return null;
 }
 
 export async function connectBrowserSession(
@@ -169,6 +197,8 @@ export async function connectBrowserSession(
    * 통역 레그는 이미 연결된 뒤이므로, 여기서 실패해도 통역은 그대로 간다.
    */
   let transcribePc: RTCPeerConnection | null = null;
+  /** 전사 레그가 붙었을 때만 채워진다. 없으면 원문 언어를 바꿀 방법도 없다. */
+  let applySourceLang: ((lang: string) => void) | null = null;
   if (transcribeGrant) {
     try {
       const tpc = new RTCPeerConnection();
@@ -198,6 +228,20 @@ export async function connectBrowserSession(
         if (!isVad && !type.includes('input_audio_transcription')) return;
 
         if (!mux.acceptDedicated()) return; // 이미 부가 전사로 넘어갔다 — 섞지 않는다
+
+        // 확정된 발화의 문자로 언어를 가늠한다. 짧은 것은 못 믿으니 세 번 이상 같아야 잠근다.
+        if (!langLocked && type.endsWith('input_audio_transcription.completed')) {
+          const transcript = typeof (parsed as { transcript?: string }).transcript === 'string'
+            ? (parsed as { transcript?: string }).transcript!
+            : '';
+          const guess = guessTranscriptLang(transcript);
+          if (guess) {
+            langVotes.push(guess);
+            const top = langVotes.filter((v) => v === guess).length;
+            if (top >= 3) lockLanguage(guess);
+          }
+        }
+
         if (!isVad) diag.record('source', (parsed.delta ?? '').length);
         assembler.handle(parsed as Parameters<typeof assembler.handle>[0]);
       });
@@ -207,6 +251,62 @@ export async function connectBrowserSession(
           diag.note(`transcribe pc ${tpc.connectionState}`);
         }
       });
+
+      /**
+       * 원문 언어 자동 잠금.
+       *
+       * 전사 모델은 힌트가 없으면 **발화마다 언어를 새로 추측한다.** 긴 문장은 잘 맞히지만
+       * 짧은 발화("아 네", "그쵸")에서 자주 틀려 한국어를 중국어·태국어로 받아적는다
+       * (실사용 화면에 "安定化" "อะ" "我要看"이 그렇게 떴다).
+       *
+       * 실측(2026-07-28, 짧은 조각 26개):
+       *   자동 감지   → 다른 언어 4개, 한글 없는 발화 9개
+       *   language=ko → 다른 언어 0개, 한글 없는 발화 1개
+       *
+       * 화면에 원문 언어를 고르는 자리가 없으므로, **처음 몇 발화를 보고 스스로 정한 뒤 잠근다.**
+       * 잠근 뒤에는 바꾸지 않는다 — 오가면 같은 세션에서 언어가 널뛴다.
+       */
+      let langLocked = Boolean(transcribeGrant.sourceLang && transcribeGrant.sourceLang !== 'auto');
+      const langVotes: string[] = [];
+
+      /** 전사 세션에 언어를 실제로 밀어 넣는다. 실측: 세션 도중에도 받아준다(약 0.2초). */
+      const sendLang = (lang: string | null) => {
+        if (tdc.readyState !== 'open') return false;
+        tdc.send(
+          JSON.stringify({
+            type: 'session.update',
+            // ⚠ session.type을 빼면 missing_required_parameter로 거부된다 (실측)
+            session: {
+              type: 'transcription',
+              audio: {
+                input: {
+                  transcription: {
+                    model: transcribeGrant.model,
+                    ...(lang ? { language: lang } : {}),
+                  },
+                },
+              },
+            },
+          }),
+        );
+        return true;
+      };
+
+      /** 자동 감지가 스스로 정한 결과 — 이미 잠겼거나 사용자가 지정했으면 무시된다 */
+      const lockLanguage = (lang: string) => {
+        if (langLocked || !sendLang(lang)) return;
+        langLocked = true;
+        diag.note(`원문 언어 ${lang}로 잠금 (자동 감지, 짧은 발화 오판 방지)`);
+      };
+
+      /** 사용자·모드가 명시한 값 — 자동 감지보다 항상 우선한다 */
+      applySourceLang = (lang: string) => {
+        const explicit = lang && lang !== 'auto' ? lang : null;
+        if (!sendLang(explicit)) return;
+        langLocked = Boolean(explicit);
+        langVotes.length = 0;
+        diag.note(explicit ? `원문 언어 ${explicit} 지정` : '원문 언어 자동 감지로 되돌림');
+      };
 
       const toffer = await tpc.createOffer();
       await tpc.setLocalDescription(toffer);
@@ -279,6 +379,10 @@ export async function connectBrowserSession(
           session: { audio: { output: { language: lang } } },
         }),
       );
+    },
+    setSourceLang(lang) {
+      // 전사 레그가 없으면 원문 언어를 바꿀 대상 자체가 없다 — 조용히 넘어간다
+      applySourceLang?.(lang);
     },
     close() {
       assembler.dispose();

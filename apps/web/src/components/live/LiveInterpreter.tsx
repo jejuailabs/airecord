@@ -27,6 +27,7 @@ import {
   ArrowLeft,
   Radio,
   ArrowLeftRight,
+  ArrowRight,
   Activity,
   Download,
 } from 'lucide-react';
@@ -140,9 +141,17 @@ export function LiveInterpreter({
    * 무전기 모드 — 내가 말할 때 상대가 들을 언어.
    * 듣기: 상대 발화 → targetLang(내가 읽는 언어)
    * 말하기: 내 발화 → speakLang(상대가 듣는 언어)
-   * 입력 언어는 어차피 자동 감지라, 출력 언어만 뒤집으면 두 방향이 다 된다.
+   * 출력 언어는 뒤집기만 하면 되지만, **원문 자막용 전사 레그는 입력 언어도 같이 뒤집어야 한다.**
+   * 마이크에 들어오는 언어 자체가 바뀌기 때문이다 (듣기=상대 언어, 말하기=내 언어).
    */
   const [speakLang, setSpeakLang] = useState<LangCode>('en');
+  /**
+   * 세션에 실제로 넘길 원문 언어.
+   * 대면은 사용자가 고른 값(기본 자동 감지), 대화는 고르는 자리가 없고
+   * 듣기 상태의 입력 = 상대가 말하는 언어이므로 speakLang이 곧 원문이다.
+   */
+  const effectiveSourceLang: SourceLangSetting = isTalk ? speakLang : sourceLang;
+
   /** 말하기 버튼을 누르고 있는 동안 true */
   const [talking, setTalking] = useState(false);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
@@ -458,7 +467,7 @@ export function LiveInterpreter({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'inperson',
-          sourceLang,
+          sourceLang: effectiveSourceLang,
           targetLang,
           audioOut,
           trial,
@@ -606,7 +615,7 @@ export function LiveInterpreter({
         /* 하트비트 유실 — 서버가 3회 유실 시 orphan 처리 */
       }
     }, HEARTBEAT_INTERVAL_MS);
-  }, [audioOut, doEnd, micStream, sourceLang, targetLang, speakLang, pairKey, unlockAudio]);
+  }, [audioOut, doEnd, micStream, effectiveSourceLang, sourceLang, targetLang, speakLang, pairKey, unlockAudio]);
 
   // doEnd 클로저에서 최신 phase를 보기 위한 ref
   const phaseRef = useRef<Phase>('setup');
@@ -882,6 +891,8 @@ export function LiveInterpreter({
     talkingRef.current = true;
     setTalking(true);
     sessionRef.current?.setTargetLang(speakLangRef.current);
+    // 이제 마이크로 들어오는 건 내 언어다 — 자막이 상대 언어로 받아적히지 않게 같이 돌린다
+    sessionRef.current?.setSourceLang(targetLangRef.current);
     const el = audioElRef.current;
     if (el) {
       el.muted = false;
@@ -895,6 +906,8 @@ export function LiveInterpreter({
     talkingRef.current = false;
     setTalking(false);
     sessionRef.current?.setTargetLang(targetLangRef.current);
+    // 다시 상대 말을 듣는다
+    sessionRef.current?.setSourceLang(speakLangRef.current);
     const el = audioElRef.current;
     if (el) el.muted = !audioOutRef.current;
   }, []);
@@ -1000,7 +1013,7 @@ export function LiveInterpreter({
           <SummaryStat
             icon={<Languages size={20} />}
             label={t('ended.langPair')}
-            value={`${sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)} → ${languageLabel(targetLang)}`}
+            value={`${effectiveSourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(effectiveSourceLang)} → ${languageLabel(targetLang)}`}
             small
           />
         </dl>
@@ -1109,7 +1122,7 @@ export function LiveInterpreter({
           <SummaryStat
             icon={<Languages size={20} />}
             label={t('ended.langPair')}
-            value={`${sourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(sourceLang)} → ${languageLabel(targetLang)}`}
+            value={`${effectiveSourceLang === 'auto' ? t('setup.autoDetect') : languageLabel(effectiveSourceLang)} → ${languageLabel(targetLang)}`}
             small
           />
         </dl>
@@ -1154,9 +1167,13 @@ export function LiveInterpreter({
     const micReady = Boolean(micStream);
 
     /**
-     * 입력 언어 단계는 두지 않는다.
-     * 이 엔진은 입력 언어 파라미터를 받지 않고 항상 자동 감지하므로(실측 확인),
-     * 유저가 고르게 하면 "골랐는데 왜 반영이 안 되지?"라는 혼란만 생긴다.
+     * 원문 언어는 **별도 단계로 두지 않고** 표시 언어 옆에 붙인다.
+     *
+     * 통역 모델은 지금도 입력 언어를 안 받는다 — 음성만 놓고 보면 고르는 의미가 없다.
+     * 하지만 원문 자막을 따로 듣는 전사 레그는 입력 언어를 받고, 여기서 크게 갈린다
+     * (실측 2026-07-28, 짧은 발화 26개: 자동 감지는 한국어를 4번 중국어·태국어로 받아적었고
+     *  ko를 지정하면 0번). 그래서 "고르면 자막이 정확해진다"가 맞는 설명이고,
+     * 기본값은 자동 감지라 안 고른 사람의 동작은 그대로다.
      */
     const steps: StepDef[] = [
       {
@@ -1312,10 +1329,10 @@ export function LiveInterpreter({
                 </span>
                 <div>
                   <h2 className="text-[17px] font-semibold">
-                    {isTalk ? t('setup.langPair') : t('setup.targetLang')}
+                    {isTalk ? t('setup.langPair') : t('setup.langs')}
                   </h2>
                   <p className="text-[13.5px] text-text-faint">
-                    {isTalk ? t('setup.langPairHint') : t('setup.targetHint')}
+                    {isTalk ? t('setup.langPairHint') : t('setup.langsHint')}
                   </p>
                 </div>
               </div>
@@ -1376,18 +1393,55 @@ export function LiveInterpreter({
                   </div>
                 </div>
               ) : (
-                <FieldSelect
-                  id="target-lang"
-                  value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value as LangCode)}
-                >
-                  {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
-                  {targetOptions.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.label}
-                    </option>
-                  ))}
-                </FieldSelect>
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <label
+                      htmlFor="source-lang"
+                      className="mb-1 block text-[13px] font-semibold text-text-muted"
+                    >
+                      {t('setup.sourceLang')}
+                    </label>
+                    {/* 자동 감지가 기본 — 고르면 원문 자막이 그 언어로 고정된다 */}
+                    <FieldSelect
+                      id="source-lang"
+                      value={sourceLang}
+                      onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
+                    >
+                      <option value="auto">{t('setup.autoDetect')}</option>
+                      {targetOptions.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </FieldSelect>
+                  </div>
+                  <span
+                    aria-hidden
+                    className="flex h-12 w-6 shrink-0 items-center justify-center text-text-faint"
+                  >
+                    <ArrowRight size={18} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <label
+                      htmlFor="target-lang"
+                      className="mb-1 block text-[13px] font-semibold text-text-muted"
+                    >
+                      {t('setup.targetLang')}
+                    </label>
+                    {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
+                    <FieldSelect
+                      id="target-lang"
+                      value={targetLang}
+                      onChange={(e) => setTargetLang(e.target.value as LangCode)}
+                    >
+                      {targetOptions.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.label}
+                        </option>
+                      ))}
+                    </FieldSelect>
+                  </div>
+                </div>
               )}
 
               {/* 제목은 선택 사항 — 비워두면 AI가 요약할 때 붙여준다 */}
@@ -1415,7 +1469,13 @@ export function LiveInterpreter({
                       mine: languageLabel(targetLang),
                       theirs: languageLabel(speakLang),
                     })
-                  : t('setup.autoDetectFixed', { target: languageLabel(targetLang) })}
+                  : sourceLang === 'auto'
+                    ? t('setup.autoDetectFixed', { target: languageLabel(targetLang) })
+                    : /* 원문을 지정했으면 자동 감지 안내는 거짓말이 된다 */
+                      t('setup.sourceFixed', {
+                        source: languageLabel(sourceLang),
+                        target: languageLabel(targetLang),
+                      })}
               </p>
             </div>
           ) : null}

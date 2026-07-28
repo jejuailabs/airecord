@@ -270,7 +270,7 @@
       "lead": "Two steps and you're live.",
       "steps": {
         "mic": "Microphone",
-        "target": "Display"
+        "target": "Languages"
       },
       "autoDetectFixed": "The spoken language is detected per utterance. Mixed languages are all interpreted into {target}.",
       "next": "Next",
@@ -285,7 +285,7 @@
       "micRequest": "Allow microphone",
       "micReady": "Microphone input detected",
       "micSilent": "No sound detected. Check your microphone position.",
-      "sourceLang": "Spoken language",
+      "sourceLang": "Source language",
       "autoDetect": "Auto-detect",
       "autoDetectHint": "Mixed languages are detected per utterance and interpreted automatically.",
       "targetLang": "Display language",
@@ -302,7 +302,10 @@
       "off": "Off",
       "audioOutHint": "Voice translation can lag behind captions.",
       "headsetHint": "Playing through speakers feeds translated audio back into the mic. Use a headset.",
-      "start": "Start interpreting"
+      "start": "Start interpreting",
+      "langs": "Languages",
+      "langsHint": "Source is auto-detected by default. Choosing it makes the original captions more accurate.",
+      "sourceFixed": "Listening in {source} and interpreting into {target}. The original captions stay in {source}."
     },
     "running": {
       "live": "LIVE",
