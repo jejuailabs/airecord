@@ -546,7 +546,9 @@
     "decisions": "Decisions",
     "actionItems": "Action items",
     "transcript": "Full transcript (source · translation)",
-    "noTranscript": "No captions were saved."
+    "noTranscript": "No captions were saved.",
+    "colSource": "Source",
+    "colTarget": "Translation"
   },
   "viewer": {
     "consentNotice": "This conversation is recorded for interpretation.",

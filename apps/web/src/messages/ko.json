@@ -546,7 +546,9 @@
     "decisions": "결정 사항",
     "actionItems": "액션 아이템",
     "transcript": "전체 스크립트 (원문 · 번역 대조)",
-    "noTranscript": "저장된 자막이 없습니다."
+    "noTranscript": "저장된 자막이 없습니다.",
+    "colSource": "원문",
+    "colTarget": "번역"
   },
   "viewer": {
     "consentNotice": "이 대화는 통역을 위해 기록됩니다.",

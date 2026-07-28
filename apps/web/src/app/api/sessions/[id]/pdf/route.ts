@@ -21,6 +21,23 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
+/** 파일명으로 쓸 수 없는 글자를 걷어낸다. 앞뒤 점·공백도 윈도우가 싫어한다. */
+function safeFileName(s: string): string {
+  return s
+    .replace(/[\\/:*?"<>|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[.\s]+|[.\s]+$/g, '')
+    .slice(0, 120);
+}
+
+/** 2026-07-28 1315 — 정렬해도 시간순이 되도록 연-월-일 순서로 둔다 */
+function stampOf(ms?: number | null): string {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
 function fmtMs(ms: number) {
   const total = Math.floor(ms / 1000);
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
@@ -43,11 +60,22 @@ export async function GET(
   // 유저가 정한 제목이 최우선 — AI 가안은 저장 시 title에 이미 반영돼 있다
   const title = d.title?.trim() || d.summary?.title || 'InterLive 통역 기록';
   const date = d.startedAtMs ? new Date(d.startedAtMs).toLocaleString('ko-KR') : '';
+
+  /**
+   * 인쇄 창의 기본 파일명은 이 문서의 <title>이 그대로 쓰인다.
+   * 제목만 두면 기록이 쌓일수록 "InterLive 통역 기록.pdf"가 여러 개가 되어 구분이 안 된다.
+   * 그래서 날짜·시각을 붙인다 — 어느 인쇄 대상으로 저장하든 적용되는 유일한 손잡이다.
+   *
+   * ⚠ 파일명에 못 쓰는 글자(\\ / : * ? " < > |)는 미리 바꾼다.
+   *    특히 시각의 콜론은 그냥 두면 브라우저·OS마다 다르게 뭉개진다.
+   */
+  const stamp = stampOf(d.startedAtMs);
+  const docTitle = safeFileName(stamp ? `${title} ${stamp}` : title);
   const s = d.summary;
 
   const html = `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8">
-<title>${esc(title)}</title>
+<title>${esc(docTitle)}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   @page { size: A4; margin: 18mm 16mm; }

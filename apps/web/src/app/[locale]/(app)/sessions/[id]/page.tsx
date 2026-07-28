@@ -197,15 +197,41 @@ export default async function SessionDetailPage({
                   <span className="tabular w-12 shrink-0 pt-1 text-[13px] text-text-faint">
                     {fmtMs(b.startMs)}
                   </span>
-                  <div className="grid min-w-0 flex-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-                    <div className="flex flex-col gap-1.5">
+                  {/*
+                    넓은 화면은 좌우로 나란히 두면 어느 구간인지 한눈에 보인다.
+                    좁은 화면은 위아래로 접히면서 그 대응이 사라져, 번역이 다 쌓인 뒤
+                    원문이 다 쌓인 벽처럼 보인다. 그래서 좁을 때만 라벨을 띄워
+                    "여기부터 원문"을 명시한다 — 넓은 화면에는 군더더기라 감춘다.
+                  */}
+                  <div className="grid min-w-0 flex-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                    {/* 한쪽만 있는 블록도 흔하다 — 빈 칸에 라벨만 남는 걸 막는다 */}
+                    <div className={b.target.length === 0 ? 'hidden sm:block' : 'flex flex-col gap-1.5'}>
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-text-faint sm:hidden">
+                        {t('colTarget')}
+                      </span>
                       {b.target.map((line, i) => (
                         <p key={i} className="text-[17px] font-semibold leading-relaxed">
                           {line}
                         </p>
                       ))}
                     </div>
-                    <div className="flex flex-col gap-1.5 border-t border-border pt-2 sm:border-t-0 sm:pt-0">
+                    {/*
+                      좁은 화면에서 위에 번역이 있을 때만 가로줄로 가른다.
+                      ⚠ 'border-t' 뒤에 'border-t-0'을 덧붙여 덮으려 하면 안 된다 —
+                      Tailwind는 클래스 문자열 순서가 아니라 생성된 CSS 순서로 이기고 진다.
+                    */}
+                    <div
+                      className={
+                        b.source.length === 0
+                          ? 'hidden sm:block'
+                          : b.target.length === 0
+                            ? 'flex flex-col gap-1.5'
+                            : 'flex flex-col gap-1.5 border-t border-border pt-3 sm:border-t-0 sm:pt-0'
+                      }
+                    >
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-text-faint sm:hidden">
+                        {t('colSource')}
+                      </span>
                       {b.source.map((line, i) => (
                         <p key={i} className="text-[14px] leading-relaxed text-text-faint">
                           {line}
