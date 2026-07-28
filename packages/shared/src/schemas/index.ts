@@ -58,6 +58,12 @@ export const heartbeatSegmentSchema = z.object({
   sourceText: z.string(),
   targetText: z.string(),
   detectedLang: z.string().optional(),
+  /**
+   * 이 줄이 어느 스트림에서 왔는가 (engine/types.ts 참고).
+   * 'paired'면 원문·번역이 짝지어진 줄, 아니면 한쪽만 채워진 줄이다.
+   * 기록·PDF가 이걸 보고 나란히 배치할지 갈라 놓을지 정한다.
+   */
+  kind: z.enum(['target', 'source', 'paired']).optional(),
 });
 export const sessionHeartbeatRequestSchema = z.object({
   sessionId: z.string(),
@@ -135,6 +141,14 @@ export const translateFileResponseSchema = z.object({
       source: z.string(),
       translated: z.string(),
       notes: z.array(z.string()).optional(),
+      /**
+       * 문단별 원문·번역 짝.
+       * 기본 화면은 translated만 쓰고, "원문과 합치기"를 누르면 이걸로 번갈아 배치한다.
+       * 서버가 이미 만들어 두므로 합칠 때 API를 다시 부르지 않는다.
+       */
+      pairs: z
+        .array(z.object({ source: z.string(), translated: z.string() }))
+        .optional(),
     }),
   ),
   totalChars: z.number(),

@@ -505,7 +505,9 @@
         "title": "번역하지 못했습니다",
         "action": "잠시 후 다시 시도해 주세요. 페이지가 많으면 나눠서 올려 보세요."
       }
-    }
+    },
+    "mergeWithSource": "원문과 합치기",
+    "splitBack": "나눠 보기"
   },
   "sessions": {
     "title": "세션 기록",

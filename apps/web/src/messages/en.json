@@ -505,7 +505,9 @@
         "title": "Could not translate",
         "action": "Try again in a moment. If the document is long, split it into parts."
       }
-    }
+    },
+    "mergeWithSource": "Merge with original",
+    "splitBack": "Split view"
   },
   "sessions": {
     "title": "Sessions",

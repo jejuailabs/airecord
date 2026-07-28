@@ -19,7 +19,14 @@ export interface SessionDetail extends SessionListItem {
   summaryStatus: string | null;
   /** 제목을 AI가 붙였는지 (유저가 수정하면 false) */
   titleFromAi: boolean;
-  segments: Array<{ seq: number; startMs: number; sourceText: string; targetText: string }>;
+  segments: Array<{
+    seq: number;
+    startMs: number;
+    sourceText: string;
+    targetText: string;
+    /** 'paired'면 원문·번역이 짝지어진 줄. 아니면 한쪽만 채워진 줄이다. */
+    kind: 'target' | 'source' | 'paired' | null;
+  }>;
 }
 
 function toMs(v: unknown): number | null {
@@ -95,6 +102,7 @@ export async function getSessionDetail(
         startMs: (d.get('startMs') as number) ?? 0,
         sourceText: (d.get('sourceText') as string) ?? '',
         targetText: (d.get('targetText') as string) ?? '',
+        kind: (d.get('kind') as 'target' | 'source' | 'paired' | null) ?? null,
       })),
     };
   } catch (e) {

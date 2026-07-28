@@ -40,7 +40,7 @@ export const ParallelRows = memo(function ParallelRows({
             key={s.seq}
             className={`font-semibold tracking-tight text-caption-target ${
               s.isFinal ? '' : 'caption-caret'
-            } ${mergingSeqs?.has(s.seq) ? 'row-merging row-merging-left' : ''}`}
+            } ${mergingSeqs?.has(s.seq) ? 'row-merging row-merging-left' : 'line-in-target'}`}
             style={{ fontSize: `calc(clamp(14px, 3.3vw, 20px) * ${scale})`, lineHeight: 1.4 }}
           >
             {s.targetText}
@@ -61,7 +61,7 @@ export const ParallelRows = memo(function ParallelRows({
           <p
             key={s.seq}
             className={`text-caption-source ${
-              mergingSeqs?.has(s.seq) ? 'row-merging row-merging-right' : ''
+              mergingSeqs?.has(s.seq) ? 'row-merging row-merging-right' : 'line-in-source'
             }`}
             style={{ fontSize: `calc(clamp(12px, 2.7vw, 14px) * ${scale})`, lineHeight: 1.5 }}
           >

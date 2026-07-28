@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Sparkles, FileDown, Clock } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { currentUid, getSessionDetail } from '@/lib/server/sessions-query';
+import { buildScript } from '@sotong/shared/engine';
 import { languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { SummaryRefresher } from '@/components/sessions/SummaryRefresher';
@@ -171,24 +172,50 @@ export default async function SessionDetailPage({
           </p>
         ) : (
           <div className="overflow-hidden rounded-lg border border-border bg-bg-raised">
-            {detail.segments.map((s) => (
-              <div
-                key={s.seq}
-                className="flex gap-4 border-b border-border px-5 py-4 last:border-0"
-              >
-                <span className="tabular w-12 shrink-0 pt-1 text-[13px] text-text-faint">
-                  {fmtMs(s.startMs)}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[17px] font-semibold leading-relaxed">{s.targetText}</p>
-                  {s.sourceText ? (
+            {buildScript(detail.segments).map((b) =>
+              b.type === 'paired' ? (
+                <div
+                  key={b.seq}
+                  className="flex gap-4 border-b border-border px-5 py-4 last:border-0"
+                >
+                  <span className="tabular w-12 shrink-0 pt-1 text-[13px] text-text-faint">
+                    {fmtMs(b.startMs)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[17px] font-semibold leading-relaxed">{b.targetText}</p>
                     <p className="mt-1 text-[14px] leading-relaxed text-text-faint">
-                      {s.sourceText}
+                      {b.sourceText}
                     </p>
-                  ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ) : (
+                /* 짝을 못 지은 구간 — 억지로 한 줄에 끼우지 않고 좌우로 나란히 둔다 */
+                <div
+                  key={b.seq}
+                  className="flex gap-4 border-b border-border bg-bg-sunken/40 px-5 py-4 last:border-0"
+                >
+                  <span className="tabular w-12 shrink-0 pt-1 text-[13px] text-text-faint">
+                    {fmtMs(b.startMs)}
+                  </span>
+                  <div className="grid min-w-0 flex-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                    <div className="flex flex-col gap-1.5">
+                      {b.target.map((line, i) => (
+                        <p key={i} className="text-[17px] font-semibold leading-relaxed">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                    <div className="flex flex-col gap-1.5 border-t border-border pt-2 sm:border-t-0 sm:pt-0">
+                      {b.source.map((line, i) => (
+                        <p key={i} className="text-[14px] leading-relaxed text-text-faint">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ),
+            )}
           </div>
         )}
       </section>

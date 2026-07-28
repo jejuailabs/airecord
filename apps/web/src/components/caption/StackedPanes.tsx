@@ -59,8 +59,10 @@ function Pane({
             key={l.seq}
             className={
               emphasis
-                ? `font-semibold tracking-tight text-caption-target ${l.isFinal ? '' : 'caption-caret'}`
-                : 'text-caption-source'
+                ? `line-in-target font-semibold tracking-tight text-caption-target ${
+                    l.isFinal ? '' : 'caption-caret'
+                  }`
+                : 'line-in-source text-caption-source'
             }
             style={{
               fontSize: emphasis

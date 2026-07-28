@@ -259,7 +259,30 @@ body {
   }
 }
 
+/* 새 자막 줄이 도착할 때 — 아래에서 살짝 올라오며 나타난다.
+   번역은 왼쪽/위, 원문은 오른쪽/아래에서 와 서로 마주보는 방향감을 만든다. */
+.line-in-target {
+  animation: line-in-target 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.line-in-source {
+  animation: line-in-source 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes line-in-target {
+  from {
+    opacity: 0;
+    transform: translate3d(-10px, 6px, 0);
+  }
+}
+@keyframes line-in-source {
+  from {
+    opacity: 0;
+    transform: translate3d(10px, 6px, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .line-in-target,
+  .line-in-source,
   .row-merging,
   .row-paired-in,
   .row-paired-in .paired-target,

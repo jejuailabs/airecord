@@ -10,6 +10,7 @@ import {
   Languages,
   Loader2,
   RotateCcw,
+  Rows3,
   Upload,
 } from 'lucide-react';
 import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS } from '@sotong/shared/constants';
@@ -32,6 +33,12 @@ export function FileTranslator() {
   const [fileName, setFileName] = useState('');
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<TranslateFileResponse | null>(null);
+  /**
+   * 원문·번역을 한 문서에 번갈아 놓을지.
+   * 기본은 꺼둔다 — 사람들이 기대하는 "번역문만"이 먼저 나와야 한다.
+   * 켜면 이미 받아둔 문단 짝으로 즉시 다시 그린다 (API를 다시 부르지 않는다).
+   */
+  const [interleaved, setInterleaved] = useState(false);
   const [sourceLang, setSourceLang] = useState<SourceLangSetting>('auto');
   const [targetLang, setTargetLang] = useState<LangCode>('ko');
   const [dragging, setDragging] = useState(false);
@@ -284,13 +291,27 @@ export function FileTranslator() {
               {t('pages', { count: result.pages.length })} · {result.totalChars.toLocaleString()}
               {t('chars')}
             </span>
+            {result.pages.some((p) => p.pairs?.length) ? (
+              <button
+                onClick={() => setInterleaved((v) => !v)}
+                aria-pressed={interleaved}
+                className={`flex h-11 shrink-0 items-center gap-2 rounded-xl border px-4 text-[14px] font-semibold transition-colors duration-150 ${
+                  interleaved
+                    ? 'border-accent bg-accent-weak text-accent'
+                    : 'border-border text-text-muted'
+                }`}
+              >
+                <Rows3 size={15} aria-hidden />
+                {interleaved ? t('splitBack') : t('mergeWithSource')}
+              </button>
+            ) : null}
             <a
               href={`/api/translate/file/pdf?name=${encodeURIComponent(result.fileName)}`}
               onClick={(e) => {
                 e.preventDefault();
                 const w = window.open('', '_blank');
                 if (!w) return;
-                w.document.write(buildPrintable(result, t('printHint')));
+                w.document.write(buildPrintable(result, t('printHint'), interleaved));
                 w.document.close();
               }}
               className="btn-gradient flex h-11 shrink-0 items-center gap-2 rounded-xl px-5 text-[14px] font-bold"
@@ -317,22 +338,38 @@ export function FileTranslator() {
                   </ul>
                 </div>
               ) : null}
-              <div className="grid gap-3 lg:grid-cols-2">
-                <div className="rounded-2xl border border-border bg-bg-sunken p-5">
-                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-text-faint">
-                    {t('original')}
-                  </p>
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-text-muted">
-                    {p.source}
-                  </p>
+              {interleaved && p.pairs?.length ? (
+                /* 한 문서에 원문 → 번역 → 원문 → 번역 순으로 번갈아 */
+                <div className="flex flex-col gap-4 rounded-2xl border border-border bg-bg-raised p-5">
+                  {p.pairs.map((pair, i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      <p className="whitespace-pre-wrap text-[14.5px] leading-relaxed text-text-muted">
+                        {pair.source}
+                      </p>
+                      <p className="whitespace-pre-wrap text-[15px] font-medium leading-relaxed">
+                        {pair.translated || '—'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <div className="rounded-2xl border border-border bg-bg-raised p-5">
-                  <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-accent">
-                    {t('translated')}
-                  </p>
-                  <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{p.translated}</p>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <div className="rounded-2xl border border-border bg-bg-sunken p-5">
+                    <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-text-faint">
+                      {t('original')}
+                    </p>
+                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-text-muted">
+                      {p.source}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-border bg-bg-raised p-5">
+                    <p className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-accent">
+                      {t('translated')}
+                    </p>
+                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{p.translated}</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </section>
           ))}
         </>
@@ -342,16 +379,31 @@ export function FileTranslator() {
 }
 
 /** 인쇄용 HTML — 서버에서 PDF를 굽지 않고 브라우저 인쇄로 저장한다 (한글 폰트 문제 회피) */
-function buildPrintable(result: TranslateFileResponse, hint: string): string {
+function buildPrintable(
+  result: TranslateFileResponse,
+  hint: string,
+  interleaved = false,
+): string {
   const esc = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const rows = result.pages
-    .map(
-      (p) => `<h2>Page ${p.page}</h2>
+    .map((p) => {
+      // 합치기 모드 — 한 문서에 원문 → 번역 순으로 번갈아 흐르게 한다 (표가 아니라 본문 흐름)
+      if (interleaved && p.pairs?.length) {
+        const body = p.pairs
+          .map(
+            (pair) =>
+              `<div class="pair"><p class="src">${esc(pair.source).replace(/\n/g, '<br>')}</p>` +
+              `<p class="tgt">${esc(pair.translated).replace(/\n/g, '<br>')}</p></div>`,
+          )
+          .join('');
+        return `<h2>Page ${p.page}</h2>${body}`;
+      }
+      return `<h2>Page ${p.page}</h2>
 <table><thead><tr><th>원문</th><th>번역</th></tr></thead><tbody>
 <tr><td class="src">${esc(p.source).replace(/\n/g, '<br>')}</td><td>${esc(p.translated).replace(/\n/g, '<br>')}</td></tr>
-</tbody></table>`,
-    )
+</tbody></table>`;
+    })
     .join('');
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(result.fileName)}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
@@ -365,6 +417,10 @@ table { width:100%; border-collapse:collapse; }
 th { text-align:left; font-size:8.5pt; color:#5A6079; text-transform:uppercase; border-bottom:1px solid #E2E5F0; padding:5px 6px; }
 td { vertical-align:top; padding:8px 6px; border-bottom:1px solid #F0F1F6; width:50%; }
 td.src { color:#5A6079; }
+/* 합치기 모드 — 원문은 흐리게, 번역은 진하게. 문단 짝이 눈에 붙어 보이게 간격을 준다 */
+.pair { margin:0 0 12px; break-inside:avoid; }
+.pair .src { color:#5A6079; margin:0 0 2px; }
+.pair .tgt { color:#14172B; font-weight:500; margin:0; }
 .hint { background:#EDEAFD; color:#4B3FB5; padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:10pt; }
 @media print { .hint { display:none; } }
 </style></head><body>

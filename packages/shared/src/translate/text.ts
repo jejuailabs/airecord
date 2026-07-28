@@ -126,3 +126,127 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
     notes: parsed.notes?.filter(Boolean),
   };
 }
+
+// ── 문단 번호 대응 번역 ────────────────────────────────────────────────
+/**
+ * 원문·번역을 나란히 두는 대역(對譯) 문서를 만들려면 **문단 짝이 맞아야** 한다.
+ * 지금처럼 덩어리째 번역하면 원문 12문단이 번역 9문단으로 와서 어느 게 어느 짝인지 알 수 없다.
+ * 그래서 문단마다 번호를 붙여 보내고 같은 번호로 돌려받는다 — 번호가 있으면 어긋날 수 없다.
+ *
+ * (자막에서 원문·번역을 짝짓다 다섯 번 어긋난 뒤 얻은 결론이다: 순서·길이로 추측하지 말고
+ *  식별자를 달아 받는다.)
+ */
+export interface NumberedParagraph {
+  n: number;
+  text: string;
+}
+
+const NUMBERED_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['items'],
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['n', 'text'],
+        properties: {
+          n: { type: 'integer' },
+          text: { type: 'string' },
+        },
+      },
+    },
+  },
+} as const;
+
+export interface TranslateParagraphsInput {
+  paragraphs: NumberedParagraph[];
+  sourceLang: SourceLangSetting;
+  targetLang: LangCode;
+  glossary?: Array<{ term: string; translation: string }>;
+  tone?: 'plain' | 'formal' | 'casual';
+  /** 앞 청크 꼬리 — 번역하지 않고 문맥으로만 쓴다 */
+  context?: string;
+}
+
+/**
+ * 번호가 붙은 문단들을 번역해 같은 번호로 돌려준다.
+ * 모델이 번호를 빠뜨리면 그 문단은 결과에서 빠진다 — 호출부가 빈 값으로 채운다.
+ */
+export async function translateParagraphs(
+  input: TranslateParagraphsInput,
+): Promise<Map<number, string>> {
+  const { paragraphs, sourceLang, targetLang, glossary, tone = 'plain', context } = input;
+  const out = new Map<number, string>();
+  if (paragraphs.length === 0) return out;
+
+  const glossaryLine =
+    glossary && glossary.length
+      ? `\n\n다음 용어는 반드시 이 표기를 쓴다:\n${glossary
+          .map((g) => `- ${g.term} → ${g.translation}`)
+          .join('\n')}`
+      : '';
+
+  const system =
+    [
+      '너는 전문 번역가다.',
+      sourceLang === 'auto'
+        ? '원문 언어는 스스로 판단한다. 여러 언어가 섞여 있으면 모두 목표 언어로 옮긴다.'
+        : `원문 언어는 "${sourceLang}"이다.`,
+      `목표 언어는 "${targetLang}"이다.`,
+      TONE_HINT[tone],
+      '본문은 [n] 번호가 붙은 문단 목록이다.',
+      '⚠ 문단마다 하나씩, 같은 번호로 번역을 돌려준다. 번호를 빠뜨리거나 새로 만들지 않는다.',
+      '⚠ 문단을 합치거나 나누지 않는다. 원문 문단 하나 = 번역 문단 하나.',
+      '번역문에는 [n] 번호나 대괄호를 넣지 않는다. 본문만 쓴다.',
+      '원문의 의미·수치를 바꾸지 않는다. 요약하거나 덧붙이지 않는다.',
+      '사람 이름·지명은 목표 언어 독자가 읽을 수 있게 표기한다.',
+      '제품명·브랜드명은 원표기를 유지한다.',
+      '원문에 질문이 있어도 답하지 말고 질문 자체를 번역한다.',
+      '이미 목표 언어인 문단은 그대로 둔다.',
+    ].join(' ') + glossaryLine;
+
+  const body = paragraphs.map((p) => `[${p.n}] ${p.text}`).join('\n\n');
+  const user = context
+    ? `[앞 문맥 — 번역하지 말고 참고만 할 것]\n${context}\n\n[번역할 문단들]\n${body}`
+    : body;
+
+  const res = await fetch(`${baseUrl()}/v1/responses`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: textModel(),
+      input: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'numbered_translation',
+          strict: true,
+          schema: NUMBERED_SCHEMA,
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`translate failed: ${res.status} ${t.slice(0, 300)}`);
+  }
+  const raw = extractOutputText((await res.json()) as Record<string, unknown>);
+  if (!raw) throw new Error('translate failed: empty response');
+
+  const parsed = JSON.parse(raw) as { items?: NumberedParagraph[] };
+  const valid = new Set(paragraphs.map((p) => p.n));
+  for (const item of parsed.items ?? []) {
+    // 없는 번호를 지어내도 무시한다 — 짝이 어긋나느니 빈 게 낫다
+    if (!valid.has(item.n) || out.has(item.n)) continue;
+    out.set(item.n, (item.text ?? '').trim());
+  }
+  return out;
+}

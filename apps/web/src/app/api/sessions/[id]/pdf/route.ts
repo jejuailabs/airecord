@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { currentUid, getSessionDetail } from '@/lib/server/sessions-query';
+import { buildScript } from '@sotong/shared/engine';
 import { languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 
@@ -66,6 +67,8 @@ export async function GET(
   td.time { width: 46px; color: #8A90A8; font-variant-numeric: tabular-nums; font-size: 8.5pt; }
   td.src { color: #5A6079; width: 42%; }
   tr { break-inside: avoid; }
+  /* 짝을 못 지은 구간 — 같은 줄이 아님을 배경으로 구분한다 */
+  tr.unpaired td { background: #F6F5FB; }
   .print-hint { background: #EDEAFD; color: #4B3FB5; padding: 10px 14px; border-radius: 8px; margin-bottom: 18px; font-size: 10pt; }
   @media print { .print-hint { display: none; } }
 </style></head>
@@ -101,10 +104,14 @@ ${
 <table>
   <thead><tr><th>시각</th><th>원문</th><th>번역</th></tr></thead>
   <tbody>
-    ${d.segments
-      .map(
-        (seg) =>
-          `<tr><td class="time">${fmtMs(seg.startMs)}</td><td class="src">${esc(seg.sourceText)}</td><td>${esc(seg.targetText)}</td></tr>`,
+    ${buildScript(d.segments)
+      .map((b) =>
+        b.type === 'paired'
+          ? `<tr><td class="time">${fmtMs(b.startMs)}</td><td class="src">${esc(b.sourceText)}</td><td>${esc(b.targetText)}</td></tr>`
+          : // 짝을 못 지은 구간 — 억지로 한 줄에 끼우지 않고 각 칸에 그대로 쌓는다
+            `<tr class="unpaired"><td class="time">${fmtMs(b.startMs)}</td><td class="src">${b.source
+              .map((l) => esc(l))
+              .join('<br>')}</td><td>${b.target.map((l) => esc(l)).join('<br>')}</td></tr>`,
       )
       .join('')}
   </tbody>

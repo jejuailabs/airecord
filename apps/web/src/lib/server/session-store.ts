@@ -141,6 +141,8 @@ export interface IncomingSegment {
   sourceText: string;
   targetText: string;
   detectedLang?: string;
+  /** 'paired'면 원문·번역이 짝지어진 줄. 기록·PDF가 배치를 정하는 데 쓴다. */
+  kind?: 'target' | 'source' | 'paired';
 }
 
 /**
@@ -167,6 +169,7 @@ export async function saveSegments(
           sourceText: seg.sourceText,
           targetText: seg.targetText,
           detectedLang: seg.detectedLang ?? null,
+          kind: seg.kind ?? null,
           isFinal: true,
           createdAt: FieldValue.serverTimestamp(),
         },

@@ -22,4 +22,6 @@ export { createSegmentAssembler } from './segment-assembler';
 export { mintTranscriptionKey } from './openai-transcribe';
 export type { TranscriptionGrant } from './openai-transcribe';
 export { createDiagnostics, summarizeDiag, sourceProviderOf } from './diagnostics';
+export { buildScript, scriptPlainText } from './script';
+export type { ScriptBlock, ScriptSegmentInput } from './script';
 export type { DiagSnapshot, DiagChannel, ChannelStat } from './diagnostics';

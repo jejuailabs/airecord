@@ -6,6 +6,7 @@
  */
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/admin';
+import { buildScript } from '@sotong/shared/engine';
 
 export interface SessionSummary {
   title: string;
@@ -124,10 +125,24 @@ export async function generateAndStoreSummary(sessionId: string, outputLang: str
       .orderBy('seq')
       .limit(2000)
       .get();
-    const lines = snap.docs.map((d) => ({
-      sourceText: (d.get('sourceText') as string) ?? '',
-      targetText: (d.get('targetText') as string) ?? '',
-    }));
+    /**
+     * 저장본에는 짝지어진 줄과 못 지은 줄이 섞여 있다.
+     * 그대로 넘기면 번역만 있는 줄과 원문만 있는 줄이 각각 한 항목이 되어
+     * 요약이 같은 말을 두 번 읽는다. buildScript로 합쳐서 넘긴다.
+     */
+    const lines = buildScript(
+      snap.docs.map((d) => ({
+        seq: (d.get('seq') as number) ?? 0,
+        startMs: (d.get('startMs') as number) ?? 0,
+        sourceText: (d.get('sourceText') as string) ?? '',
+        targetText: (d.get('targetText') as string) ?? '',
+        kind: (d.get('kind') as 'target' | 'source' | 'paired' | null) ?? null,
+      })),
+    ).map((b) =>
+      b.type === 'paired'
+        ? { sourceText: b.sourceText, targetText: b.targetText }
+        : { sourceText: b.source.join(' '), targetText: b.target.join(' ') },
+    );
     if (lines.length === 0) return;
 
     await db.collection('sessions').doc(sessionId).set({ summaryStatus: 'running' }, { merge: true });

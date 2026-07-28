@@ -271,6 +271,71 @@ export function LiveInterpreter({
       });
   }, []);
 
+  /**
+   * 종료 직전 마지막 정렬.
+   *
+   * 라이브 중에는 12초 주기라 끝자락 몇 줄이 짝 없이 남는다. 기록은 그 상태로 굳으므로
+   * 저장 전에 남은 구간을 한 번 더 맞춘다. 실패해도 저장은 진행한다 —
+   * 짝이 덜 지어진 기록이, 기록이 없는 것보다 낫다.
+   *
+   * 반환값: 저장해야 할 줄들(짝지어진 줄 + 아직 안 지어진 줄).
+   */
+  const finalAlign = useCallback(async (): Promise<EngineSegment[]> => {
+    const all = segmentsRef.current;
+    const pending = [...pendingFinalsRef.current.values()];
+    const src = all.filter((s) => s.kind === 'source' && !alignedRef.current.has(s.seq));
+    const tgt = all.filter((s) => s.kind === 'target' && !alignedRef.current.has(s.seq));
+    if (src.length === 0 || tgt.length === 0) return pending;
+
+    try {
+      const res = await fetch('/api/session/align', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: src.slice(-40).map((s) => ({ seq: s.seq, text: s.sourceText })),
+          target: tgt.slice(-40).map((s) => ({ seq: s.seq, text: s.targetText })),
+        }),
+      });
+      if (!res.ok) return pending;
+      const body = (await res.json()) as {
+        pairs?: Array<{ sourceSeqs: number[]; targetSeqs: number[] }>;
+      };
+      const pairs = body.pairs ?? [];
+      if (pairs.length === 0) return pending;
+
+      const bySeq = new Map(all.map((s) => [s.seq, s]));
+      const merged: EngineSegment[] = [];
+      const consumed = new Set<number>();
+      for (const p of pairs) {
+        const srcRows = p.sourceSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
+        const tgtRows = p.targetSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
+        if (srcRows.length === 0 || tgtRows.length === 0) continue;
+        // ⚠ 여기서도 텍스트는 이어 붙이기만 한다 — 고쳐 쓰면 음성과 달라진다
+        merged.push({
+          ...tgtRows[0]!,
+          kind: 'paired',
+          sourceText: srcRows.map((s) => s.sourceText).join(' ').trim(),
+          targetText: tgtRows.map((s) => s.targetText).join(' ').trim(),
+          isFinal: true,
+        });
+        [...p.sourceSeqs, ...p.targetSeqs].forEach((n) => consumed.add(n));
+      }
+      if (merged.length === 0) return pending;
+
+      // 화면도 마지막 모습으로 맞춘다 — 종료 화면에서 보이는 게 저장본과 같아야 한다
+      setSegments((prev) => {
+        const kept = prev.filter((s) => !consumed.has(s.seq));
+        return [...kept, ...merged].sort((a, b) => a.seq - b.seq);
+      });
+
+      // 짝지어진 줄은 새로 저장하고, 소비된 원본 줄은 저장 목록에서 뺀다
+      const keptPending = pending.filter((s) => !consumed.has(s.seq));
+      return [...keptPending, ...merged].sort((a, b) => a.seq - b.seq);
+    } catch {
+      return pending;
+    }
+  }, []);
+
   const stopTimers = useCallback(() => {
     if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
     if (clockTimerRef.current) clearInterval(clockTimerRef.current);
@@ -327,13 +392,21 @@ export function LiveInterpreter({
             pendingFinalsRef.current.set(s.seq, s);
           }
         }
-        const tail = [...pendingFinalsRef.current.values()].map((s) => ({
+        /**
+         * 종료 직전 마지막 정렬 — 남은 조각들을 여기서 취합한다.
+         * 라이브 중에는 12초 주기라 끝자락 몇 줄은 짝이 안 지어진 채 남는다.
+         * 기록·PDF는 그 상태로 굳으므로, 저장 전에 한 번 더 맞춰 준다.
+         */
+        const finalRows = await finalAlign();
+
+        const tail = finalRows.map((s) => ({
           seq: s.seq,
           startMs: s.startMs,
           endMs: s.endMs,
           sourceText: s.sourceText,
           targetText: s.targetText,
           detectedLang: s.detectedLang,
+          kind: s.kind,
         }));
         pendingFinalsRef.current.clear();
         try {
@@ -359,7 +432,7 @@ export function LiveInterpreter({
       setMicStream(null);
       if (document.fullscreenElement) void document.exitFullscreen();
     },
-    [micStream, stopTimers],
+    [micStream, stopTimers, finalAlign],
   );
 
   const start = useCallback(async () => {
@@ -443,6 +516,13 @@ export function LiveInterpreter({
               const idx = prev.findIndex((p) => p.seq === seg.seq);
               const next = idx >= 0 ? [...prev.slice(0, idx), seg, ...prev.slice(idx + 1)] : [...prev, seg];
               segmentsLenRef.current = next.length;
+              /**
+               * ⚠ ref를 여기서 바로 갱신한다.
+               * 예전에는 useEffect로 뒤늦게 맞췄는데, 종료 시 dispose()가 마지막 줄들을 쏟아낸
+               * 직후 finalAlign()이 곧바로 ref를 읽어 **그 줄들을 못 보고 지나쳤다.**
+               * 상태 반영을 기다릴 수 없는 자리라 동기적으로 맞춰 둔다.
+               */
+              segmentsRef.current = next;
               return next;
             });
             /**
@@ -509,6 +589,7 @@ export function LiveInterpreter({
         sourceText: s.sourceText,
         targetText: s.targetText,
         detectedLang: s.detectedLang,
+        kind: s.kind,
       }));
       pendingFinalsRef.current.clear();
       try {

@@ -6,7 +6,7 @@
  * 크게 자르되 앞뒤를 겹쳐 넘겨 문맥을 유지한다.
  */
 import type { LangCode, SourceLangSetting } from '../types';
-import { translateText } from './text';
+import { translateText, translateParagraphs, type NumberedParagraph } from './text';
 
 /** 한 번에 넘기는 본문 길이 */
 export const CHUNK_CHARS = 2_800;
@@ -63,6 +63,46 @@ export interface TranslateDocPage {
   source: string;
   translated: string;
   notes?: string[];
+  /**
+   * 문단별 원문·번역 짝.
+   * 기본 화면은 translated만 쓰지만, "원문과 합치기"를 누르면 이걸로 번갈아 배치한다.
+   * 짝이 맞아야 성립하므로 번호를 붙여 받는다 (text.ts의 translateParagraphs).
+   */
+  pairs?: Array<{ source: string; translated: string }>;
+}
+
+/** 문단 단위로 자른다 — 대역 배치의 기본 단위 */
+export function splitParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s+$/, ''))
+    .filter((p) => p.trim().length > 0);
+}
+
+/**
+ * 문단들을 청크로 묶는다. 한 번에 너무 많이 보내면 모델이 번호를 흘린다.
+ * 문단 경계는 절대 깨지 않는다 — 깨면 짝이 어긋난다.
+ */
+export function groupParagraphs(
+  paragraphs: string[],
+  limit = CHUNK_CHARS,
+): NumberedParagraph[][] {
+  const groups: NumberedParagraph[][] = [];
+  let cur: NumberedParagraph[] = [];
+  let size = 0;
+  paragraphs.forEach((text, i) => {
+    const item = { n: i, text };
+    // 한 문단이 통째로 상한을 넘어도 쪼개지 않는다 (짝이 깨지는 것보다 낫다)
+    if (cur.length > 0 && size + text.length > limit) {
+      groups.push(cur);
+      cur = [];
+      size = 0;
+    }
+    cur.push(item);
+    size += text.length;
+  });
+  if (cur.length > 0) groups.push(cur);
+  return groups;
 }
 
 export interface TranslateDocInput {
@@ -158,28 +198,66 @@ export async function translateDocument(
   let done = 0;
 
   for (const p of pages) {
-    const chunks = splitIntoChunks(p.text);
-    const parts: string[] = [];
     const notes: string[] = [];
+    const paragraphs = splitParagraphs(p.text);
 
-    for (const c of chunks) {
-      const prompt = c.context
-        ? `[앞 문맥 — 번역하지 말고 참고만 할 것]\n${c.context}\n\n[번역할 본문]\n${c.body}`
-        : c.body;
-      const r = await translateText({
-        text: prompt,
-        sourceLang,
-        targetLang,
-        glossary,
-        tone: 'plain',
-      });
-      parts.push(r.translated);
-      if (r.notes?.length) notes.push(...r.notes);
+    /**
+     * 문단마다 번호를 붙여 번역한다.
+     * 예전에는 덩어리째 번역해 문자열 하나만 받았는데, 그러면 원문·번역 짝을 알 수 없어
+     * 대역(원문+번역) 문서를 만들 수 없다. 번호로 받으면 짝이 어긋날 수 없다.
+     */
+    const byIndex = new Map<number, string>();
+    let prevTail = '';
+
+    for (const group of groupParagraphs(paragraphs)) {
+      try {
+        const got = await translateParagraphs({
+          paragraphs: group,
+          sourceLang,
+          targetLang,
+          glossary,
+          tone: 'plain',
+          context: prevTail,
+        });
+        for (const [n, text] of got) byIndex.set(n, text);
+      } catch {
+        /**
+         * 번호 번역이 실패하면 그 묶음만 통째로 번역해 첫 문단에 넣는다.
+         * 짝은 잃지만 번역문 자체는 나온다 — 아무것도 안 나오는 것보다 낫다.
+         */
+        const joined = group.map((g) => g.text).join('\n\n');
+        const r = await translateText({
+          text: joined,
+          sourceLang,
+          targetLang,
+          glossary,
+          tone: 'plain',
+        });
+        if (group[0]) byIndex.set(group[0].n, r.translated);
+        if (r.notes?.length) notes.push(...r.notes);
+      }
+      prevTail = group
+        .map((g) => g.text)
+        .join('\n\n')
+        .slice(-CHUNK_OVERLAP_CHARS);
     }
 
-    const translated = parts.join('\n\n');
+    const pairs = paragraphs.map((source, i) => ({ source, translated: byIndex.get(i) ?? '' }));
+    const missing = pairs.filter((x) => !x.translated).length;
+    if (missing > 0) notes.push(`문단 ${missing}개는 번역이 오지 않아 비어 있습니다.`);
+
+    const translated = pairs
+      .map((x) => x.translated)
+      .filter(Boolean)
+      .join('\n\n');
     notes.push(...verifyNumbers(p.text, translated));
-    results.push({ page: p.page, source: p.text, translated, notes: notes.length ? notes : undefined });
+    results.push({
+      page: p.page,
+      source: p.text,
+      translated,
+      pairs,
+      notes: notes.length ? notes : undefined,
+    });
 
     done += 1;
     onProgress?.(done, pages.length);
