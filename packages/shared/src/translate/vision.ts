@@ -112,3 +112,92 @@ export async function translateImage(input: TranslateImageInput): Promise<Transl
     notes: parsed.notes?.filter(Boolean),
   };
 }
+
+// ── OCR 전용 (읽기만) ──────────────────────────────────────────────────
+/**
+ * 이미지에서 **글자만 읽는다.** 번역은 하지 않는다.
+ *
+ * 왜 나눴나: 읽기와 번역을 한 번에 시키면 원문이 무엇이었는지 확정할 수 없어
+ * 문단 짝을 만들 수 없다. 읽기만 따로 하면 텍스트 PDF와 **완전히 같은 경로**를 타서
+ * 문단 번호 대응 번역(translateParagraphs)이 그대로 적용된다.
+ *
+ * ⚠ 결과는 원본이 아니라 **읽어낸 것**이다. 흐린 스캔·손글씨·복잡한 표는 틀린다.
+ * 화면에도 그렇게 표시해야 한다 — 텍스트 레이어에서 뽑은 원문과 같아 보이면 안 된다.
+ */
+export interface OcrImageInput {
+  dataUrl: string;
+  /** 문서 언어 힌트 (없으면 모델이 판단) */
+  sourceLang?: string;
+}
+
+export interface OcrImageResult {
+  text: string;
+  notes?: string[];
+}
+
+const OCR_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['text', 'notes'],
+  properties: {
+    text: {
+      type: 'string',
+      description:
+        '이미지에서 읽은 글자. 사람이 읽는 순서대로. 문단 사이는 빈 줄로 구분한다.',
+    },
+    notes: {
+      type: 'array',
+      items: { type: 'string' },
+      description: '흐려서 못 읽은 부분, 판독이 불확실한 부분. 없으면 빈 배열.',
+    },
+  },
+} as const;
+
+export async function ocrImage(input: OcrImageInput): Promise<OcrImageResult> {
+  const { dataUrl, sourceLang } = input;
+
+  const system = [
+    '너는 이미지 속 글자를 정확히 옮겨 적는 OCR 전문가다.',
+    sourceLang && sourceLang !== 'auto'
+      ? `문서 언어는 "${sourceLang}"이다.`
+      : '문서 언어는 스스로 판단한다.',
+    '⚠ 번역하지 않는다. 원문 언어 그대로 옮겨 적는다.',
+    '사람이 읽는 순서대로 옮긴다. 여러 단으로 나뉜 문서는 단 순서를 지킨다.',
+    '문단 사이는 빈 줄 하나로 구분한다. 같은 문단 안에서는 줄을 합친다.',
+    '표는 한 행을 한 줄로 쓰고 칸은 " | "로 구분한다. 표 전체를 한 문단으로 둔다.',
+    '머리글·바닥글·쪽 번호는 본문과 분리해 각각 한 문단으로 둔다.',
+    '숫자·기호·단위는 보이는 그대로 옮긴다. 고쳐 쓰지 않는다.',
+    '이미지에 없는 내용을 지어내지 않는다. 흐려서 못 읽으면 notes에 적고 본문에는 넣지 않는다.',
+  ].join(' ');
+
+  const res = await fetch(`${baseUrl()}/v1/responses`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: visionModel(),
+      input: [
+        { role: 'system', content: system },
+        {
+          role: 'user',
+          content: [
+            { type: 'input_text', text: '이 이미지의 글자를 그대로 옮겨 적어줘.' },
+            { type: 'input_image', image_url: dataUrl },
+          ],
+        },
+      ],
+      reasoning: { effort: env('VISION_TRANSLATION_EFFORT') ?? 'low' },
+      text: {
+        format: { type: 'json_schema', name: 'image_ocr', strict: true, schema: OCR_SCHEMA },
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`ocr failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+  const raw = extractOutputText((await res.json()) as Record<string, unknown>);
+  if (!raw) throw new Error('ocr failed: empty response');
+  const parsed = JSON.parse(raw) as OcrImageResult;
+  return { text: parsed.text ?? '', notes: parsed.notes?.filter(Boolean) };
+}
