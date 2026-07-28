@@ -42,7 +42,7 @@ import {
 } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import type { EngineSegment, DiagSnapshot } from '@sotong/shared/engine';
-import { summarizeDiag } from '@sotong/shared/engine';
+import { summarizeDiag, unsavedRows, chunkForSave } from '@sotong/shared/engine';
 import {
   connectBrowserSession,
   type BrowserTranslationSession,
@@ -87,6 +87,27 @@ const WRAP_IDLE_MS = 1_500;
 const ALIGN_INTERVAL_MS = 12_000;
 /** 빈 집합 상수 — 매 렌더마다 새 Set을 만들면 자막이 통째로 다시 그려진다 */
 const EMPTY_SEQS: ReadonlySet<number> = new Set<number>();
+
+/**
+ * 한 번에 보낼 수 있는 줄 수 — 서버 스키마 상한과 같아야 한다(schemas/index.ts).
+ * 넘겨서 보내면 zod가 요청 전체를 400으로 되돌려 **그 세션이 통째로 저장되지 않는다.**
+ * 그래서 종료 시에는 남은 줄을 이 크기로 잘라 하트비트로 먼저 흘려보낸다.
+ */
+const HEARTBEAT_MAX_SEGMENTS = 100;
+const END_MAX_SEGMENTS = 200;
+
+/** 저장 요청에 실어 보낼 형태 — 하트비트와 종료가 같은 모양을 써야 한다 */
+function toWireSegment(s: EngineSegment) {
+  return {
+    seq: s.seq,
+    startMs: s.startMs,
+    endMs: s.endMs,
+    sourceText: s.sourceText,
+    targetText: s.targetText,
+    detectedLang: s.detectedLang,
+    kind: s.kind,
+  };
+}
 
 function fmtSec(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -198,6 +219,8 @@ export function LiveInterpreter({
   const aligningRef = useRef(false);
   /** 이미 짝이 지어진 줄 번호 — 다시 정렬 대상에 넣지 않는다 */
   const alignedRef = useRef(new Set<number>());
+  /** 서버가 받았다고 확인해 준 줄 번호 — 종료 시 중복해서 다시 보내지 않는다 */
+  const sentSeqsRef = useRef(new Set<number>());
   /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
   const segmentsRef = useRef<EngineSegment[]>([]);
   useEffect(() => {
@@ -393,13 +416,15 @@ export function LiveInterpreter({
       const sessionId = sessionIdRef.current;
       if (sessionId) {
         /**
-         * 아직 하트비트로 못 보낸 확정 줄 + 끝내 짝이 안 지어진 줄을 함께 넘긴다.
-         * 정렬을 못 맞췄다고 원문·번역을 버리면 기록이 비어 버린다 — 한쪽만이라도 남긴다.
+         * 아직 서버가 못 받은 확정 줄을 전부 넘긴다.
+         *
+         * ⚠ 기준은 "짝을 지었는가"가 아니라 **"보냈는가"**다.
+         * 예전엔 kind !== 'paired'로 걸렀는데, 하트비트가 실제로는 아무것도 못 보내고 있어서
+         * 라이브 중 정렬로 합쳐진 줄 — 즉 제일 멀쩡한 줄 — 이 통째로 저장에서 빠졌다.
+         * 그래서 기록이 띄엄띄엄해지고, 남은 건 짝을 못 지은 부스러기뿐이었다.
          */
-        for (const s of segmentsRef.current) {
-          if (s.isFinal && s.kind !== 'paired' && (s.sourceText.trim() || s.targetText.trim())) {
-            pendingFinalsRef.current.set(s.seq, s);
-          }
+        for (const s of unsavedRows(segmentsRef.current, sentSeqsRef.current)) {
+          pendingFinalsRef.current.set(s.seq, s);
         }
         /**
          * 종료 직전 마지막 정렬 — 남은 조각들을 여기서 취합한다.
@@ -408,15 +433,31 @@ export function LiveInterpreter({
          */
         const finalRows = await finalAlign();
 
-        const tail = finalRows.map((s) => ({
-          seq: s.seq,
-          startMs: s.startMs,
-          endMs: s.endMs,
-          sourceText: s.sourceText,
-          targetText: s.targetText,
-          detectedLang: s.detectedLang,
-          kind: s.kind,
-        }));
+        /**
+         * 남은 줄이 종료 요청 상한을 넘으면 넘치는 만큼 하트비트로 먼저 흘려보낸다.
+         * 상한을 넘긴 채로 보내면 zod가 요청 전체를 400으로 되돌려
+         * **긴 세션일수록 기록이 통째로 날아간다** — 제일 오래 말한 사람이 제일 크게 잃는다.
+         */
+        let rest = [...finalRows];
+        while (rest.length > END_MAX_SEGMENTS) {
+          const chunk = chunkForSave(rest, HEARTBEAT_MAX_SEGMENTS)[0]!;
+          try {
+            const res = await fetch('/api/session/heartbeat', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId,
+                segments: chunk.map(toWireSegment),
+                trial,
+              }),
+            });
+            if (!res.ok) break; // 더 보내도 같은 결과다 — 남은 건 아래에서 상한만큼이라도 살린다
+          } catch {
+            break;
+          }
+          rest = rest.slice(chunk.length);
+        }
+        const tail = rest.slice(0, END_MAX_SEGMENTS).map(toWireSegment);
         pendingFinalsRef.current.clear();
         try {
           const res = await fetch('/api/session/end', {
@@ -535,11 +576,13 @@ export function LiveInterpreter({
               return next;
             });
             /**
-             * 기록에는 **짝지어진 줄만** 올린다.
-             * 정렬 전 줄까지 보내면 나중에 합쳐질 때 같은 말이 두 번 저장된다.
-             * 끝내 짝이 안 지어진 줄은 종료 시 한꺼번에 보낸다(doEnd).
+             * ⚠ 여기서는 아무것도 저장 큐에 넣지 않는다.
+             * 조립기는 'target' | 'source'만 만들고 'paired'는 **정렬기만** 만든다
+             * (segment-assembler.ts). 예전엔 여기서 kind==='paired'를 걸렀는데,
+             * 그 조건이 영원히 거짓이라 하트비트가 세션 내내 빈 배치만 보냈다.
+             * 정렬 전 줄을 보내면 나중에 합쳐질 때 같은 말이 두 번 저장되므로,
+             * 저장은 정렬 직후(합친 줄)와 종료 시(끝내 못 합친 줄) 두 곳에서만 한다.
              */
-            if (seg.isFinal && seg.kind === 'paired') pendingFinalsRef.current.set(seg.seq, seg);
             if (trial) {
               // 부분 전사도 즉시 계수한다 — 한도를 넘긴 뒤에 끊으면 이미 돈이 나간 뒤다
               charsBySeqRef.current.set(seg.seq, seg.targetText.length);
@@ -575,6 +618,14 @@ export function LiveInterpreter({
     setElapsedSec(0);
     setRemainingSec(grant.maxDurationSec);
     setSegments([]);
+    /**
+     * seq는 세션마다 다시 1부터다.
+     * 이 둘을 안 비우면 이어서 연 두 번째 세션이 첫 세션의 번호에 걸려
+     * 정렬은 건너뛰고 저장은 "이미 보냈다"로 판정된다 — 통째로 기록이 안 남는다.
+     */
+    alignedRef.current = new Set();
+    sentSeqsRef.current = new Set();
+    pendingFinalsRef.current.clear();
     segmentsLenRef.current = 0;
     lastSegmentAtRef.current = Date.now();
     setPhase('live');
@@ -591,28 +642,28 @@ export function LiveInterpreter({
     heartbeatTimerRef.current = setInterval(async () => {
       const sessionId = sessionIdRef.current;
       if (!sessionId) return;
-      const batch = [...pendingFinalsRef.current.values()].map((s) => ({
-        seq: s.seq,
-        startMs: s.startMs,
-        endMs: s.endMs,
-        sourceText: s.sourceText,
-        targetText: s.targetText,
-        detectedLang: s.detectedLang,
-        kind: s.kind,
-      }));
-      pendingFinalsRef.current.clear();
+      /**
+       * ⚠ 보내기 전에 큐를 비우지 않는다.
+       * 예전엔 먼저 비우고 보내서, 요청이 한 번 실패하면 그 줄들이 영영 사라졌다.
+       * 서버가 받았다고 확인해 준 것만 큐에서 뺀다.
+       */
+      const rows = [...pendingFinalsRef.current.values()].slice(0, HEARTBEAT_MAX_SEGMENTS);
       try {
         const res = await fetch('/api/session/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, segments: batch, trial }),
+          body: JSON.stringify({ sessionId, segments: rows.map(toWireSegment), trial }),
         });
         if (res.ok) {
+          for (const r of rows) {
+            pendingFinalsRef.current.delete(r.seq);
+            sentSeqsRef.current.add(r.seq);
+          }
           const json = (await res.json()) as { terminate: boolean; remainingSec: number };
           if (json.terminate) void doEnd('cap');
         }
       } catch {
-        /* 하트비트 유실 — 서버가 3회 유실 시 orphan 처리 */
+        /* 하트비트 유실 — 다음 주기에 같은 줄을 다시 보낸다 */
       }
     }, HEARTBEAT_INTERVAL_MS);
   }, [audioOut, doEnd, micStream, effectiveSourceLang, sourceLang, targetLang, speakLang, pairKey, unlockAudio]);
@@ -757,6 +808,8 @@ export function LiveInterpreter({
               [...p.sourceSeqs, ...p.targetSeqs].forEach((n) => alignedRef.current.add(n));
             }
             if (merged.length === 0) return prev;
+            // 합친 줄은 여기서 확정이다 — 저장 큐에 넣어야 하트비트가 실제로 올린다
+            for (const m of merged) pendingFinalsRef.current.set(m.seq, m);
             const kept = prev.filter((s) => !consumedSeqs.has(s.seq));
             return [...kept, ...merged].sort((a, b) => a.seq - b.seq);
           });
