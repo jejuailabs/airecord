@@ -58,3 +58,58 @@ export function fileToDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * 글자 정보가 없는 PDF(스캔본)를 페이지 이미지로 그린다.
+ *
+ * 왜 필요한가: 스캔 PDF는 글자가 없어 추출이 0자다. 그렇다고 내장 이미지를 꺼내 쓸 수도 없다 —
+ * 실측(2026-07-28)한 문서는 페이지마다 배경 이미지 1장 + 글자 조각 이미지 20여 개로 흩어져 있어
+ * 낱개로는 아무 의미가 없었다(CCITTFax·Flate 혼재). 조각을 제자리에 합성해야 사람이 읽는 문서가 된다.
+ * 그 합성을 pdfjs가 해주므로, 페이지를 통째로 캔버스에 그려 한 장으로 만든다.
+ *
+ * ⚠ 브라우저에서 그린다 — 원본 파일은 여전히 서버로 올라가지 않는다.
+ */
+export interface PdfPageImage {
+  page: number;
+  dataUrl: string;
+}
+
+/** 150DPI 상당. 더 키우면 OCR이 크게 좋아지지 않으면서 전송량만 커진다 */
+const RENDER_SCALE = 2;
+/** 한 장이 이보다 크면 품질을 낮춰 다시 굽는다 (요청 본문 상한이 있다) */
+const MAX_PAGE_BYTES = 1_400_000;
+
+export async function renderPdfPagesToImages(
+  file: File,
+  onProgress?: (done: number, total: number) => void,
+  maxPages = 20,
+): Promise<PdfPageImage[]> {
+  const pdfjs = await import('pdfjs-dist');
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const total = Math.min(doc.numPages, maxPages);
+  const out: PdfPageImage[] = [];
+
+  for (let i = 1; i <= total; i++) {
+    const page = await doc.getPage(i);
+    const viewport = page.getViewport({ scale: RENDER_SCALE });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(viewport.width);
+    canvas.height = Math.round(viewport.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) break;
+    // 스캔본은 배경이 투명일 수 있다 — 흰 바탕을 깔지 않으면 글자가 검은 배경에 묻힌다
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    if (dataUrl.length > MAX_PAGE_BYTES) dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    out.push({ page: i, dataUrl });
+    onProgress?.(i, total);
+  }
+
+  await doc.destroy();
+  return out;
+}

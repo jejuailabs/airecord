@@ -507,7 +507,12 @@
       }
     },
     "mergeWithSource": "Merge with original",
-    "splitBack": "Split view"
+    "splitBack": "Split view",
+    "recentTitle": "Recent work",
+    "recentNote": "Stored in this browser only. Your file is never uploaded.",
+    "removeDraft": "Remove from list",
+    "scanning": "No text layer — reading the pages as images…",
+    "ocrNote": "This document had no text layer, so the original was read from images. It may contain OCR errors."
   },
   "sessions": {
     "title": "Sessions",

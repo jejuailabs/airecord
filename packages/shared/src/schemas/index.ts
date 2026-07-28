@@ -121,13 +121,26 @@ export const translateFilePageSchema = z.object({
   text: z.string(),
 });
 
+export const translateFilePageImageSchema = z.object({
+  page: z.number().int().positive(),
+  /** 브라우저가 그린 페이지 이미지 (data URL) */
+  dataUrl: z.string().max(3_000_000),
+});
+
 export const translateFileRequestSchema = z.object({
-  kind: z.enum(['pdf', 'image']),
+  /**
+   * 'pdf'      — 글자 레이어에서 뽑은 텍스트
+   * 'pdf-scan' — 글자가 없어 페이지를 이미지로 그린 것 (OCR로 읽는다)
+   * 'image'    — 사진 한 장
+   */
+  kind: z.enum(['pdf', 'pdf-scan', 'image']),
   fileName: z.string().max(200),
   sourceLang: sourceLangSchema,
   targetLang: langCodeSchema,
   /** kind === 'pdf' — 클라이언트에서 뽑은 페이지별 텍스트 */
   pages: z.array(translateFilePageSchema).max(200).optional(),
+  /** kind === 'pdf-scan' — 페이지별 렌더 이미지 */
+  pageImages: z.array(translateFilePageImageSchema).max(20).optional(),
   /** kind === 'image' — data URL */
   dataUrl: z.string().max(12_000_000).optional(),
 });

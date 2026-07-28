@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
@@ -9,17 +9,20 @@ import {
   Image as ImageIcon,
   Languages,
   Loader2,
+  History,
   RotateCcw,
   Rows3,
   Upload,
+  X,
 } from 'lucide-react';
 import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import type { TranslateFileResponse } from '@sotong/shared/schemas';
 import { FieldSelect } from '@/components/ui/SettingRow';
-import { extractPdfPages, fileToDataUrl } from '@/lib/pdf/extract';
+import { extractPdfPages, fileToDataUrl, renderPdfPagesToImages } from '@/lib/pdf/extract';
+import { listDrafts, removeDraft, saveDraft, type FileDraft } from '@/lib/translate/drafts';
 
-type Phase = 'idle' | 'reading' | 'translating' | 'done' | 'error';
+type Phase = 'idle' | 'reading' | 'scanning' | 'translating' | 'done' | 'error';
 type ErrorKey = 'unsupported' | 'tooLarge' | 'noTextLayer' | 'authRequired' | 'keyMissing' | 'failed';
 
 const MAX_MB = 10;
@@ -42,7 +45,19 @@ export function FileTranslator() {
   const [sourceLang, setSourceLang] = useState<SourceLangSetting>('auto');
   const [targetLang, setTargetLang] = useState<LangCode>('ko');
   const [dragging, setDragging] = useState(false);
+  /**
+   * 브라우저에 남아 있는 이전 번역 결과.
+   * 번역은 수십 초가 걸리므로 실수로 화면을 벗어나도 되살릴 수 있어야 한다.
+   */
+  const [drafts, setDrafts] = useState<FileDraft[]>([]);
+  /** 이번 결과가 OCR로 읽은 것인지 — 원문이 원본이 아님을 화면에 밝혀야 한다 */
+  const [fromOcr, setFromOcr] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // 서버 렌더에는 없는 값이라 마운트 후에 읽는다 (하이드레이션 어긋남 방지)
+  useEffect(() => {
+    setDrafts(listDrafts());
+  }, []);
 
   const reset = () => {
     setPhase('idle');
@@ -76,7 +91,27 @@ export function FileTranslator() {
         if (isPdf) {
           setPhase('reading');
           const pages = await extractPdfPages(file, (done, total) => setProgress({ done, total }));
-          payload = { kind: 'pdf', fileName: file.name, sourceLang, targetLang, pages };
+          const hasText = pages.some((p) => p.text.trim().length > 0);
+          if (hasText) {
+            setFromOcr(false);
+            payload = { kind: 'pdf', fileName: file.name, sourceLang, targetLang, pages };
+          } else {
+            /**
+             * 글자 정보가 없는 스캔본 — 예전에는 여기서 막고 "이미지로 저장해 올리라"고 떠넘겼다.
+             * 페이지를 직접 그려 넘기면 유저가 캡처할 필요가 없다.
+             */
+            setPhase('scanning');
+            const pageImages = await renderPdfPagesToImages(file, (done, total) =>
+              setProgress({ done, total }),
+            );
+            if (pageImages.length === 0) {
+              setError('noTextLayer');
+              setPhase('error');
+              return;
+            }
+            payload = { kind: 'pdf-scan', fileName: file.name, sourceLang, targetLang, pageImages };
+            setFromOcr(true);
+          }
         } else {
           setPhase('reading');
           const dataUrl = await fileToDataUrl(file);
@@ -104,7 +139,11 @@ export function FileTranslator() {
           setPhase('error');
           return;
         }
-        setResult((await res.json()) as TranslateFileResponse);
+        const data = (await res.json()) as TranslateFileResponse;
+        setResult(data);
+        // 유저가 따로 누르지 않아도 남긴다 — 놓치면 시간과 비용이 통째로 날아간다
+        saveDraft(data, targetLang);
+        setDrafts(listDrafts());
         setPhase('done');
       } catch {
         setError('failed');
@@ -114,7 +153,7 @@ export function FileTranslator() {
     [sourceLang, targetLang],
   );
 
-  const busy = phase === 'reading' || phase === 'translating';
+  const busy = phase === 'reading' || phase === 'scanning' || phase === 'translating';
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 py-2">
@@ -188,6 +227,54 @@ export function FileTranslator() {
         </div>
       </div>
 
+      {/*
+        이전 작업 — 저장 안 하고 화면을 벗어났어도 여기서 되살린다.
+        번역은 수십 초가 걸리므로 놓치면 시간과 비용이 통째로 날아간다.
+      */}
+      {!result && drafts.length > 0 ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-3">
+          <p className="px-1 text-[12px] font-semibold uppercase tracking-wider text-text-faint">
+            {t('recentTitle')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {drafts.map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center gap-1 rounded-xl border border-border bg-bg-sunken pl-1"
+              >
+                <button
+                  onClick={() => {
+                    setResult(d.result);
+                    setFileName(d.fileName);
+                    setTargetLang(d.targetLang as LangCode);
+                    setPhase('done');
+                  }}
+                  className="flex h-10 items-center gap-2 rounded-lg px-3 text-[13.5px] font-semibold hover:text-accent"
+                >
+                  <History size={14} aria-hidden className="shrink-0 text-accent" />
+                  <span className="max-w-[190px] truncate">{d.fileName}</span>
+                  <span className="tabular shrink-0 text-[12px] font-normal text-text-faint">
+                    {t('pages', { count: d.pageCount })}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    removeDraft(d.id);
+                    setDrafts(listDrafts());
+                  }}
+                  aria-label={t('removeDraft')}
+                  title={t('removeDraft')}
+                  className="flex h-10 w-8 items-center justify-center text-text-faint hover:text-danger"
+                >
+                  <X size={14} aria-hidden />
+                </button>
+              </div>
+            ))}
+          </div>
+          <p className="px-1 text-[12px] text-text-faint">{t('recentNote')}</p>
+        </div>
+      ) : null}
+
       {/* 업로드 영역 */}
       {!result ? (
         <div
@@ -211,7 +298,11 @@ export function FileTranslator() {
               <Loader2 size={30} className="animate-spin text-accent" aria-hidden />
               <div>
                 <p className="text-[17px] font-semibold">
-                  {phase === 'reading' ? t('reading') : t('translating')}
+                  {phase === 'reading'
+                    ? t('reading')
+                    : phase === 'scanning'
+                      ? t('scanning')
+                      : t('translating')}
                 </p>
                 <p className="mt-1 text-[14px] text-text-muted">{fileName}</p>
                 {progress ? (
@@ -320,6 +411,13 @@ export function FileTranslator() {
               {t('downloadPdf')}
             </a>
           </div>
+
+          {fromOcr ? (
+            <p className="flex items-start gap-2.5 rounded-xl border border-warn/40 bg-warn-weak px-4 py-3 text-[13.5px] text-warn">
+              <AlertTriangle size={15} aria-hidden className="mt-0.5 shrink-0" />
+              {t('ocrNote')}
+            </p>
+          ) : null}
 
           {result.pages.map((p) => (
             <section key={p.page} className="flex flex-col gap-2">

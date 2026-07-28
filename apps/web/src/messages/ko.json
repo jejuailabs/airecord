@@ -507,7 +507,12 @@
       }
     },
     "mergeWithSource": "원문과 합치기",
-    "splitBack": "나눠 보기"
+    "splitBack": "나눠 보기",
+    "recentTitle": "이전 작업",
+    "recentNote": "이 브라우저에만 저장됩니다. 파일은 서버로 올라가지 않습니다.",
+    "removeDraft": "목록에서 지우기",
+    "scanning": "글자 정보가 없어 페이지를 이미지로 읽는 중…",
+    "ocrNote": "이 문서는 글자 정보가 없어 이미지에서 읽었습니다. 원문에 오독이 있을 수 있습니다."
   },
   "sessions": {
     "title": "세션 기록",
