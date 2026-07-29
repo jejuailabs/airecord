@@ -173,6 +173,32 @@ export const translateFileResponseSchema = z.object({
 });
 export type TranslateFileResponse = z.infer<typeof translateFileResponseSchema>;
 
+// ── POST /api/translate/docx ───────────────────────
+/**
+ * 워드 문서 번역.
+ *
+ * PDF와 달리 **파일을 서버로 보내지 않는다.** 브라우저가 .docx(=ZIP)를 풀어
+ * 문단 글자만 뽑아 보내고, 번역을 받아 제자리에 되쓴 뒤 다시 압축한다.
+ * 그래야 원본 서식이 그대로 남고, "파일은 서버에 저장되지 않습니다"도 지켜진다.
+ */
+export const translateDocxRequestSchema = z.object({
+  items: z
+    .array(z.object({ n: z.number().int().nonnegative(), text: z.string().max(20_000) }))
+    .min(1)
+    .max(400),
+  sourceLang: sourceLangSchema,
+  targetLang: langCodeSchema,
+  tone: z.enum(['plain', 'formal', 'casual']).default('plain'),
+});
+export type TranslateDocxRequest = z.infer<typeof translateDocxRequestSchema>;
+
+export const translateDocxResponseSchema = z.object({
+  items: z.array(z.object({ n: z.number(), text: z.string() })),
+  /** 모델이 번호를 빠뜨려 번역이 안 온 문단 수 — 호출부는 원문을 그대로 둔다 */
+  missing: z.number().default(0),
+});
+export type TranslateDocxResponse = z.infer<typeof translateDocxResponseSchema>;
+
 // ── POST /api/meeting/join (모드 A — Phase 4) ───────
 export const meetingJoinRequestSchema = z.object({
   url: z.string().url(),

@@ -515,7 +515,18 @@
     "recentNote": "Stored in this browser only. Your file is never uploaded.",
     "removeDraft": "Remove from list",
     "scanning": "No text layer — reading the pages as images…",
-    "ocrNote": "This document had no text layer, so the original was read from images. It may contain OCR errors."
+    "ocrNote": "This document had no text layer, so the original was read from images. It may contain OCR errors.",
+    "docxTitle": "Word document",
+    "docxLead": "Formatting stays untouched — only the text changes. Tables, headers, footers, bullets and images all survive.",
+    "docxReplace": "Download translation",
+    "docxReplaceHint": "Replaces the original text with the translation.",
+    "docxBilingual": "Download side-by-side",
+    "docxBilingualHint": "Adds the translation under each original paragraph.",
+    "docxWorking": "Building the document… {percent}%",
+    "docxDoneReplace": "Translation downloaded. {translated} paragraphs translated.",
+    "docxDoneBilingual": "Side-by-side downloaded. Translations added to {translated} paragraphs.",
+    "docxMissing": "{missing} paragraphs kept their original text — no translation came back.",
+    "docxOther": "Pick another file"
   },
   "sessions": {
     "title": "Sessions",

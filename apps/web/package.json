@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@sotong/shared": "workspace:*",
+    "fflate": "^0.8.3",
     "firebase": "^11.10.0",
     "firebase-admin": "^13.10.0",
     "lucide-react": "^0.469.0",
@@ -27,6 +28,7 @@
     "@types/node": "^22.10.5",
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
+    "@xmldom/xmldom": "^0.9.10",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",

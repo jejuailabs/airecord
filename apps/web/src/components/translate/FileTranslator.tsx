@@ -21,12 +21,19 @@ import type { TranslateFileResponse } from '@sotong/shared/schemas';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { extractPdfPages, fileToDataUrl, renderPdfPagesToImages } from '@/lib/pdf/extract';
 import { listDrafts, removeDraft, saveDraft, type FileDraft } from '@/lib/translate/drafts';
+import { translateDocx } from '@/lib/docx/translate';
+import type { DocxMode } from '@/lib/docx/transform';
 
-type Phase = 'idle' | 'reading' | 'scanning' | 'translating' | 'done' | 'error';
+/**
+ * 'docxReady' — 워드 문서는 결과가 화면 글이 아니라 **파일**이다.
+ * 그래서 고르자마자 번역하지 않고, 어떤 모양으로 받을지 먼저 묻는다.
+ */
+type Phase = 'idle' | 'reading' | 'scanning' | 'translating' | 'done' | 'error' | 'docxReady';
 type ErrorKey = 'unsupported' | 'tooLarge' | 'noTextLayer' | 'authRequired' | 'keyMissing' | 'failed';
 
 const MAX_MB = 10;
-const ACCEPT = '.pdf,image/png,image/jpeg,image/webp';
+const ACCEPT = '.pdf,.docx,image/png,image/jpeg,image/webp';
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export function FileTranslator() {
   const t = useTranslations('translateFile');
@@ -52,6 +59,12 @@ export function FileTranslator() {
   const [drafts, setDrafts] = useState<FileDraft[]>([]);
   /** 이번 결과가 OCR로 읽은 것인지 — 원문이 원본이 아님을 화면에 밝혀야 한다 */
   const [fromOcr, setFromOcr] = useState(false);
+  /** 고른 워드 파일 — 어떤 모양으로 받을지 고를 때까지 들고 있는다 */
+  const [docxFile, setDocxFile] = useState<File | null>(null);
+  /** 지금 굽고 있는 모양 (버튼별 진행 표시) */
+  const [docxBusy, setDocxBusy] = useState<DocxMode | null>(null);
+  const [docxRatio, setDocxRatio] = useState(0);
+  const [docxDone, setDocxDone] = useState<{ mode: DocxMode; translated: number; missing: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 서버 렌더에는 없는 값이라 마운트 후에 읽는다 (하이드레이션 어긋남 방지)
@@ -65,7 +78,57 @@ export function FileTranslator() {
     setResult(null);
     setProgress(null);
     setFileName('');
+    setDocxFile(null);
+    setDocxBusy(null);
+    setDocxDone(null);
+    setDocxRatio(0);
   };
+
+  /**
+   * 워드 문서를 굽는다.
+   * 파일은 서버로 가지 않는다 — 여기서 ZIP을 풀고 문단 글자만 보낸 뒤 제자리에 되쓴다.
+   */
+  const runDocx = useCallback(
+    async (mode: DocxMode) => {
+      const file = docxFile;
+      if (!file || docxBusy) return;
+      setError(null);
+      setDocxDone(null);
+      setDocxBusy(mode);
+      setDocxRatio(0);
+      try {
+        const r = await translateDocx({
+          file,
+          mode,
+          sourceLang,
+          targetLang,
+          onProgress: setDocxRatio,
+        });
+        // 내려받기 — 브라우저가 파일을 받는 순간 메모리에서 놓아준다
+        const url = URL.createObjectURL(r.blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = r.fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+        setDocxDone({ mode, translated: r.translated, missing: r.missing });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '';
+        setError(
+          msg === 'auth_required'
+            ? 'authRequired'
+            : msg === 'key_missing'
+              ? 'keyMissing'
+              : msg === 'no_text' || msg === 'not_a_docx'
+                ? 'noTextLayer'
+                : 'failed',
+        );
+      } finally {
+        setDocxBusy(null);
+      }
+    },
+    [docxFile, docxBusy, sourceLang, targetLang],
+  );
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -80,6 +143,20 @@ export function FileTranslator() {
       }
       const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
       const isImage = file.type.startsWith('image/');
+      const isDocx = file.type === DOCX_MIME || file.name.toLowerCase().endsWith('.docx');
+
+      /**
+       * 워드는 여기서 멈춘다.
+       * PDF·이미지는 화면에 글로 보여주는 게 결과지만, 워드는 **원본 서식을 살린 파일**이 결과다.
+       * 번역본과 대조본은 되쓰는 방식이 다르므로 어느 쪽인지 먼저 정해야 한다.
+       */
+      if (isDocx) {
+        setDocxFile(file);
+        setDocxDone(null);
+        setDocxRatio(0);
+        setPhase('docxReady');
+        return;
+      }
       if (!isPdf && !isImage) {
         setError('unsupported');
         setPhase('error');
@@ -275,8 +352,94 @@ export function FileTranslator() {
         </div>
       ) : null}
 
+      {/*
+        워드 문서 — 결과가 화면 글이 아니라 파일이라 여기서 갈라진다.
+        두 버튼은 되쓰는 방식이 아예 달라서 토글이 아니라 나란한 두 개로 둔다.
+      */}
+      {phase === 'docxReady' && docxFile ? (
+        <div className="flex flex-col gap-4 rounded-2xl border border-border bg-bg-raised p-6">
+          <div className="flex items-start gap-3">
+            <span className="icon-chip icon-chip-accent shrink-0" aria-hidden>
+              <FileText size={18} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[17px] font-semibold">{t('docxTitle')}</p>
+              <p className="mt-0.5 truncate text-[14px] text-text-muted">{docxFile.name}</p>
+              <p className="mt-1.5 text-[13.5px] text-text-faint">{t('docxLead')}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(
+              [
+                { mode: 'replace', label: t('docxReplace'), hint: t('docxReplaceHint'), icon: <FileDown size={17} /> },
+                { mode: 'bilingual', label: t('docxBilingual'), hint: t('docxBilingualHint'), icon: <Rows3 size={17} /> },
+              ] as const
+            ).map((b) => (
+              <button
+                key={b.mode}
+                onClick={() => void runDocx(b.mode)}
+                disabled={docxBusy !== null}
+                className={`flex flex-col items-start gap-1 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${
+                  b.mode === 'replace'
+                    ? 'border-accent bg-accent-weak/30 hover:bg-accent-weak/50'
+                    : 'border-border hover:bg-bg-sunken'
+                }`}
+              >
+                <span className="flex items-center gap-2 text-[15px] font-bold">
+                  {docxBusy === b.mode ? (
+                    <Loader2 size={17} className="animate-spin" aria-hidden />
+                  ) : (
+                    <span aria-hidden>{b.icon}</span>
+                  )}
+                  {b.label}
+                </span>
+                <span className="text-[13px] text-text-muted">{b.hint}</span>
+              </button>
+            ))}
+          </div>
+
+          {docxBusy ? (
+            <div className="flex flex-col gap-2">
+              <p className="tabular text-[13.5px] text-text-muted">
+                {t('docxWorking', { percent: Math.round(docxRatio * 100) })}
+              </p>
+              <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
+                <div
+                  className="h-full rounded-full bg-accent transition-[width] duration-300"
+                  style={{ width: `${Math.max(4, Math.round(docxRatio * 100))}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {docxDone ? (
+            <div className="rounded-xl bg-bg-sunken px-4 py-3 text-[13.5px]">
+              <p className="font-semibold">
+                {docxDone.mode === 'bilingual'
+                  ? t('docxDoneBilingual', { translated: docxDone.translated })
+                  : t('docxDoneReplace', { translated: docxDone.translated })}
+              </p>
+              {docxDone.missing > 0 ? (
+                <p className="mt-1 text-text-muted">
+                  {t('docxMissing', { missing: docxDone.missing })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <button
+            onClick={reset}
+            disabled={docxBusy !== null}
+            className="self-start text-[14px] font-semibold text-text-muted hover:text-text disabled:opacity-60"
+          >
+            {t('docxOther')}
+          </button>
+        </div>
+      ) : null}
+
       {/* 업로드 영역 */}
-      {!result ? (
+      {!result && phase !== 'docxReady' ? (
         <div
           onDragOver={(e) => {
             e.preventDefault();
