@@ -71,7 +71,7 @@ export default async function AppGroupLayout({
     <div className="flex min-h-screen">
       <AppSidebar usage={usage} account={account} isAdmin={isAdmin} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <AppTopbar />
+        <AppTopbar usage={usage} account={account} isAdmin={isAdmin} />
         <main className="w-full flex-1 px-5 py-7 md:px-8">{children}</main>
       </div>
     </div>

@@ -13,11 +13,14 @@ export function SidebarLink({
   icon,
   label,
   active,
+  onNavigate,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  /** 모바일 드로어에서 항목을 누르면 드로어를 닫는다 */
+  onNavigate?: () => void;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -29,6 +32,8 @@ export function SidebarLink({
       aria-current={active ? 'page' : undefined}
       aria-busy={pending}
       onClick={() => {
+        // 이미 있는 화면이라도 드로어는 닫는다
+        onNavigate?.();
         if (active) return;
         startTransition(() => router.push(href as never));
       }}

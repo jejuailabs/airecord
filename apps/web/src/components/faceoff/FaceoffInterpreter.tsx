@@ -445,27 +445,31 @@ export function FaceoffInterpreter() {
     );
   }
 
-  // live — 화면을 정확히 반으로, 위 절반(A)은 180° 회전
+  /**
+   * live — 화면을 정확히 반으로.
+   * 아래 절반은 정방향(폰을 든 내 쪽 = langA), 위 절반은 180° 회전(맞은편 = langB).
+   * ⚠ 아래가 내 쪽이다 — 여기에 langB를 두면 내 언어가 상대편으로 가는 것처럼 보인다.
+   */
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-black">
       {audioEls}
       <Panel
         flip
-        myLang={langA}
-        onLangChange={setLangA}
-        onExit={() => void exit()}
-        live={liveA}
-        rows={rowsA}
-        disabled={false}
-      />
-      <div className="h-px shrink-0 bg-white/20" />
-      <Panel
-        flip={false}
         myLang={langB}
         onLangChange={setLangB}
         onExit={() => void exit()}
         live={liveB}
         rows={rowsB}
+        disabled={false}
+      />
+      <div className="h-px shrink-0 bg-white/20" />
+      <Panel
+        flip={false}
+        myLang={langA}
+        onLangChange={setLangA}
+        onExit={() => void exit()}
+        live={liveA}
+        rows={rowsA}
         disabled={false}
       />
     </div>

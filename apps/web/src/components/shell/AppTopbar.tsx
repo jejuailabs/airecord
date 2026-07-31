@@ -7,9 +7,19 @@ import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { firebaseAuth } from '@/lib/firebase/client';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LocaleSwitch } from '@/components/LocaleSwitch';
+import { MobileNav } from './MobileNav';
+import type { SidebarUsage, SidebarAccount } from './AppSidebar';
 
-/** 시안 상단 바: "관리 · {현재 화면}" + 알림 + 계정 */
-export function AppTopbar() {
+/** 시안 상단 바: 모바일 햄버거 + "관리 · {현재 화면}" + 알림 + 계정 */
+export function AppTopbar({
+  usage,
+  account,
+  isAdmin,
+}: {
+  usage?: SidebarUsage;
+  account?: SidebarAccount;
+  isAdmin?: boolean;
+}) {
   const t = useTranslations('common');
   const pathname = usePathname();
   const router = useRouter();
@@ -49,7 +59,9 @@ export function AppTopbar() {
 
   return (
     <header className="sticky top-0 z-10 flex h-[72px] items-center gap-2.5 border-b border-border bg-bg/90 px-4 backdrop-blur md:gap-3 md:px-8">
-      {/* 모바일: 사이드바 대신 브랜드 표시 */}
+      {/* 모바일: 햄버거로 사이드바 드로어를 연다 (데스크톱은 사이드바가 상시 노출) */}
+      <MobileNav usage={usage} account={account} isAdmin={isAdmin} />
+      {/* 모바일: 브랜드 */}
       <Link href="/" className="flex shrink-0 items-center gap-2 font-bold lg:hidden">
         <span
           aria-hidden

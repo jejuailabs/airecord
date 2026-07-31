@@ -33,21 +33,24 @@ export interface SidebarAccount {
   role: string;
 }
 
-/**
- * 좌측 사이드바 — 테마와 무관하게 항상 딥 네이비(시안).
- * 하단에 사용량 카드와 계정 카드를 둔다.
- * 준비 안 된 메뉴는 숨기지 않고 '준비 중'으로 표시한다 (core.md §6).
- */
-export function AppSidebar({
-  usage,
-  account,
-  isAdmin = false,
-}: {
+interface ShellProps {
   usage?: SidebarUsage;
   account?: SidebarAccount;
   /** 운영자에게만 콘솔 진입점을 그린다 — 일반 유저에게는 메뉴 자체가 없다 */
   isAdmin?: boolean;
-}) {
+}
+
+/**
+ * 사이드바 알맹이 — 브랜드 + 메뉴 + 사용량/계정 카드.
+ * 데스크톱 `<aside>`(AppSidebar)와 모바일 드로어(MobileNav)가 **같은 것**을 렌더한다.
+ * 두 벌로 두면 한쪽만 고쳐졌을 때 메뉴가 어긋난다.
+ */
+export function SidebarBody({
+  usage,
+  account,
+  isAdmin = false,
+  onNavigate,
+}: ShellProps & { onNavigate?: () => void }) {
   const t = useTranslations('common');
   const pathname = usePathname();
 
@@ -76,9 +79,10 @@ export function AppSidebar({
   const remaining = Math.max(0, total - used);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-white/5 bg-caption-bg lg:flex xl:w-72">
+    <>
       <Link
         href="/"
+        onClick={onNavigate}
         className="flex h-[72px] items-center gap-2.5 px-6 text-[19px] font-bold tracking-tight text-caption-target"
       >
         <span
@@ -127,6 +131,7 @@ export function AppSidebar({
               icon={<Icon size={19} />}
               label={item.label}
               active={active}
+              onNavigate={onNavigate}
             />
           );
         })}
@@ -196,6 +201,18 @@ export function AppSidebar({
           <ChevronDown size={15} aria-hidden className="shrink-0 text-caption-source" />
         </div>
       ) : null}
+    </>
+  );
+}
+
+/**
+ * 좌측 사이드바 (데스크톱) — 테마와 무관하게 항상 딥 네이비(시안).
+ * 좁은 화면에서는 숨고, 대신 상단바의 햄버거(MobileNav)가 같은 알맹이를 드로어로 연다.
+ */
+export function AppSidebar({ usage, account, isAdmin = false }: ShellProps) {
+  return (
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-white/5 bg-caption-bg lg:flex xl:w-72">
+      <SidebarBody usage={usage} account={account} isAdmin={isAdmin} />
     </aside>
   );
 }
