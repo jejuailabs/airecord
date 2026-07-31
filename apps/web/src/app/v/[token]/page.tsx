@@ -1,20 +1,20 @@
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
-import { Radio } from 'lucide-react';
+import { LiveCaptions } from '@/components/viewer/LiveCaptions';
 
 /**
  * 자막 뷰어 (docs/06 §2.4) — 회의 참가자가 링크만으로 들어와 자막을 보는 공개 화면.
  * 로그인 유도 없음. 뷰어 UI 언어는 Accept-Language로 판단한다 (docs/06 §1).
  *
- * Phase 4에서 Firestore onSnapshot 구독(sessions/{id}/segments)이 붙는다.
- * 지금은 구조와 고지 배너만 있다 — 빈 상태가 다음 단계를 정직하게 안내한다.
+ * 자막은 /api/viewer/{token} 폴링으로 받는다. 클라이언트에 DB 접근권을 주지 않는다 —
+ * 토큰 만료·폐기 검증을 서버에서만 하기 위해서다(lib/server/viewer.ts 주석 참고).
  */
 export default async function ViewerPage({
   params,
 }: {
   params: Promise<{ token: string }>;
 }) {
-  await params; // token은 Phase 4에서 viewerTokens/{token} 검증에 쓴다
+  const { token } = await params;
   const acceptLanguage = (await headers()).get('accept-language') ?? '';
   const locale = acceptLanguage.toLowerCase().startsWith('ko') ? 'ko' : 'en';
   const t = await getTranslations({ locale, namespace: 'viewer' });
@@ -30,11 +30,14 @@ export default async function ViewerPage({
       </header>
 
       <main className="flex flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg bg-caption-bg p-8 text-center">
-          <Radio size={28} aria-hidden className="text-caption-source" />
-          <p className="text-[20px] font-semibold text-caption-target">{t('notReady.title')}</p>
-          <p className="max-w-md text-[15px] text-caption-source">{t('notReady.hint')}</p>
-        </div>
+        <LiveCaptions
+          token={token}
+          labels={{
+            waiting: t('waiting'),
+            ended: t('ended'),
+            invalid: t('invalidLink'),
+          }}
+        />
       </main>
 
       {/* 첫 진입 고지 배너 (docs/08 §2.2) */}

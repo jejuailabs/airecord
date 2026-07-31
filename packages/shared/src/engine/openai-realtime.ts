@@ -18,6 +18,7 @@ import type {
   EngineError,
 } from './types';
 import { createSegmentAssembler } from './segment-assembler';
+import { base64FromBytes } from './audio';
 import { TRANSLATE_TARGET_LANGS } from '../constants';
 import type { LangCode, SourceLangSetting } from '../types';
 
@@ -170,7 +171,8 @@ async function openServerSession(opts: OpenOpts): Promise<TranslationSession> {
     model: modelName(),
     pushAudio(chunk) {
       if (ws.readyState !== WebSocket.OPEN) return;
-      const b64 = btoa(String.fromCharCode(...new Uint8Array(chunk)));
+      // ⚠ 전개(spread)로 base64를 만들면 큰 청크에서 스택이 넘친다 — audio.ts 참고
+      const b64 = base64FromBytes(new Uint8Array(chunk));
       // ⚠ 번역 엔드포인트는 클라이언트 이벤트에 session. 접두사가 붙는다 (실측 확인).
       // 접두사 없이 보내면 서버가 invalid_value로 거부하고 오디오가 전달되지 않는다.
       ws.send(JSON.stringify({ type: 'session.input_audio_buffer.append', audio: b64 }));

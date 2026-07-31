@@ -34,6 +34,16 @@ export interface LiveSessionRecord {
   endedReason?: 'user' | 'cap' | 'error' | 'orphaned';
 }
 
+/**
+ * 봇 id를 세션에 붙인다 (모드 A).
+ *
+ * ⚠ 반드시 저장해야 한다. Recall 웹훅은 botId만 주고 sessionId를 주지 않으므로,
+ *   이 값이 없으면 워커가 어느 세션의 상태인지 찾을 수 없고 화면은 영원히 "입장 중"에 멈춘다.
+ */
+export async function attachBotId(sessionId: string, botId: string): Promise<void> {
+  await liveRef(sessionId).set({ botId }, { merge: true });
+}
+
 /** 진행 중 세션의 제어 상태. 유저에게 보여주는 sessions/{id} 문서와 별개다. */
 const LIVE_COL = 'liveSessions';
 
@@ -87,6 +97,12 @@ export interface CreateSessionInput {
   uid?: string;
   workspaceId?: string;
   title?: string;
+  /**
+   * 회의 자막 공개 링크용 토큰 (모드 A).
+   * 이걸 넘기면 viewerTokens/{token} 문서를 함께 만든다 — 로그인 없이 자막을 읽는 유일한 열쇠다.
+   */
+  viewerToken?: string;
+  viewerTokenTtlSec?: number;
 }
 
 export async function createSession(input: CreateSessionInput): Promise<LiveSessionRecord> {
@@ -108,6 +124,24 @@ export async function createSession(input: CreateSessionInput): Promise<LiveSess
 
   // ⚠ 이 쓰기는 반드시 기다린다. 여기서 안 기다리면 첫 하트비트가 세션을 못 찾는다.
   await persist(record);
+
+  /**
+   * 뷰어 토큰도 반드시 기다린다.
+   * 봇이 회의 채팅에 링크를 먼저 게시하는데 토큰 문서가 아직 없으면
+   * 제일 먼저 누른 참가자가 "없는 링크"를 본다.
+   */
+  if (input.viewerToken) {
+    const ttl = input.viewerTokenTtlSec ?? input.maxDurationSec + 3600;
+    await adminDb()
+      .collection('viewerTokens')
+      .doc(input.viewerToken)
+      .set({
+        sessionId: record.id,
+        createdAt: FieldValue.serverTimestamp(),
+        expiresAtMs: now + ttl * 1000,
+        revoked: false,
+      });
+  }
 
   // 로그인 세션만 유저에게 보이는 기록으로 남긴다 (비회원 체험은 저장하지 않는다)
   if (input.uid) {

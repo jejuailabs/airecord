@@ -9,6 +9,7 @@ import {
   CreditCard,
   Settings,
   HelpCircle,
+  ShieldCheck,
   ChevronDown,
   Type,
   FileText,
@@ -36,7 +37,16 @@ export interface SidebarAccount {
  * 하단에 사용량 카드와 계정 카드를 둔다.
  * 준비 안 된 메뉴는 숨기지 않고 '준비 중'으로 표시한다 (core.md §6).
  */
-export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?: SidebarAccount }) {
+export function AppSidebar({
+  usage,
+  account,
+  isAdmin = false,
+}: {
+  usage?: SidebarUsage;
+  account?: SidebarAccount;
+  /** 운영자에게만 콘솔 진입점을 그린다 — 일반 유저에게는 메뉴 자체가 없다 */
+  isAdmin?: boolean;
+}) {
   const t = useTranslations('common');
   const pathname = usePathname();
 
@@ -51,6 +61,10 @@ export function AppSidebar({ usage, account }: { usage?: SidebarUsage; account?:
     { href: '/#pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
     { href: '/settings', icon: Settings, label: t('nav.settings'), ready: false },
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
+    // 운영 콘솔은 관리자에게만. '준비 중'으로도 노출하지 않는다 (존재를 알리지 않는다)
+    ...(isAdmin
+      ? [{ href: '/admin', icon: ShieldCheck, label: '운영 콘솔', ready: true }]
+      : []),
   ] as const;
 
   const used = usage?.usedMinutes ?? 0;

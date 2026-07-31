@@ -1,21 +1,8 @@
 /**
- * Vercel ↔ Worker 요청 서명 (docs/01 §3.2 — Vercel이 발급한 서명 토큰만 신뢰).
- * sig = HMAC-SHA256(WORKER_SHARED_SECRET, sessionId) hex.
+ * Vercel ↔ Worker 요청 서명.
+ *
+ * ⚠ 구현은 packages/shared/src/meeting/relay-auth.ts 하나뿐이다.
+ *   예전에는 여기에 같은 HMAC을 따로 두었는데, 한쪽만 고쳐지면
+ *   봇이 붙자마자 401로 끊기고 로그만 보면 원인이 안 보인다.
  */
-import { createHmac, timingSafeEqual } from 'node:crypto';
-
-export function signRelay(sessionId: string, secret = process.env.WORKER_SHARED_SECRET): string {
-  if (!secret) throw new Error('WORKER_SHARED_SECRET is not set');
-  return createHmac('sha256', secret).update(sessionId).digest('hex');
-}
-
-export function verifyRelaySignature(sessionId: string, sig: string): boolean {
-  try {
-    const expected = signRelay(sessionId);
-    const a = Buffer.from(expected, 'hex');
-    const b = Buffer.from(sig, 'hex');
-    return a.length === b.length && timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
-}
+export { signRelay, verifyRelaySignature, relayWsUrl } from '@sotong/shared/meeting/relay-auth';

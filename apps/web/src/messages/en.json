@@ -419,6 +419,25 @@
       "title": "Meeting mode opens in Phase 4",
       "body": "The structure (bot join → server relay → caption link) is in place. Once RECALL_API_KEY and the Realtime Worker are connected, this screen goes live.",
       "docs": "See docs/01 §4.2 · docs/04 §4"
+    },
+    "live": {
+      "title": "The bot has joined the meeting",
+      "hint": "The caption link is also posted in the meeting chat. Participants open it without signing in.",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "open": "Open captions",
+      "stop": "End interpretation (remove bot)",
+      "stopping": "Ending…"
+    },
+    "failed": {
+      "title": "Could not send the bot",
+      "auth_required": "Sign-in required.",
+      "quota_exhausted": "No interpretation minutes left.",
+      "unsupported_platform": "Unsupported meeting URL.",
+      "unsupported_pair": "Unsupported language pair.",
+      "bot_create_failed": "The meeting bot was rejected. Check the meeting URL and waiting-room settings.",
+      "network": "Connection failed.",
+      "join_failed": "Unknown error."
     }
   },
   "translateText": {
@@ -564,14 +583,13 @@
   "viewer": {
     "consentNotice": "This conversation is recorded for interpretation.",
     "dismiss": "Dismiss",
-    "waiting": {
-      "title": "Waiting for the caption stream",
-      "hint": "Captions appear in real time once the session starts. Anyone in the meeting can open this link."
-    },
+    "waiting": "Waiting for the interpretation to start…",
     "notReady": {
       "title": "The viewer opens with meeting mode (Phase 4)",
       "hint": "Once the Firestore live subscription is wired up, this screen shows captions."
-    }
+    },
+    "ended": "The meeting has ended.",
+    "invalidLink": "This link is no longer available."
   },
   "notFound": {
     "title": "Page not found",

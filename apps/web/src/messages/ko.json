@@ -419,6 +419,25 @@
       "title": "화상회의 모드는 Phase 4에서 열립니다",
       "body": "구조(봇 입장 → 서버 릴레이 → 자막 링크)는 준비되어 있습니다. RECALL_API_KEY와 Realtime Worker 배포가 연결되면 이 화면에서 바로 시작됩니다.",
       "docs": "docs/01 §4.2 · docs/04 §4 참조"
+    },
+    "live": {
+      "title": "봇이 회의에 들어갔습니다",
+      "hint": "자막 링크는 회의 채팅에도 자동으로 게시됩니다. 참가자는 로그인 없이 이 링크로 봅니다.",
+      "copy": "링크 복사",
+      "copied": "복사됨",
+      "open": "자막 열기",
+      "stop": "통역 종료 (봇 내보내기)",
+      "stopping": "종료 중…"
+    },
+    "failed": {
+      "title": "봇을 보내지 못했습니다",
+      "auth_required": "로그인이 필요합니다.",
+      "quota_exhausted": "남은 통역 시간이 없습니다.",
+      "unsupported_platform": "지원하지 않는 회의 주소입니다.",
+      "unsupported_pair": "지원하지 않는 언어 조합입니다.",
+      "bot_create_failed": "회의 봇 생성이 거부되었습니다. 회의 주소와 대기실 설정을 확인해 주세요.",
+      "network": "연결에 실패했습니다.",
+      "join_failed": "알 수 없는 오류입니다."
     }
   },
   "translateText": {
@@ -564,14 +583,13 @@
   "viewer": {
     "consentNotice": "이 대화는 통역을 위해 기록됩니다.",
     "dismiss": "닫기",
-    "waiting": {
-      "title": "자막 스트림 대기 중",
-      "hint": "세션이 시작되면 자막이 실시간으로 표시됩니다. 이 링크는 회의 참가자 누구나 열 수 있습니다."
-    },
+    "waiting": "통역을 기다리는 중입니다…",
     "notReady": {
       "title": "뷰어는 화상회의 모드(Phase 4)와 함께 열립니다",
       "hint": "Firestore 실시간 구독이 연결되면 이 화면이 자막을 표시합니다."
-    }
+    },
+    "ended": "회의가 끝났습니다.",
+    "invalidLink": "이 링크는 더 이상 사용할 수 없습니다."
   },
   "notFound": {
     "title": "페이지를 찾을 수 없습니다",

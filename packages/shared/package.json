@@ -13,7 +13,9 @@
     "./translate/vision": "./src/translate/vision.ts",
     "./translate/align": "./src/translate/align.ts",
     "./engine/browser": "./src/engine/browser-webrtc.ts",
-    "./pricing": "./src/pricing/cost.ts"
+    "./pricing": "./src/pricing/cost.ts",
+    "./meeting/relay-auth": "./src/meeting/relay-auth.ts",
+    "./meeting/recall": "./src/meeting/recall.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -11,7 +11,7 @@ async function loadShellData(
   uid: string,
   fallbackName: string,
   email?: string | null,
-): Promise<{ usage: SidebarUsage; account: SidebarAccount }> {
+): Promise<{ usage: SidebarUsage; account: SidebarAccount; isAdmin: boolean }> {
   const free = getPlan('free');
   const usage: SidebarUsage = {
     usedMinutes: 0,
@@ -27,17 +27,18 @@ async function loadShellData(
       usage: {
         usedMinutes: ent.usedMinutes,
         includedMinutes: ent.includedMinutes,
-        // 운영자는 한도가 없다 — 41/30 같은 이상한 표시가 나오지 않게 한다
-        unlimited: ent.isAdmin,
+        // 운영자·무제한은 한도가 없다 — 41/30 같은 이상한 표시가 나오지 않게 한다
+        unlimited: ent.isAdmin || ent.unlimited,
         daily: getPlan(ent.plan)?.cycle === 'daily',
       },
       account: {
         name: ent.workspaceName || fallbackName,
         role: ent.isAdmin ? 'admin' : ent.isOwner ? 'owner' : 'member',
       },
+      isAdmin: ent.isAdmin,
     };
   } catch {
-    return { usage, account };
+    return { usage, account, isAdmin: false };
   }
 }
 
@@ -60,7 +61,7 @@ export default async function AppGroupLayout({
     return null;
   }
 
-  const { usage, account } = await loadShellData(
+  const { usage, account, isAdmin } = await loadShellData(
     user.uid,
     user.name ?? user.email ?? 'InterLive',
     user.email,
@@ -68,7 +69,7 @@ export default async function AppGroupLayout({
 
   return (
     <div className="flex min-h-screen">
-      <AppSidebar usage={usage} account={account} />
+      <AppSidebar usage={usage} account={account} isAdmin={isAdmin} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppTopbar />
         <main className="w-full flex-1 px-5 py-7 md:px-8">{children}</main>

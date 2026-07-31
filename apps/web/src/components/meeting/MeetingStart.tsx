@@ -28,7 +28,11 @@ const PLATFORM_NAMES: Record<string, string> = {
 /**
  * 모드 A 시작 화면 (docs/06 §2.1).
  * 붙여넣는 즉시 플랫폼을 판별한다. "다음" 단계가 없다.
- * Phase 4에서 /api/meeting/join이 봇을 실제로 보낸다 — 지금은 준비 상태를 정직하게 보여준다.
+ * "봇 보내기"를 누르면 /api/meeting/join이 실제로 Recall.ai 봇을 만들어 회의에 넣고,
+ * 봇이 회의 채팅에 자막 링크를 1회 게시한다.
+ *
+ * ⚠ 인프라 키(RECALL_API_KEY·WORKER_BASE_URL·WORKER_SHARED_SECRET)가 없으면 503이 온다.
+ *   그때는 무엇이 비었는지 그대로 보여준다 — "안 됩니다"만 띄우면 원인을 찾을 수 없다.
  */
 export function MeetingStart() {
   const t = useTranslations('meeting');
@@ -36,6 +40,13 @@ export function MeetingStart() {
   const [sourceLang, setSourceLang] = useState<SourceLangSetting>('auto');
   const [targetLang, setTargetLang] = useState<LangCode>('en');
   const [result, setResult] = useState<'unavailable' | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  /** 봇이 회의에 들어간 뒤 — 자막 링크와 종료 버튼을 든다 */
+  const [live, setLive] = useState<{ sessionId: string; botId: string; viewerUrl: string } | null>(
+    null,
+  );
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const platform = useMemo(() => (url ? detectMeetingPlatform(url) : null), [url]);
@@ -52,17 +63,72 @@ export function MeetingStart() {
 
   const send = async () => {
     setBusy(true);
+    setError(null);
+    setResult(null);
     try {
       const res = await fetch('/api/meeting/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, sourceLang, targetLang }),
       });
-      if (res.status === 501) setResult('unavailable');
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        missing?: string[];
+        sessionId?: string;
+        botId?: string;
+        viewerUrl?: string;
+      };
+      if (res.ok && body.sessionId && body.botId && body.viewerUrl) {
+        setLive({ sessionId: body.sessionId, botId: body.botId, viewerUrl: body.viewerUrl });
+        return;
+      }
+      // 인프라 미설정은 "무엇이 비었는지"까지 보여준다 — 그게 다음 행동을 정한다
+      if (body.error === 'infra_not_configured') {
+        setMissing(body.missing ?? []);
+        setResult('unavailable');
+        return;
+      }
+      setError(body.error ?? 'join_failed');
+    } catch {
+      setError('network');
     } finally {
       setBusy(false);
     }
   };
+
+  /** 봇을 내보낸다. 안 내보내면 회의에 계속 앉아 초당 과금된다 (docs/07 §1.2) */
+  const stop = async () => {
+    if (!live) return;
+    setBusy(true);
+    try {
+      await fetch('/api/meeting/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: live.sessionId, botId: live.botId }),
+      });
+      setLive(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * 실패 사유 문구.
+   * ⚠ t()에 서버가 준 문자열을 그대로 넣으면 없는 키에서 예외가 난다 —
+   *   아는 사유만 번역하고 나머지는 하나로 모은다.
+   */
+  const FAILED_KEYS = [
+    'auth_required',
+    'quota_exhausted',
+    'unsupported_platform',
+    'unsupported_pair',
+    'bot_create_failed',
+    'network',
+  ] as const;
+  const failedText = (code: string) =>
+    (FAILED_KEYS as readonly string[]).includes(code)
+      ? t(`failed.${code}` as 'failed.network')
+      : t('failed.join_failed');
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-2">
@@ -222,12 +288,71 @@ export function MeetingStart() {
         </p>
       </div>
 
+      {live ? (
+        <section className="flex flex-col gap-4 rounded-xl border border-accent bg-accent-weak/20 p-6">
+          <div>
+            <p className="text-[17px] font-semibold">{t('live.title')}</p>
+            <p className="mt-1 text-[14px] text-text-muted">{t('live.hint')}</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              readOnly
+              value={live.viewerUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              className="h-12 min-w-0 flex-1 rounded-lg border border-border bg-bg-raised px-3 text-[14px]"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(live.viewerUrl).then(() => {
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+              className="h-12 shrink-0 rounded-lg border border-border px-4 text-[14px] font-semibold"
+            >
+              {copied ? t('live.copied') : t('live.copy')}
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <a
+              href={live.viewerUrl}
+              target="_blank"
+              rel="noopener"
+              className="flex h-12 flex-1 items-center justify-center rounded-lg border border-border text-[15px] font-semibold"
+            >
+              {t('live.open')}
+            </a>
+            <button
+              onClick={stop}
+              disabled={busy}
+              className="h-12 flex-1 rounded-lg bg-warn/15 text-[15px] font-bold text-warn disabled:opacity-60"
+            >
+              {busy ? t('live.stopping') : t('live.stop')}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {error ? (
+        <div className="flex gap-4 rounded-xl border border-warn/40 bg-warn/10 p-5">
+          <Info size={20} aria-hidden className="mt-0.5 shrink-0 text-warn" />
+          <div>
+            <p className="text-[15px] font-semibold">{t('failed.title')}</p>
+            <p className="mt-1 text-[14px] text-text-muted">{failedText(error)}</p>
+          </div>
+        </div>
+      ) : null}
+
       {result === 'unavailable' ? (
         <div className="flex gap-4 rounded-xl border border-border bg-bg-raised p-6">
           <Info size={20} aria-hidden className="mt-0.5 shrink-0 text-text-muted" />
           <div>
             <p className="text-[16px] font-semibold">{t('unavailable.title')}</p>
             <p className="mt-1.5 text-[14.5px] text-text-muted">{t('unavailable.body')}</p>
+            {missing.length > 0 ? (
+              <p className="mt-2 font-mono text-[13px] text-warn">{missing.join(' · ')}</p>
+            ) : null}
             <p className="mt-2 text-[13px] text-text-faint">{t('unavailable.docs')}</p>
           </div>
         </div>

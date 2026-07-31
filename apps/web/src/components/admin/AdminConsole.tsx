@@ -1,0 +1,311 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Activity,
+  AlertTriangle,
+  Building2,
+  Clock,
+  Infinity as InfinityIcon,
+  Loader2,
+  Radio,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import type { AdminOverview, AdminUserRow } from '@/lib/server/admin-query';
+
+/**
+ * 운영 콘솔 (docs/06 §2.6).
+ *
+ * 원가·마진은 유저에게 보여주지 않는다 — 여기가 그걸 보는 유일한 화면이다 (docs/06 §3).
+ *
+ * 무제한 토글은 **슈퍼관리자만** 보인다. 일반 관리자에게는 아예 그리지 않는다 —
+ * 눌렀다가 403을 보는 것보다, 없는 게 낫다.
+ */
+const fmt = (n: number) => n.toLocaleString('ko-KR');
+
+function Stat({
+  icon,
+  label,
+  value,
+  sub,
+  warn,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  warn?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-1.5 rounded-xl border p-4 ${
+        warn ? 'border-warn/40 bg-warn/10' : 'border-border bg-bg-raised'
+      }`}
+    >
+      <span className="flex items-center gap-1.5 text-[12.5px] font-semibold uppercase tracking-wide text-text-muted">
+        <span aria-hidden className={warn ? 'text-warn' : 'text-accent'}>
+          {icon}
+        </span>
+        {label}
+      </span>
+      <span className="tabular text-[26px] font-bold leading-none">{value}</span>
+      {sub ? <span className="text-[12.5px] text-text-faint">{sub}</span> : null}
+    </div>
+  );
+}
+
+/** 일별 추이 — 라이브러리 없이 막대만. 여기서 필요한 건 추세 하나다. */
+function DailyBars({ daily }: { daily: AdminOverview['daily'] }) {
+  const max = Math.max(1, ...daily.map((d) => d.minutes));
+  return (
+    <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-4">
+      <span className="text-[12.5px] font-semibold uppercase tracking-wide text-text-muted">
+        일별 통역 시간 (최근 14일)
+      </span>
+      <div className="flex h-28 items-end gap-1">
+        {daily.map((d) => (
+          <div key={d.day} className="group relative flex flex-1 flex-col justify-end">
+            <div
+              className="rounded-t bg-accent/70 transition-colors group-hover:bg-accent"
+              style={{ height: `${Math.max(2, (d.minutes / max) * 100)}%` }}
+            />
+            <span className="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-bg-sunken px-1.5 py-0.5 text-[11px] group-hover:block">
+              {d.day.slice(5)} · {fmt(d.minutes)}분
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AdminConsole() {
+  const [data, setData] = useState<{
+    overview: AdminOverview;
+    users: AdminUserRow[];
+    isSuper: boolean;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/overview', { cache: 'no-store' });
+      if (!res.ok) {
+        setError(res.status === 404 ? 'no_access' : 'load_failed');
+        return;
+      }
+      setData((await res.json()) as never);
+      setError(null);
+    } catch {
+      setError('load_failed');
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  /** 무제한 토글 — 응답을 받고 나서야 목록을 새로 읽는다(낙관적 갱신 금지, 돈이 걸린 값이다) */
+  const setFlag = async (uid: string, patch: { unlimited?: boolean; overageEnabled?: boolean }) => {
+    setBusyUid(uid);
+    try {
+      const res = await fetch(`/api/admin/users/${uid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(b.error ?? 'update_failed');
+        return;
+      }
+      await load();
+    } finally {
+      setBusyUid(null);
+    }
+  };
+
+  if (error === 'no_access') {
+    return <p className="py-20 text-center text-text-muted">접근 권한이 없습니다.</p>;
+  }
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-20 text-text-muted">
+        <Loader2 size={18} className="animate-spin" aria-hidden />
+        불러오는 중…
+      </div>
+    );
+  }
+
+  const o = data.overview;
+  const rows = q.trim()
+    ? data.users.filter((u) =>
+        `${u.email ?? ''} ${u.name ?? ''} ${u.workspaceName ?? ''}`
+          .toLowerCase()
+          .includes(q.trim().toLowerCase()),
+      )
+    : data.users;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tight">운영 콘솔</h1>
+          <p className="mt-0.5 text-[14px] text-text-muted">
+            {data.isSuper ? '슈퍼관리자' : '관리자 (열람 전용)'}
+          </p>
+        </div>
+        <button
+          onClick={() => void load()}
+          className="h-10 rounded-lg border border-border px-4 text-[14px] font-semibold text-text-muted hover:text-text"
+        >
+          새로고침
+        </button>
+      </div>
+
+      {error && error !== 'no_access' ? (
+        <div className="flex items-center gap-2 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-[14px]">
+          <AlertTriangle size={16} aria-hidden className="text-warn" />
+          {error === 'super_admin_required'
+            ? '무제한 설정은 슈퍼관리자만 변경할 수 있습니다.'
+            : '요청이 실패했습니다.'}
+        </div>
+      ) : null}
+
+      {/* 지표 */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat icon={<Users size={14} />} label="회원" value={fmt(o.users)} sub={`워크스페이스 ${fmt(o.workspaces)}`} />
+        <Stat
+          icon={<Clock size={14} />}
+          label="누적 통역"
+          value={`${fmt(o.billedMinutes)}분`}
+          sub={`최근 30일 ${fmt(o.billedMinutes30d)}분`}
+        />
+        <Stat
+          icon={<Activity size={14} />}
+          label="세션"
+          value={fmt(o.sessions.total)}
+          sub={`대면 ${fmt(o.sessions.inperson)} · 회의 ${fmt(o.sessions.meeting)}`}
+        />
+        <Stat
+          icon={<Radio size={14} />}
+          label="진행 중"
+          value={fmt(o.liveSessions)}
+          sub={o.liveSessions > 0 ? '지금 과금되는 중' : '없음'}
+          warn={o.liveSessions > 0}
+        />
+        <Stat
+          icon={<Wallet size={14} />}
+          label="누적 추정 원가"
+          value={o.estCostKrw > 0 ? `₩${fmt(o.estCostKrw)}` : '미설정'}
+          sub={o.estCostKrw > 0 ? 'docs/07 단가 기준' : '원가 환경변수 없음'}
+        />
+        <Stat
+          icon={<InfinityIcon size={14} />}
+          label="무제한 계정"
+          value={fmt(o.unlimitedWorkspaces)}
+          sub={o.unlimitedWorkspaces > 0 ? '한도 없이 사용 중' : '없음'}
+          warn={o.unlimitedWorkspaces > 0}
+        />
+        <div className="col-span-2">
+          <DailyBars daily={o.daily} />
+        </div>
+      </div>
+
+      {/* 회원 */}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-[18px] font-semibold">
+            <Building2 size={17} aria-hidden className="text-accent" />
+            회원 {fmt(rows.length)}
+            {rows.length !== data.users.length ? (
+              <span className="text-[14px] font-normal text-text-faint">/ {fmt(data.users.length)}</span>
+            ) : null}
+          </h2>
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="이메일·이름 검색"
+            className="h-10 w-full rounded-lg border border-border bg-bg-raised px-3 text-[14px] sm:w-64"
+          />
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-border bg-bg-raised">
+          <table className="w-full min-w-[720px] text-[14px]">
+            <thead>
+              <tr className="border-b border-border text-left text-[12px] uppercase tracking-wide text-text-muted">
+                <th className="px-4 py-3 font-semibold">회원</th>
+                <th className="px-4 py-3 font-semibold">플랜</th>
+                <th className="px-4 py-3 font-semibold">사용량</th>
+                <th className="px-4 py-3 font-semibold">가입</th>
+                <th className="px-4 py-3 text-right font-semibold">무제한</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((u) => (
+                <tr key={u.uid} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3">
+                    <div className="font-semibold">{u.email ?? u.uid}</div>
+                    <div className="text-[12.5px] text-text-faint">
+                      {u.name ?? '—'}
+                      {u.role === 'admin' ? (
+                        <span className="ml-2 rounded-sm bg-accent-weak px-1.5 py-0.5 text-[11px] font-semibold text-accent">
+                          관리자
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.plan}
+                    {u.overageEnabled ? (
+                      <span className="ml-2 text-[12px] text-text-faint">초과허용</span>
+                    ) : null}
+                  </td>
+                  <td className="tabular px-4 py-3">
+                    {u.unlimited ? (
+                      <span className="text-accent">{fmt(u.usedMinutes)}분 / 무제한</span>
+                    ) : (
+                      <span className={u.usedMinutes >= u.includedMinutes ? 'text-warn' : ''}>
+                        {fmt(u.usedMinutes)} / {fmt(u.includedMinutes)}분
+                      </span>
+                    )}
+                  </td>
+                  <td className="tabular px-4 py-3 text-text-faint">
+                    {u.createdAtMs ? new Date(u.createdAtMs).toLocaleDateString('ko-KR') : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {data.isSuper ? (
+                      <button
+                        onClick={() => void setFlag(u.uid, { unlimited: !u.unlimited })}
+                        disabled={busyUid === u.uid}
+                        className={`h-9 rounded-lg px-3 text-[13px] font-bold disabled:opacity-60 ${
+                          u.unlimited
+                            ? 'bg-accent text-white'
+                            : 'border border-border text-text-muted hover:text-text'
+                        }`}
+                      >
+                        {busyUid === u.uid ? '…' : u.unlimited ? '해제' : '부여'}
+                      </button>
+                    ) : (
+                      <span className="text-[13px] text-text-faint">{u.unlimited ? '켜짐' : '—'}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-text-muted">
+                    해당하는 회원이 없습니다.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

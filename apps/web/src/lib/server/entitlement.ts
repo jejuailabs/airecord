@@ -27,6 +27,13 @@ export interface Entitlement {
   remainingMinutes: number;
   /** 포함 분 소진 후 초과 사용 허용 여부 */
   overageEnabled: boolean;
+  /**
+   * 운영자가 부여한 무제한 사용.
+   *
+   * overageEnabled와 다르다 — 저건 "초과분을 청구한다"이고 이건 "한도를 안 본다"이다.
+   * 둘을 한 필드로 합치면 나중에 청구서를 만들 때 누가 공짜였는지 구분할 수 없다.
+   */
+  unlimited: boolean;
   /** 지금 세션을 열 수 있는가 */
   canStart: boolean;
 }
@@ -68,6 +75,7 @@ export const getEntitlement = cache(async function getEntitlement(
     usedMinutes: 0,
     remainingMinutes: admin ? Number.POSITIVE_INFINITY : (free?.includedMinutes ?? 10),
     overageEnabled: false,
+    unlimited: false,
     canStart: true,
   };
 
@@ -96,12 +104,15 @@ export const getEntitlement = cache(async function getEntitlement(
           includedMinutes?: number;
           usedMinutes?: number;
           overageEnabled?: boolean;
+          unlimited?: boolean;
           cycleKey?: string;
         }
       | undefined;
 
     const includedMinutes = planDef?.includedMinutes ?? billing?.includedMinutes ?? 10;
     const overageEnabled = Boolean(billing?.overageEnabled);
+    // 운영자가 켜 준 무제한 — 한도 계산 자체를 건너뛴다
+    const unlimited = Boolean(billing?.unlimited);
 
     /**
      * 주기가 바뀌었으면 사용량을 되돌린다.
@@ -126,9 +137,10 @@ export const getEntitlement = cache(async function getEntitlement(
         )
         .catch((e) => console.error('[entitlement] cycle reset failed', e));
     }
-    const remainingMinutes = isAdmin
-      ? Number.POSITIVE_INFINITY
-      : Math.max(0, includedMinutes - usedMinutes);
+    const remainingMinutes =
+      isAdmin || unlimited
+        ? Number.POSITIVE_INFINITY
+        : Math.max(0, includedMinutes - usedMinutes);
 
     return {
       uid,
@@ -140,9 +152,10 @@ export const getEntitlement = cache(async function getEntitlement(
       includedMinutes,
       usedMinutes,
       overageEnabled,
+      unlimited,
       remainingMinutes,
-      // 운영자이거나, 남은 분이 있거나, 초과 사용을 켠 경우에만 시작할 수 있다
-      canStart: isAdmin || remainingMinutes > 0 || overageEnabled,
+      // 운영자·무제한이거나, 남은 분이 있거나, 초과 사용을 켠 경우에만 시작할 수 있다
+      canStart: isAdmin || unlimited || remainingMinutes > 0 || overageEnabled,
     };
   } catch (e) {
     console.error('[entitlement] lookup failed', e);
@@ -155,6 +168,6 @@ export const getEntitlement = cache(async function getEntitlement(
  * 남은 분보다 긴 세션을 열면 한도를 넘겨 쓰게 된다 (docs/07 §5.1).
  */
 export function sessionCapSeconds(ent: Entitlement, baseCapSec: number): number {
-  if (ent.isAdmin || ent.overageEnabled) return baseCapSec;
+  if (ent.isAdmin || ent.unlimited || ent.overageEnabled) return baseCapSec;
   return Math.max(60, Math.min(baseCapSec, Math.floor(ent.remainingMinutes * 60)));
 }

@@ -22,6 +22,16 @@ export { createSegmentAssembler } from './segment-assembler';
 export { mintTranscriptionKey } from './openai-transcribe';
 export type { TranscriptionGrant } from './openai-transcribe';
 export { createDiagnostics, summarizeDiag, sourceProviderOf } from './diagnostics';
+export {
+  resamplePcm16,
+  pcm16FromBytes,
+  bytesFromPcm16,
+  base64FromBytes,
+  bytesFromBase64,
+  meetingAudioToEngine,
+  ENGINE_INPUT_RATE,
+  MEETING_BOT_RATE,
+} from './audio';
 export { unsavedRows, chunkForSave } from './save-queue';
 export type { SaveRow } from './save-queue';
 export { buildScript, scriptPlainText } from './script';
