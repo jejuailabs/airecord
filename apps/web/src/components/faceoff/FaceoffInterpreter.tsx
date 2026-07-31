@@ -14,30 +14,29 @@ import type { LangCode } from '@sotong/shared/types';
 /**
  * 마주통역 (모드 D) — 한 기기를 둘 사이에 두고 양방향 동시 통역.
  *
- * 핵심 구조 (다른 모드와 근본적으로 다른 점):
- *   · 세션이 **둘**이다. toB(langA→langB), toA(langB→langA). 같은 마이크를 둘 다에 물린다.
- *   · 각 세션은 들리는 모든 말을 자기 출력 언어로 번역한다. 그중 "같은 언어 통과분"은 버린다.
- *     예) toB(출력=영어)에 영어가 들어오면 영어→영어 통과 → 버림.
- *          toB에 한국어가 들어오면 한국어→영어 → 진짜 결과 → 영어 면에 표시.
- *   · 판정은 원문 글자의 문자 체계로 한다(guessScript). 한 면은 한국어, 한 면은 영어처럼
- *     문자가 다른 쌍에서 동작한다.
+ * 데이터 모델 (2026-08 재설계): 발화 하나 = 한 record.
+ *   { speaker: 'A'|'B', atMs, original(화자 말), translated(번역) }
+ *   이 하나가 셋을 동시에 푼다 —
+ *     · 라이브: 화자 쪽엔 원문, 듣는 쪽엔 번역 (심플)
+ *     · 타임스탬프: atMs = 세션 시작 이후 실제 경과 (예전엔 전부 0이었다)
+ *     · 종료 기록: 화자별 색·대화·필터 (기록에 speaker를 함께 저장)
  *
- * 화면은 정확히 반으로 갈리고, 한 면(A)은 180° 회전해 마주 앉은 사람이 정방향으로 본다.
+ * 세션 구조: 번역 세션 **둘**(toB=A→B, toA=B→A)을 같은 마이크에 물린다.
+ *   gpt-realtime-translate는 출력 언어가 세션당 하나라 양방향을 한 세션으로 못 낸다(실측).
+ *   각 세션이 원문(sourceText)과 번역(targetText)을 함께 주므로, 원문/번역이 이미 다 있다.
  *
- * ⚠ v1이다. 알려진 미해결 문제(개발 후 실측으로 다듬을 것):
- *   · 에코 폐루프 — 스피커로 나간 TTS가 마이크로 되들어와 반대 세션이 재번역할 수 있음.
- *   · 동시 발화 — 두 사람이 겹쳐 말하면 마이크 하나로는 분리 못 함.
- *   · TTS 충돌 — 두 방향 음성이 같은 스피커에서 겹칠 수 있음.
+ * ⚠ 화면 아래 절반이 폰을 든 내 쪽(langA, 정방향), 위 절반이 맞은편(langB, 180° 회전).
  */
 
 type Phase = 'setup' | 'starting' | 'live' | 'ending' | 'ended';
 
-/** 화면 한쪽에 쌓이는 줄 */
-interface Row {
-  seq: number;
-  text: string;
-  /** 원문(늦게 매칭될 수 있음) */
-  source?: string;
+/** 발화 하나 */
+interface Utterance {
+  id: number;
+  speaker: 'A' | 'B';
+  atMs: number;
+  original: string;
+  translated: string;
 }
 
 interface SideGrant {
@@ -65,10 +64,11 @@ interface StartResponse {
   toA: SideGrant;
 }
 
-const MAX_ROWS = 60;
+const MAX_KEEP = 200;
+const HEARTBEAT_MS = 5_000;
 const langOptions = INTERPRET_LANGUAGES.filter((l) => TRANSLATE_TARGET_LANGS.includes(l.code));
 
-/** 한 면(패널)의 실시간 자막 + 라우팅된 줄을 그린다 */
+/** 한 면(패널) — 큰 실시간 글 + 중앙 쪽에 대화 기록. 이 면 사람이 읽어야 할 텍스트만 그린다. */
 function Panel({
   flip,
   myLang,
@@ -76,29 +76,26 @@ function Panel({
   onExit,
   live,
   rows,
-  disabled,
 }: {
   flip: boolean;
   myLang: LangCode;
   onLangChange: (l: LangCode) => void;
   onExit: () => void;
-  /** 이 면 사람에게 지금 크게 보여줄 실시간 번역 (상대가 말하는 중) */
+  /** 지금 크게 보여줄 글 (내가 말하면 내 원문, 상대가 말하면 번역) */
   live: string;
-  rows: Row[];
-  disabled: boolean;
+  /** 이 면 관점의 대화 기록 (내 말=원문, 상대 말=번역) */
+  rows: Array<{ id: number; text: string; mine: boolean }>;
 }) {
   return (
     <section
       className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-caption-bg"
       style={flip ? { transform: 'rotate(180deg)' } : undefined}
     >
-      {/* 투명 오버레이 컨트롤 — 중앙 경계 쪽에 둔다 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-2 p-3">
         <select
           value={myLang}
           onChange={(e) => onLangChange(e.target.value as LangCode)}
-          disabled={disabled}
-          className="pointer-events-auto rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[14px] font-semibold text-white backdrop-blur disabled:opacity-50"
+          className="pointer-events-auto rounded-lg border border-white/20 bg-black/30 px-3 py-1.5 text-[14px] font-semibold text-white backdrop-blur"
           aria-label="이 면의 언어"
         >
           {langOptions.map((l) => (
@@ -116,19 +113,23 @@ function Panel({
         </button>
       </div>
 
-      {/* 늦게 매칭되어 쌓이는 기록 — 중앙 경계 쪽(위) */}
-      <div className="flex max-h-[38%] flex-col-reverse gap-2 overflow-y-auto px-5 pb-2 pt-16">
+      {/* 대화 기록 — 중앙 경계 쪽(위). 내 말은 흐리게, 상대 말(번역)은 진하게 */}
+      <div className="flex max-h-[40%] flex-col-reverse gap-1.5 overflow-y-auto px-5 pb-2 pt-16">
         {[...rows].reverse().map((r) => (
-          <div key={r.seq} className="shrink-0">
-            <p className="text-[15px] font-semibold leading-snug text-caption-target">{r.text}</p>
-            {r.source ? (
-              <p className="text-[12.5px] leading-snug text-caption-source">{r.source}</p>
-            ) : null}
-          </div>
+          <p
+            key={r.id}
+            className={`shrink-0 leading-snug ${
+              r.mine
+                ? 'text-[13px] text-caption-source'
+                : 'text-[15px] font-semibold text-caption-target'
+            }`}
+          >
+            {r.text}
+          </p>
         ))}
       </div>
 
-      {/* 실시간 번역 — 크게, 바깥쪽(사람이 보는 방향의 아래) */}
+      {/* 실시간 — 크게, 바깥쪽 */}
       <div className="flex flex-1 items-center justify-center px-6 py-4 text-center">
         <p className="text-[26px] font-bold leading-tight text-caption-target">
           {live || <span className="text-caption-source/50">…</span>}
@@ -144,18 +145,23 @@ export function FaceoffInterpreter() {
   const [langA, setLangA] = useState<LangCode>('ko');
   const [langB, setLangB] = useState<LangCode>('en');
 
-  const [rowsA, setRowsA] = useState<Row[]>([]); // langA 사람이 읽는 줄 (langB 발화의 번역)
-  const [rowsB, setRowsB] = useState<Row[]>([]);
+  const [utterances, setUtterances] = useState<Utterance[]>([]);
   const [liveA, setLiveA] = useState('');
   const [liveB, setLiveB] = useState('');
 
   const micRef = useRef<MediaStream | null>(null);
-  const sessToBRef = useRef<BrowserTranslationSession | null>(null); // langA→langB
-  const sessToARef = useRef<BrowserTranslationSession | null>(null); // langB→langA
+  const sessToBRef = useRef<BrowserTranslationSession | null>(null);
+  const sessToARef = useRef<BrowserTranslationSession | null>(null);
   const audioBRef = useRef<HTMLAudioElement | null>(null);
   const audioARef = useRef<HTMLAudioElement | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const endingRef = useRef(false);
+  const startedAtRef = useRef(0);
+  const idRef = useRef(1);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** 아직 서버에 못 보낸 확정 발화 (하트비트/종료가 비워 간다) */
+  const pendingRef = useRef<Map<number, Utterance>>(new Map());
+  const sentRef = useRef<Set<number>>(new Set());
   const langARef = useRef<LangCode>('ko');
   const langBRef = useRef<LangCode>('en');
   useEffect(() => {
@@ -166,39 +172,88 @@ export function FaceoffInterpreter() {
   }, [langB]);
 
   /**
-   * 세그먼트를 어느 면에 놓을지 판정한다.
-   *
-   * dir='toB' 세션은 langB로 번역한다 → langA 발화일 때만 진짜 결과다(langA→langB).
-   *   원문 문자가 langA의 문자와 다르면 "같은 언어 통과분"(langB→langB)이므로 버린다.
-   *
-   * 원문이 아직 안 와서 문자를 못 가릴 때는 **버리지 않고 통과**시킨다 —
-   * 늦게 오는 원문 때문에 진짜 번역을 놓치는 게 더 나쁘다.
+   * 세그먼트 → 발화.
+   * dir='toB' 세션은 langB 출력 → langA 발화일 때만 진짜(langA→langB). 반대 언어 통과분은 버린다.
+   * 판정: 원문 문자 체계가 그 화자 언어와 맞아야 한다. 원문이 아직 없으면 통과(늦게 오는 원문 때문에 놓치지 않게).
    */
   const pushSegment = useCallback((dir: 'toB' | 'toA', seg: EngineSegment) => {
-    const speakerLang = dir === 'toB' ? langARef.current : langBRef.current;
-    const speakerScript = scriptOfLang(speakerLang);
+    const speaker: 'A' | 'B' = dir === 'toB' ? 'A' : 'B';
+    const speakerLang = speaker === 'A' ? langARef.current : langBRef.current;
     const srcScript = guessScript(seg.sourceText);
-    if (srcScript && srcScript !== speakerScript) return; // 반대 언어 통과분 — 버린다
+    if (srcScript && srcScript !== scriptOfLang(speakerLang)) return; // 반대 언어 통과분
 
-    const text = seg.targetText.trim();
-    if (!text) return;
+    const translated = seg.targetText.trim();
+    const original = seg.sourceText.trim();
+    if (!translated) return;
 
-    const setLive = dir === 'toB' ? setLiveB : setLiveA;
-    const setRows = dir === 'toB' ? setRowsB : setRowsA;
-    setLive(text);
-    if (seg.isFinal) {
-      setRows((prev) => {
-        const idx = prev.findIndex((r) => r.seq === seg.seq);
-        const row: Row = { seq: seg.seq, text, source: seg.sourceText.trim() || undefined };
-        const next = idx >= 0 ? [...prev.slice(0, idx), row, ...prev.slice(idx + 1)] : [...prev, row];
-        return next.slice(-MAX_ROWS);
+    // 라이브: 화자 쪽엔 원문, 듣는 쪽엔 번역. (원문이 아직 없으면 번역으로 대신 채운다)
+    if (speaker === 'A') {
+      setLiveA(original || translated);
+      setLiveB(translated);
+    } else {
+      setLiveB(original || translated);
+      setLiveA(translated);
+    }
+
+    if (!seg.isFinal) return;
+
+    const u: Utterance = {
+      id: idRef.current++,
+      speaker,
+      atMs: Math.max(0, Date.now() - startedAtRef.current),
+      original,
+      translated,
+    };
+    setUtterances((prev) => [...prev, u].slice(-MAX_KEEP));
+    pendingRef.current.set(u.id, u);
+
+    // 화자 쪽 실시간 글은 잠시 뒤 비운다(다음 발화 전까지 마지막만 남긴다)
+    const clearSide = speaker === 'A' ? setLiveA : setLiveB;
+    const shown = original || translated;
+    setTimeout(() => clearSide((cur) => (cur === shown ? '' : cur)), 2500);
+  }, []);
+
+  /** 확정 발화를 세그먼트로 변환 (저장 형식) */
+  const toSegment = (u: Utterance) => ({
+    seq: u.id,
+    startMs: u.atMs,
+    endMs: u.atMs,
+    sourceText: u.original,
+    targetText: u.translated,
+    kind: 'paired' as const,
+    speaker: u.speaker,
+  });
+
+  /** 서버에 밀어 보낸다 (하트비트·종료 공용). 받았다고 확인된 것만 큐에서 뺀다. */
+  const flush = useCallback(async (final: boolean) => {
+    const sessionId = sessionIdRef.current;
+    if (!sessionId) return;
+    const rows = [...pendingRef.current.values()].sort((a, b) => a.id - b.id).slice(0, 100);
+    if (rows.length === 0 && !final) return;
+    try {
+      const url = final ? '/api/session/end' : '/api/session/heartbeat';
+      const body = final
+        ? { sessionId, reason: 'user', segments: rows.map(toSegment) }
+        : { sessionId, segments: rows.map(toSegment) };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-      // 실시간 영역은 잠시 뒤 비운다 (다음 발화 전까지 마지막 문장을 남겨두되 계속 쌓이진 않게)
-      setTimeout(() => setLive((cur) => (cur === text ? '' : cur)), 2500);
+      if (res.ok) {
+        for (const r of rows) {
+          pendingRef.current.delete(r.id);
+          sentRef.current.add(r.id);
+        }
+      }
+    } catch {
+      /* 다음 주기에 다시 보낸다 */
     }
   }, []);
 
   const cleanup = useCallback(() => {
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    heartbeatRef.current = null;
     sessToBRef.current?.close();
     sessToARef.current?.close();
     sessToBRef.current = null;
@@ -232,7 +287,6 @@ export function FaceoffInterpreter() {
       const grant = (await res.json()) as StartResponse;
       sessionIdRef.current = grant.sessionId;
 
-      // 두 세션을 같은 마이크에 물린다
       const [sB, sA] = await Promise.all([
         connectBrowserSession(
           {
@@ -274,21 +328,29 @@ export function FaceoffInterpreter() {
       sessToBRef.current = sB;
       sessToARef.current = sA;
 
-      // 유저 제스처 안에서 두 오디오를 한 번 재생해 모바일 자동재생 잠금을 푼다
       void audioBRef.current?.play().catch(() => undefined);
       void audioARef.current?.play().catch(() => undefined);
 
-      setRowsA([]);
-      setRowsB([]);
+      startedAtRef.current = Date.now();
+      idRef.current = 1;
+      pendingRef.current.clear();
+      sentRef.current.clear();
+      setUtterances([]);
       setLiveA('');
       setLiveB('');
       setPhase('live');
+
+      /**
+       * 하트비트 — 확정 발화를 증분 저장하고 세션을 살려 둔다.
+       * ⚠ 이게 없어서 예전엔 세션이 orphaned로 남고(billed 0) 세그먼트도 안 쌓였다.
+       */
+      heartbeatRef.current = setInterval(() => void flush(false), HEARTBEAT_MS);
     } catch {
       setError('start_failed');
       setPhase('setup');
       cleanup();
     }
-  }, [langA, langB, cleanup, pushSegment]);
+  }, [langA, langB, cleanup, pushSegment, flush]);
 
   const exit = useCallback(async () => {
     if (endingRef.current) return;
@@ -297,37 +359,12 @@ export function FaceoffInterpreter() {
     // 남은 번역이 도착할 짧은 시간을 준다
     await new Promise((r) => setTimeout(r, 1200));
     cleanup();
-
-    const sessionId = sessionIdRef.current;
-    if (sessionId) {
-      const segments = [
-        ...rowsB.map((r) => ({
-          seq: r.seq * 2,
-          startMs: 0,
-          sourceText: r.source ?? '',
-          targetText: r.text,
-          kind: 'paired' as const,
-        })),
-        ...rowsA.map((r) => ({
-          seq: r.seq * 2 + 1,
-          startMs: 0,
-          sourceText: r.source ?? '',
-          targetText: r.text,
-          kind: 'paired' as const,
-        })),
-      ].sort((a, b) => a.seq - b.seq);
-      await fetch('/api/session/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, reason: 'user', segments }),
-      }).catch(() => undefined);
-    }
+    await flush(true); // 남은 발화 전부 저장 + 세션 종료
     setPhase('ended');
-  }, [cleanup, rowsA, rowsB]);
+  }, [cleanup, flush]);
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  // 오디오 엘리먼트는 항상 마운트 (setup 화면에서도) — iOS 잠금 해제 때문
   const audioEls = (
     <>
       <audio ref={audioBRef} autoPlay playsInline className="hidden" />
@@ -342,7 +379,7 @@ export function FaceoffInterpreter() {
         <div>
           <h1 className="text-[26px] font-bold tracking-tight">마주통역</h1>
           <p className="mt-1 text-[14px] text-text-muted">
-            휴대폰을 두 사람 사이에 두세요. 양쪽이 각자 언어로 말하면 상대 면에 번역이 나오고 음성으로 읽어 줍니다.
+            휴대폰을 두 사람 사이에 두세요. 각자 자기 언어로 말하면 상대 면에 번역이 나오고 음성으로 읽어 줍니다.
           </p>
         </div>
 
@@ -423,7 +460,7 @@ export function FaceoffInterpreter() {
       <div className="mx-auto flex max-w-md flex-col items-center gap-5 py-16 text-center">
         <p className="text-[20px] font-bold">대화가 정리되었습니다</p>
         <p className="text-[14px] text-text-muted">
-          전체 기록과 AI 요약은 세션 기록에서 볼 수 있습니다.
+          화자별로 구분된 전체 대화와 AI 요약은 세션 기록에서 볼 수 있습니다.
         </p>
         <div className="flex w-full flex-col gap-2">
           <a
@@ -445,32 +482,35 @@ export function FaceoffInterpreter() {
     );
   }
 
-  /**
-   * live — 화면을 정확히 반으로.
-   * 아래 절반은 정방향(폰을 든 내 쪽 = langA), 위 절반은 180° 회전(맞은편 = langB).
-   * ⚠ 아래가 내 쪽이다 — 여기에 langB를 두면 내 언어가 상대편으로 가는 것처럼 보인다.
-   */
+  // 각 면 관점의 대화 기록: 내 말=원문(흐리게), 상대 말=번역(진하게)
+  const rowsFor = (side: 'A' | 'B') =>
+    utterances.slice(-30).map((u) => ({
+      id: u.id,
+      mine: u.speaker === side,
+      text: u.speaker === side ? u.original || u.translated : u.translated,
+    }));
+
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-black">
       {audioEls}
+      {/* 위: 맞은편(langB), 180° 회전 */}
       <Panel
         flip
         myLang={langB}
         onLangChange={setLangB}
         onExit={() => void exit()}
         live={liveB}
-        rows={rowsB}
-        disabled={false}
+        rows={rowsFor('B')}
       />
       <div className="h-px shrink-0 bg-white/20" />
+      {/* 아래: 내 쪽(langA), 정방향 */}
       <Panel
         flip={false}
         myLang={langA}
         onLangChange={setLangA}
         onExit={() => void exit()}
         live={liveA}
-        rows={rowsA}
-        disabled={false}
+        rows={rowsFor('A')}
       />
     </div>
   );

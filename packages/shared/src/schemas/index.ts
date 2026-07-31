@@ -69,6 +69,8 @@ export const heartbeatSegmentSchema = z.object({
    * 기록·PDF가 이걸 보고 나란히 배치할지 갈라 놓을지 정한다.
    */
   kind: z.enum(['target', 'source', 'paired']).optional(),
+  /** 마주통역 화자 구분 (A=내 쪽, B=맞은편). 다른 모드는 넣지 않는다. */
+  speaker: z.enum(['A', 'B']).optional(),
 });
 export const sessionHeartbeatRequestSchema = z.object({
   sessionId: z.string(),

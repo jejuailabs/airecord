@@ -177,6 +177,8 @@ export interface IncomingSegment {
   detectedLang?: string;
   /** 'paired'면 원문·번역이 짝지어진 줄. 기록·PDF가 배치를 정하는 데 쓴다. */
   kind?: 'target' | 'source' | 'paired';
+  /** 마주통역 화자 (A=내 쪽, B=맞은편). 다른 모드는 없다. */
+  speaker?: 'A' | 'B';
 }
 
 /**
@@ -204,6 +206,7 @@ export async function saveSegments(
           targetText: seg.targetText,
           detectedLang: seg.detectedLang ?? null,
           kind: seg.kind ?? null,
+          speaker: seg.speaker ?? null,
           isFinal: true,
           createdAt: FieldValue.serverTimestamp(),
         },

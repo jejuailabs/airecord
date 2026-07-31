@@ -4,6 +4,7 @@ import { Sparkles, FileDown, Clock } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { currentUid, getSessionDetail } from '@/lib/server/sessions-query';
 import { buildScript } from '@sotong/shared/engine';
+import { FaceoffTranscript } from '@/components/sessions/FaceoffTranscript';
 import { languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { SummaryRefresher } from '@/components/sessions/SummaryRefresher';
@@ -170,6 +171,9 @@ export default async function SessionDetailPage({
           <p className="rounded-lg border border-border bg-bg-raised px-6 py-10 text-center text-text-muted">
             {t('noTranscript')}
           </p>
+        ) : detail.mode === 'faceoff' ? (
+          // 마주통역 — 화자별 색 + 화자별 필터
+          <FaceoffTranscript segments={detail.segments} />
         ) : (
           <div className="overflow-hidden rounded-lg border border-border bg-bg-raised">
             {buildScript(detail.segments).map((b) =>

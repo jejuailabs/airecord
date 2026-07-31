@@ -26,6 +26,7 @@ export interface SessionDetail extends SessionListItem {
     targetText: string;
     /** 'paired'면 원문·번역이 짝지어진 줄. 아니면 한쪽만 채워진 줄이다. */
     kind: 'target' | 'source' | 'paired' | null;
+    speaker: 'A' | 'B' | null;
   }>;
 }
 
@@ -103,6 +104,7 @@ export async function getSessionDetail(
         sourceText: (d.get('sourceText') as string) ?? '',
         targetText: (d.get('targetText') as string) ?? '',
         kind: (d.get('kind') as 'target' | 'source' | 'paired' | null) ?? null,
+        speaker: (d.get('speaker') as 'A' | 'B' | null) ?? null,
       })),
     };
   } catch (e) {
