@@ -5,7 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement } from '@/lib/server/entitlement';
 import { listSessions, type SessionListItem } from '@/lib/server/sessions-query';
-import { getPlan, languageLabel } from '@sotong/shared/constants';
+import { getPlan, cycleKey, languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { ActionCard } from '@/components/ui/ActionCard';
 
@@ -74,15 +74,29 @@ async function loadData(): Promise<DashData> {
       listSessions(user.uid, 20),
       getEntitlement(user.uid, user.email),
     ]);
+    /**
+     * ⚠ mode별 분은 "이번 주기"로만 센다.
+     *   예전엔 전체 세션을 합산해서, 무료가 매일 0으로 리셋되는 "오늘 사용량 0분" 옆에
+     *   전체 누적인 "대면 67분"이 나란히 떠 서로 다른 걸 세는 것처럼 보였다.
+     *   같은 주기(무료=오늘, 유료=이번 달)로 맞추면 두 숫자가 한 축에서 맞물린다.
+     */
+    const cycle = getPlan(ent.plan)?.cycle ?? 'daily';
+    const nowKey = cycleKey(cycle);
+    const inCycle = (ms?: number | null) => {
+      if (!ms) return false;
+      const iso = new Date(ms).toISOString();
+      return cycle === 'daily' ? iso.slice(0, 10) === nowKey : iso.slice(0, 7) === nowKey;
+    };
     const minutesOf = (mode: 'meeting' | 'inperson') =>
       sessions
         .filter((s) => (mode === 'meeting' ? s.mode === 'meeting' : s.mode !== 'meeting'))
+        .filter((s) => inCycle(s.startedAtMs))
         .reduce((sum, s) => sum + Math.ceil(s.billedSeconds / 60), 0);
 
     return {
       includedMinutes: ent.includedMinutes,
       usedMinutes: ent.usedMinutes,
-      unlimited: ent.isAdmin,
+      unlimited: ent.isAdmin || ent.unlimited,
       dailyCycle: getPlan(ent.plan)?.cycle === 'daily',
       meetingMinutes: minutesOf('meeting'),
       inpersonMinutes: minutesOf('inperson'),

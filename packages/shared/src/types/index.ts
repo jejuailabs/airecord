@@ -69,7 +69,7 @@ export interface Member {
 }
 
 // ── 세션 (과금 대상 1회 통역) ───────────────────────
-export type SessionMode = 'inperson' | 'meeting';
+export type SessionMode = 'inperson' | 'meeting' | 'faceoff';
 export type SessionStatus =
   | 'starting' | 'joining' | 'live' | 'degraded'
   | 'ended' | 'failed' | 'orphaned';

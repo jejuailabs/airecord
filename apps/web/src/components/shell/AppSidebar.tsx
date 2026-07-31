@@ -14,6 +14,7 @@ import {
   Type,
   FileText,
   Radio,
+  Users,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { SidebarLink } from './SidebarLink';
@@ -54,11 +55,12 @@ export function AppSidebar({
     { href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), ready: true },
     { href: '/live', icon: Mic, label: t('nav.live'), ready: true },
     { href: '/talk', icon: Radio, label: t('nav.talk'), ready: true },
+    { href: '/faceoff', icon: Users, label: '마주통역', ready: true },
     { href: '/meeting', icon: Video, label: t('nav.meeting'), ready: true },
     { href: '/translate', icon: Type, label: t('nav.translate'), ready: true },
     { href: '/translate/file', icon: FileText, label: t('nav.translateFile'), ready: true },
     { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: true },
-    { href: '/#pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
+    { href: '/pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
     { href: '/settings', icon: Settings, label: t('nav.settings'), ready: false },
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
     // 운영 콘솔은 관리자에게만. '준비 중'으로도 노출하지 않는다 (존재를 알리지 않는다)
@@ -90,8 +92,21 @@ export function AppSidebar({
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
         {items.map((item) => {
-          const active =
-            item.ready && item.href !== '/#pricing' && pathname.startsWith(item.href);
+          /**
+           * ⚠ startsWith만 쓰면 안 된다 — '/translate/file'은 '/translate'로도 시작하므로
+           *   파일 번역 페이지에서 텍스트 번역까지 같이 활성화됐다.
+           *   정확히 일치하거나, 그 아래 경로('/x/…')일 때만 켠다.
+           *   단 더 구체적인 형제 항목이 있으면 그쪽에 양보한다(파일 번역이 텍스트 번역을 이긴다).
+           */
+          const isUnder = pathname === item.href || pathname.startsWith(item.href + '/');
+          const moreSpecific = items.some(
+            (o) =>
+              o !== item &&
+              o.ready &&
+              o.href.startsWith(item.href + '/') &&
+              (pathname === o.href || pathname.startsWith(o.href + '/')),
+          );
+          const active = item.ready && isUnder && !moreSpecific;
           const Icon = item.icon;
           if (!item.ready) {
             return (

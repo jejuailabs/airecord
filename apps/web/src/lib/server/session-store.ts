@@ -285,8 +285,51 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
         .collection('workspaces')
         .doc(record.workspaceId)
         .set({ billing: { usedMinutes: FieldValue.increment(minutes) } }, { merge: true });
+
+      // 날짜별 사용 원장 — 대시보드·운영콘솔·예상비용의 단일 소스 (docs/03 §2)
+      await recordUsage(record);
     }
   } catch (e) {
     console.error('[session-store] finalize failed', e);
+  }
+}
+
+/**
+ * 날짜 × 워크스페이스 × mode별 사용 원장.
+ *
+ * 왜 필요한가 — 예전엔 이게 없어서 화면마다 최근 세션을 즉석 집계했다.
+ *   그 결과 "오늘 사용량(주기 누적)"과 "대면 67분(전체 합산)"이 서로 다른 걸 세어 어긋났다.
+ *   여기 하나에만 적립하고, 모든 화면이 이걸 읽으면 숫자가 한 축에서 맞물린다.
+ *
+ * 문서 경로: usage/{workspaceId}/daily/{YYYY-MM-DD}
+ *   · billedSeconds를 mode별로 누적(초). 분 환산은 읽는 쪽에서 세션당 올림이 아니라
+ *     "그날 총초 → 분"으로 한다 (원장은 원자료를 담고, 표시 규칙은 표시하는 쪽이 정한다).
+ *   · uid·email도 남긴다 — 계정별 조회용.
+ */
+export async function recordUsage(record: LiveSessionRecord): Promise<void> {
+  if (!record.workspaceId || record.billedSeconds <= 0) return;
+  const day = new Date(record.startedAtMs).toISOString().slice(0, 10);
+  const mode = record.mode; // 'inperson' | 'meeting' | 'faceoff'
+  try {
+    await adminDb()
+      .collection('usage')
+      .doc(record.workspaceId)
+      .collection('daily')
+      .doc(day)
+      .set(
+        {
+          day,
+          workspaceId: record.workspaceId,
+          uid: record.uid ?? null,
+          totalSec: FieldValue.increment(record.billedSeconds),
+          [`sec_${mode}`]: FieldValue.increment(record.billedSeconds),
+          sessions: FieldValue.increment(1),
+          updatedAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+  } catch (e) {
+    // 원장 실패로 종료를 막지 않는다 — 청구(usedMinutes)는 위에서 이미 반영됐다
+    console.error('[session-store] recordUsage failed', e);
   }
 }

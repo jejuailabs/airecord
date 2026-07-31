@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { currentAdmin } from '@/lib/server/admin';
-import { getAdminOverview, listAdminUsers } from '@/lib/server/admin-query';
+import { getAdminOverview, listAdminUsers, getUsageLog } from '@/lib/server/admin-query';
 
 export const runtime = 'nodejs';
 
@@ -15,9 +15,13 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   try {
-    const [overview, users] = await Promise.all([getAdminOverview(), listAdminUsers()]);
+    const [overview, users, usageLog] = await Promise.all([
+      getAdminOverview(),
+      listAdminUsers(),
+      getUsageLog().catch(() => []), // 원장이 아직 비어도 화면은 떠야 한다
+    ]);
     return NextResponse.json(
-      { overview, users, isSuper: admin.isSuper },
+      { overview, users, usageLog, isSuper: admin.isSuper },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (e) {

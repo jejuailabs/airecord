@@ -9,6 +9,7 @@ import type { EngineError, EngineSegment, EphemeralGrant } from './types';
 import { createSegmentAssembler } from './segment-assembler';
 import { createDiagnostics, type DiagSnapshot } from './diagnostics';
 import { createSourceMux } from './source-mux';
+import { guessScript } from './lang-guess';
 
 export interface BrowserSessionCallbacks {
   onSegment: (s: EngineSegment) => void;
@@ -66,21 +67,13 @@ export interface TranscribeLegGrant {
 }
 
 /**
- * 전사 결과의 문자만 보고 언어를 가늠한다.
- * 길게 판별할 필요가 없다 — 여기서 필요한 건 "무슨 문자를 쓰는 언어인가"뿐이다.
- * 애매하면 null을 돌려 잠그지 않는다 (틀린 언어로 잠그는 것이 가장 나쁘다).
+ * 전사 결과의 문자만 보고 언어를 가늠한다 (자동 언어 잠금용).
+ * 구현은 lang-guess.ts 하나뿐 — 마주통역 방향 판정도 같은 함수를 쓴다.
+ * 여기서는 라틴 문자는 잠그지 않으므로(언어가 안 갈린다) null로 되돌린다.
  */
 function guessTranscriptLang(text: string): string | null {
-  const t = text.trim();
-  if (t.length < 2) return null;
-  if (/[가-힣]/.test(t)) return 'ko';
-  if (/[぀-ヿ]/.test(t)) return 'ja';
-  if (/[一-鿿]/.test(t)) return 'zh';
-  if (/[Ѐ-ӿ]/.test(t)) return 'ru';
-  if (/[฀-๿]/.test(t)) return 'th';
-  if (/[؀-ۿ]/.test(t)) return 'ar';
-  // 라틴 문자는 언어가 갈리지 않으므로 잠그지 않는다
-  return null;
+  const s = guessScript(text);
+  return s && s !== 'latin' ? s : null;
 }
 
 export async function connectBrowserSession(

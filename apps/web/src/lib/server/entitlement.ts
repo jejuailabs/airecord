@@ -168,6 +168,20 @@ export const getEntitlement = cache(async function getEntitlement(
  * 남은 분보다 긴 세션을 열면 한도를 넘겨 쓰게 된다 (docs/07 §5.1).
  */
 export function sessionCapSeconds(ent: Entitlement, baseCapSec: number): number {
-  if (ent.isAdmin || ent.unlimited || ent.overageEnabled) return baseCapSec;
+  /**
+   * 무제한 권한(운영자·무제한 부여)은 세션 길이도 제한하지 않는다.
+   * 예전엔 baseCapSec(개발 안전용 5분)을 그대로 돌려줘, 무제한인데도 5분에 세션이 끊겼다.
+   * 총 시간이 무제한이면 세션 길이도 무제한이어야 앞뒤가 맞는다.
+   */
+  if (ent.isAdmin || ent.unlimited) return UNLIMITED_SESSION_SEC;
+  // 초과 사용 허용은 "청구하며 계속"이라 세션 길이 캡은 그대로 둔다 (폭주 방지)
+  if (ent.overageEnabled) return baseCapSec;
   return Math.max(60, Math.min(baseCapSec, Math.floor(ent.remainingMinutes * 60)));
 }
+
+/**
+ * 무제한 세션의 상한.
+ * Infinity를 쓰면 JSON 직렬화·클라이언트 setInterval 계산이 깨지므로 큰 유한값을 쓴다.
+ * 24시간 — 실사용에서 한 세션이 이보다 길 일은 없고, 방치된 세션의 안전망은 남긴다.
+ */
+export const UNLIMITED_SESSION_SEC = 24 * 60 * 60;

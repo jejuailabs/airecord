@@ -27,10 +27,25 @@ export interface AdminOverview {
   billedMinutes30d: number;
   /** 지금 진행 중인 세션 */
   liveSessions: number;
-  /** 누적 추정 원가 (KRW) */
+  /** 최근 30일 추정 원가 (KRW) — mode별 단가 반영 */
   estCostKrw: number;
   /** 일별 사용 분 — 최근 14일 */
   daily: Array<{ day: string; minutes: number }>;
+}
+
+/** 사용 원장 한 줄 (날짜 × 계정) */
+export interface UsageLogRow {
+  day: string;
+  workspaceId: string;
+  uid: string | null;
+  email: string | null;
+  workspaceName: string | null;
+  inpersonMin: number;
+  meetingMin: number;
+  faceoffMin: number;
+  totalMin: number;
+  /** 이 줄의 mode 구성으로 계산한 추정 원가 (KRW) */
+  estCostKrw: number;
 }
 
 export interface AdminUserRow {
@@ -50,14 +65,23 @@ export interface AdminUserRow {
 
 const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
-/** 분당 원가(원) — docs/07 §2. 환경변수가 없으면 0으로 두고 화면에서 "미설정"으로 보인다. */
-function costKrwPerMin(): number {
-  const usdPerMin =
-    Number(process.env.COST_TRANSLATE_USD_PER_MIN ?? 0) +
-    Number(process.env.COST_BOT_USD_PER_MIN ?? 0);
+/**
+ * mode별 분당 원가(원) — docs/07 §2. 환경변수가 없으면 0(화면에서 "미설정").
+ *
+ * 모드마다 실제 구성이 다르다:
+ *   inperson — 번역 1세션
+ *   meeting  — 번역 1세션 + 회의 봇
+ *   faceoff  — 번역 **2세션** (양방향 동시, gpt-realtime-translate가 출력 언어를 하나만 내므로)
+ * 예전 함수는 전부 번역+봇으로 계산해 대면 원가를 과대평가했다.
+ */
+export function costKrwPerMinByMode(mode: 'inperson' | 'meeting' | 'faceoff'): number {
+  const translate = Number(process.env.COST_TRANSLATE_USD_PER_MIN ?? 0);
+  const bot = Number(process.env.COST_BOT_USD_PER_MIN ?? 0);
   const overhead = 1 + Number(process.env.COST_INFRA_OVERHEAD_PCT ?? 0) / 100;
   const krw = Number(process.env.USD_KRW_RATE ?? 0);
-  return usdPerMin * overhead * krw;
+  const usd =
+    mode === 'meeting' ? translate + bot : mode === 'faceoff' ? translate * 2 : translate;
+  return usd * overhead * krw;
 }
 
 const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
@@ -96,7 +120,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
      */
     sessions
       .where('startedAt', '>=', since30d)
-      .select('startedAt', 'billedSeconds')
+      .select('startedAt', 'billedSeconds', 'mode')
       .limit(5_000)
       .get(),
   ]);
@@ -104,11 +128,14 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   const bucket = new Map<string, number>();
   for (let i = 13; i >= 0; i--) bucket.set(dayKey(now - i * 86_400_000), 0);
   let billed30sec = 0;
+  let cost30 = 0; // mode별 단가로 30일 추정 원가를 쌓는다
   for (const doc of recent.docs) {
     const started = doc.get('startedAt') as Timestamp | undefined;
     if (!started) continue;
     const sec = num(doc.get('billedSeconds'));
+    const mode = (doc.get('mode') as 'inperson' | 'meeting' | 'faceoff') ?? 'inperson';
     billed30sec += sec; // 30일 합계 (읽어온 범위 자체가 30일이다)
+    cost30 += (sec / 60) * costKrwPerMinByMode(mode);
     const key = dayKey(started.toMillis()); // 버킷은 14일만 있으므로 그 밖은 자동으로 무시된다
     if (bucket.has(key)) bucket.set(key, bucket.get(key)! + sec / 60);
   }
@@ -127,7 +154,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     billedMinutes: Math.round(billedMinutes),
     billedMinutes30d: Math.round(billed30sec / 60),
     liveSessions: liveCount.data().count,
-    estCostKrw: Math.round(billedMinutes * costKrwPerMin()),
+    // 최근 30일 추정 원가 — mode별 단가로 계산(대면·회의·마주 구성이 다름)
+    estCostKrw: Math.round(cost30),
     daily: [...bucket.entries()].map(([day, minutes]) => ({ day, minutes: Math.round(minutes) })),
   };
 }
@@ -179,6 +207,70 @@ export async function listAdminUsers(limit = USER_PAGE_SIZE): Promise<AdminUserR
           : 0,
       unlimited: billing.unlimited === true,
       overageEnabled: billing.overageEnabled === true,
+    };
+  });
+}
+
+/**
+ * 사용 원장 조회 — 날짜 × 계정.
+ *
+ * usage/{workspaceId}/daily/{day} 를 collectionGroup으로 가로질러 읽는다.
+ * ⚠ 필터는 'day'(문자열) 한 개만 건다 — ISO 날짜는 사전순=시간순이라 정렬 겸용이고,
+ *   단일 필드라 복합 인덱스를 요구하지 않는다(where+정렬 조합이 인덱스를 부르는 걸 이미 겪었다).
+ *
+ * 워크스페이스 이름은 한 번에 모아 붙인다(줄마다 따로 읽지 않는다).
+ */
+export async function getUsageLog(days = 30, limit = 500): Promise<UsageLogRow[]> {
+  const db = adminDb();
+  const since = dayKey(Date.now() - days * 86_400_000);
+
+  /**
+   * ⚠ collectionGroup에 where('day')나 orderBy를 걸면 COLLECTION_GROUP 인덱스를 요구한다(실측).
+   *   인덱스는 배포 환경마다 따로 만들어야 해서 이 화면을 거기 묶는다.
+   *   그래서 **필터 없이** 끌어와(이건 인덱스 불필요, 실측 확인) 코드에서 날짜로 거르고 정렬한다.
+   *   원장 문서 수 = 워크스페이스 × 활동일이라 지금 규모에선 넉넉하다.
+   *   상한에 닿으면 조용히 자르지 않고 로그를 남긴다 — 절단이 "다 봤다"로 읽히면 안 된다.
+   */
+  const RAW_CAP = 3_000;
+  const snap = await db.collectionGroup('daily').limit(RAW_CAP).get();
+  if (snap.size >= RAW_CAP) {
+    console.warn(`[admin] usage ledger hit raw cap ${RAW_CAP} — 일부 날짜가 누락될 수 있음`);
+  }
+  const docs = snap.docs
+    .filter((d) => ((d.get('day') as string | undefined) ?? '') >= since)
+    .sort((a, b) => ((b.get('day') as string) ?? '').localeCompare((a.get('day') as string) ?? ''))
+    .slice(0, limit);
+  if (docs.length === 0) return [];
+
+  const wsIds = [
+    ...new Set(docs.map((d) => d.get('workspaceId') as string | undefined).filter(Boolean) as string[]),
+  ];
+  const wsDocs = wsIds.length
+    ? await db.getAll(...wsIds.map((id) => db.collection('workspaces').doc(id)))
+    : [];
+  const wsById = new Map(wsDocs.filter((d) => d.exists).map((d) => [d.id, d]));
+
+  return docs.map((d) => {
+    const wsId = (d.get('workspaceId') as string | undefined) ?? '';
+    const ws = wsById.get(wsId);
+    const inSec = num(d.get('sec_inperson'));
+    const meSec = num(d.get('sec_meeting'));
+    const faSec = num(d.get('sec_faceoff'));
+    const cost =
+      (inSec / 60) * costKrwPerMinByMode('inperson') +
+      (meSec / 60) * costKrwPerMinByMode('meeting') +
+      (faSec / 60) * costKrwPerMinByMode('faceoff');
+    return {
+      day: (d.get('day') as string | undefined) ?? '',
+      workspaceId: wsId,
+      uid: (d.get('uid') as string | undefined) ?? null,
+      email: (ws?.get('name') as string | undefined) ?? null,
+      workspaceName: (ws?.get('name') as string | undefined) ?? null,
+      inpersonMin: Math.round(inSec / 60),
+      meetingMin: Math.round(meSec / 60),
+      faceoffMin: Math.round(faSec / 60),
+      totalMin: Math.round((inSec + meSec + faSec) / 60),
+      estCostKrw: Math.round(cost),
     };
   });
 }

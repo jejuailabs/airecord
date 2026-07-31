@@ -12,7 +12,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import type { AdminOverview, AdminUserRow } from '@/lib/server/admin-query';
+import type { AdminOverview, AdminUserRow, UsageLogRow } from '@/lib/server/admin-query';
 
 /**
  * 운영 콘솔 (docs/06 §2.6).
@@ -84,13 +84,16 @@ export function AdminConsole() {
   const [data, setData] = useState<{
     overview: AdminOverview;
     users: AdminUserRow[];
+    usageLog: UsageLogRow[];
     isSuper: boolean;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState('');
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await fetch('/api/admin/overview', { cache: 'no-store' });
       if (!res.ok) {
@@ -101,6 +104,9 @@ export function AdminConsole() {
       setError(null);
     } catch {
       setError('load_failed');
+    } finally {
+      // 데이터가 그대로여도 버튼이 "돌았다"는 게 보이게 최소 시간을 준다
+      setTimeout(() => setRefreshing(false), 350);
     }
   }, []);
 
@@ -160,8 +166,10 @@ export function AdminConsole() {
         </div>
         <button
           onClick={() => void load()}
-          className="h-10 rounded-lg border border-border px-4 text-[14px] font-semibold text-text-muted hover:text-text"
+          disabled={refreshing}
+          className="flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-[14px] font-semibold text-text-muted hover:text-text disabled:opacity-60"
         >
+          {refreshing ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
           새로고침
         </button>
       </div>
@@ -199,9 +207,9 @@ export function AdminConsole() {
         />
         <Stat
           icon={<Wallet size={14} />}
-          label="누적 추정 원가"
+          label="추정 원가 (30일)"
           value={o.estCostKrw > 0 ? `₩${fmt(o.estCostKrw)}` : '미설정'}
-          sub={o.estCostKrw > 0 ? 'docs/07 단가 기준' : '원가 환경변수 없음'}
+          sub={o.estCostKrw > 0 ? 'mode별 단가 반영' : '원가 환경변수 없음'}
         />
         <Stat
           icon={<InfinityIcon size={14} />}
@@ -299,6 +307,51 @@ export function AdminConsole() {
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-text-muted">
                     해당하는 회원이 없습니다.
+                  </td>
+                </tr>
+              ) : null}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 사용 로그 — 날짜 × 계정 × mode별 분 + 추정 원가 */}
+      <div className="flex flex-col gap-3">
+        <h2 className="flex items-center gap-2 text-[18px] font-semibold">
+          <Wallet size={17} aria-hidden className="text-accent" />
+          사용 로그 <span className="text-[14px] font-normal text-text-faint">최근 30일</span>
+        </h2>
+        <div className="overflow-x-auto rounded-xl border border-border bg-bg-raised">
+          <table className="w-full min-w-[720px] text-[14px]">
+            <thead>
+              <tr className="border-b border-border text-left text-[12px] uppercase tracking-wide text-text-muted">
+                <th className="px-4 py-3 font-semibold">날짜</th>
+                <th className="px-4 py-3 font-semibold">계정</th>
+                <th className="px-4 py-3 text-right font-semibold">대면</th>
+                <th className="px-4 py-3 text-right font-semibold">회의</th>
+                <th className="px-4 py-3 text-right font-semibold">마주</th>
+                <th className="px-4 py-3 text-right font-semibold">합계</th>
+                <th className="px-4 py-3 text-right font-semibold">추정 원가</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.usageLog.map((r) => (
+                <tr key={`${r.day}-${r.workspaceId}`} className="border-b border-border last:border-0">
+                  <td className="tabular px-4 py-2.5 text-text-muted">{r.day}</td>
+                  <td className="px-4 py-2.5">{r.workspaceName ?? r.workspaceId.slice(0, 8)}</td>
+                  <td className="tabular px-4 py-2.5 text-right">{r.inpersonMin || '—'}</td>
+                  <td className="tabular px-4 py-2.5 text-right">{r.meetingMin || '—'}</td>
+                  <td className="tabular px-4 py-2.5 text-right">{r.faceoffMin || '—'}</td>
+                  <td className="tabular px-4 py-2.5 text-right font-semibold">{r.totalMin}분</td>
+                  <td className="tabular px-4 py-2.5 text-right text-text-muted">
+                    {r.estCostKrw > 0 ? `₩${fmt(r.estCostKrw)}` : '—'}
+                  </td>
+                </tr>
+              ))}
+              {data.usageLog.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center text-text-muted">
+                    아직 사용 기록이 없습니다. 세션이 끝나면 여기 날짜별로 쌓입니다.
                   </td>
                 </tr>
               ) : null}
