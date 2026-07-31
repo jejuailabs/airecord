@@ -16,8 +16,9 @@ export interface PlanDef {
   monthlyKrw: number;
   /**
    * 사용량 갱신 주기.
-   * 무료는 매일 초기화한다 — 한 달치를 하루에 몰아 쓰고 한 달을 못 쓰는 것보다,
-   * 매일 조금씩 쓰게 하는 편이 체험 효과가 크고 원가도 통제된다.
+   * 무료는 **월 총량**으로 준다. 예전엔 하루 10분(매일 리셋)이었는데,
+   * 매일 다 쓰면 월 300분 = Pro 플랜 사용량이라 무료 한 사용자당 최악 원가가
+   * Starter 매출(₩14,900)에 육박했다(실측 ₩14,280). 월 총량으로 바꿔 노출을 10배 낮춘다.
    */
   cycle: 'daily' | 'monthly';
   includedMinutes: number;
@@ -33,8 +34,8 @@ export const PLANS: readonly PlanDef[] = [
     id: 'free',
     audience: 'personal',
     monthlyKrw: 0,
-    cycle: 'daily',
-    includedMinutes: 10,
+    cycle: 'monthly',
+    includedMinutes: 30,
     overageKrwPerMin: null,
     retentionDays: 7,
     meetingMode: false,

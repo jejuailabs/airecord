@@ -71,7 +71,7 @@
       "tryCta": "Try it now",
       "signupCta": "Start free",
       "pricingCta": "See pricing →",
-      "trialNote": "Try 500 translated characters without signing in. Sign up and get 10 free minutes every day."
+      "trialNote": "Try 500 translated characters without signing in. Sign up and get 30 free minutes every month."
     },
     "captionDemo": {
       "title": "Mixed languages in,\none language out",
@@ -149,7 +149,7 @@
       "finishing": "Finishing sign-in",
       "hint": "Please wait a moment — don't close this window."
     },
-    "freeNote": "10 free minutes every day. No card required.",
+    "freeNote": "30 free minutes every month. No card required.",
     "failed": {
       "title": "Sign-in failed",
       "action": "Allow popups for this site or try again in a moment."
@@ -161,7 +161,7 @@
     "ended": {
       "title": "That's the end of the trial",
       "backToMain": "Back to main",
-      "body": "What you just saw is the real performance. Sign up for 10 free minutes every day.",
+      "body": "What you just saw is the real performance. Sign up for 30 free minutes every month.",
       "signup": "Start free",
       "pricing": "See pricing",
       "freeNote": "Starts instantly with your Google account — no card required."
@@ -173,7 +173,7 @@
     "perMonth": "/mo",
     "popular": "Most popular",
     "cta": "Start with this plan",
-    "freeNote": "Every paid plan comes after a free 10 min/day tier. Prices exclude VAT.",
+    "freeNote": "Every paid plan comes after a free 30 min/month tier. Prices exclude VAT.",
     "includedMinutes": "{minutes} minutes / month included",
     "retention": "Records kept for {days} days",
     "meetingMode": "Meeting interpreter bot (Zoom · Teams · Meet · Webex)",
@@ -202,7 +202,7 @@
     "pgNote": "Payments activate once our payment provider review completes. Apply now to reserve your spot — we'll email you the moment it opens.",
     "reserved": {
       "title": "Your request is in",
-      "body": "We'll email you as soon as payments open. Your free 10 minutes a day keep working in the meantime.",
+      "body": "We'll email you as soon as payments open. Your free 30 minutes a month keep working in the meantime.",
       "toDashboard": "Go to dashboard →"
     },
     "failed": {
@@ -255,6 +255,10 @@
       "viewAll": "View all",
       "emptyTitle": "No sessions yet",
       "emptyHint": "Start an in-person session and it shows up here. Saved history arrives in Phase 2."
+    },
+    "startFaceoff": {
+      "title": "Face-to-face",
+      "subtitle": "Sit across, each in their tongue"
     }
   },
   "live": {
@@ -382,11 +386,11 @@
       },
       "guestQuota": {
         "title": "You've used all your free trial characters this month",
-        "action": "Sign up for 10 free minutes every day, then continue where you left off."
+        "action": "Sign up for 30 free minutes every month, then continue where you left off."
       },
       "quotaExhausted": {
         "title": "You've used all your interpretation minutes",
-        "action": "The free plan refills every day. Upgrade your plan to keep going right now."
+        "action": "The free plan refills every month. Upgrade your plan to keep going right now."
       },
       "authRequired": {
         "title": "Sign-in required",

@@ -14,7 +14,7 @@ import {
   Type,
   FileText,
   Radio,
-  Users,
+  UsersRound,
 } from 'lucide-react';
 import { Link, usePathname } from '@/i18n/navigation';
 import { SidebarLink } from './SidebarLink';
@@ -55,7 +55,7 @@ export function AppSidebar({
     { href: '/dashboard', icon: LayoutDashboard, label: t('nav.dashboard'), ready: true },
     { href: '/live', icon: Mic, label: t('nav.live'), ready: true },
     { href: '/talk', icon: Radio, label: t('nav.talk'), ready: true },
-    { href: '/faceoff', icon: Users, label: '마주통역', ready: true },
+    { href: '/faceoff', icon: UsersRound, label: '마주통역', ready: true },
     { href: '/meeting', icon: Video, label: t('nav.meeting'), ready: true },
     { href: '/translate', icon: Type, label: t('nav.translate'), ready: true },
     { href: '/translate/file', icon: FileText, label: t('nav.translateFile'), ready: true },

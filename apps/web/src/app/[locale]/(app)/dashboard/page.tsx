@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Mic, Link2, Inbox, Clock, ChevronRight, Type, FileText, Radio } from 'lucide-react';
+import { Mic, Link2, Inbox, Clock, ChevronRight, Type, FileText, Radio, UsersRound } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement } from '@/lib/server/entitlement';
@@ -133,9 +133,9 @@ export default async function DashboardPage({
       {/* ── 시작 카드 — 화면의 주인공 ── */}
       <section className="flex flex-col items-center gap-6 pt-2">
         <h1 className="text-[28px] font-bold tracking-tight">{t('title')}</h1>
-        {/* 윗줄 통역 3개 / 아랫줄 번역 2개 — 좁은 화면에서는 2열로 접힌다 */}
         <div className="flex w-full max-w-4xl flex-col gap-3 sm:gap-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          {/* 통역 4종 — 좁은 화면 2×2, 넓은 화면 한 줄 4칸 */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
             <ActionCard
               href="/live"
               tone="teal"
@@ -151,6 +151,14 @@ export default async function DashboardPage({
               icon={<Radio size={30} />}
               title={t('startTalk.title')}
               subtitle={t('startTalk.subtitle')}
+            />
+            <ActionCard
+              href="/faceoff"
+              tone="teal"
+              compact
+              icon={<UsersRound size={30} />}
+              title={t('startFaceoff.title')}
+              subtitle={t('startFaceoff.subtitle')}
             />
             <ActionCard
               href="/meeting"
