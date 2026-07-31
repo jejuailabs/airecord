@@ -239,7 +239,13 @@ export function FaceoffInterpreter() {
     const rows = [...pendingRef.current.entries()]
       .sort((a, b) => a[1].seq - b[1].seq)
       .slice(0, 100);
-    if (rows.length === 0 && !final) return;
+    /**
+     * ⚠ 보낼 게 없어도 하트비트는 반드시 보낸다.
+     *   서버는 30초(HEARTBEAT_INTERVAL 10초 × 3) 동안 하트비트가 없으면 세션을 고아로 죽인다.
+     *   예전엔 '보낼 세그먼트 없으면 return'이라, 발화 사이 침묵이 30초 넘으면 세션이 죽고
+     *   그 뒤 말한 건 전부 버려졌다(실측: 5분 세션이 58초에서 끊김).
+     *   하트비트는 '저장'만이 아니라 '살려두기'다 — 빈 배치라도 핑을 보내야 한다.
+     */
     const segments = rows.map(([, r]) => ({
       seq: r.seq,
       startMs: r.atMs,
