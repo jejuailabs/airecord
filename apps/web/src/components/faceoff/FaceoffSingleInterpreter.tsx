@@ -490,31 +490,17 @@ export function FaceoffSingleInterpreter() {
     );
   }
 
-  // live / ending — 화면을 정확히 반으로. 위(A)는 180° 회전.
+  /**
+   * live / ending — 화면을 정확히 반으로.
+   * 폰 주인은 A(내 언어)다. 내가 보는 **아래를 A(정방향)**, 맞은편이 보는 **위를 B(180° 회전)**로 둔다.
+   * (예전엔 반대라, 내 언어가 위 회전 쪽에 떠서 내 쪽엔 상대 언어가 정방향으로 보였다.)
+   */
   return (
     <div className="fixed inset-0 z-40 flex flex-col bg-black">
       {audioEl}
+      {/* 위 — 맞은편(B), 180° 회전 */}
       <Panel
         flip
-        myLang={langA}
-        onLangChange={setLangA}
-        onExit={() => void exit()}
-        isSpeaking={turn === 'A'}
-        otherSpeaking={turn === 'B'}
-        live={liveA}
-        rows={rowsA}
-        connecting={connecting}
-        onSpeak={() => void speakAs('A')}
-        onStop={stopSpeaking}
-        disabled
-      />
-      <div className="relative h-px bg-white/15">
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black px-3 py-0.5 text-[11px] font-semibold text-white/60">
-          {turn ? (turn === 'A' ? 'A ▶ B' : 'B ▶ A') : '대기'}
-        </span>
-      </div>
-      <Panel
-        flip={false}
         myLang={langB}
         onLangChange={setLangB}
         onExit={() => void exit()}
@@ -524,6 +510,26 @@ export function FaceoffSingleInterpreter() {
         rows={rowsB}
         connecting={connecting}
         onSpeak={() => void speakAs('B')}
+        onStop={stopSpeaking}
+        disabled
+      />
+      <div className="relative h-px bg-white/15">
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black px-3 py-0.5 text-[11px] font-semibold text-white/60">
+          {turn ? (turn === 'A' ? 'A ▶ B' : 'B ▶ A') : '대기'}
+        </span>
+      </div>
+      {/* 아래 — 내 쪽(A), 정방향 */}
+      <Panel
+        flip={false}
+        myLang={langA}
+        onLangChange={setLangA}
+        onExit={() => void exit()}
+        isSpeaking={turn === 'A'}
+        otherSpeaking={turn === 'B'}
+        live={liveA}
+        rows={rowsA}
+        connecting={connecting}
+        onSpeak={() => void speakAs('A')}
         onStop={stopSpeaking}
         disabled
       />

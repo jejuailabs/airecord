@@ -6,8 +6,6 @@ import { ArrowDown } from 'lucide-react';
 import type { EngineSegment } from '@sotong/shared/engine';
 import { SegmentRow } from './SegmentRow';
 import { ParallelRows } from './ParallelRows';
-import { StackedPanes } from './StackedPanes';
-import { useIsNarrow } from '@/hooks/useIsNarrow';
 
 const MAX_DOM_SEGMENTS = 400; // 세그먼트 500 초과 대비 — 오래된 것은 DOM에서 뺀다 (docs/04 §3)
 const TICK_MS = 30_000;       // 타임 레일 눈금 주기 (docs/05 §1)
@@ -57,8 +55,6 @@ export function CaptionPanel({
   const t = useTranslations('live.running');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = useState(true);
-  /** 좁은 화면은 좌우가 성립하지 않는다 — 화면을 위아래로 갈라 각자 스크롤시킨다 */
-  const narrow = useIsNarrow();
 
   const visible = segments.slice(-MAX_DOM_SEGMENTS);
   const omitted = segments.length - visible.length;
@@ -124,27 +120,18 @@ export function CaptionPanel({
     );
   }
 
-  if (narrow) {
-    return (
-      <StackedPanes
-        paired={segments}
-        pendingTarget={pendingTarget}
-        pendingSource={pendingSource}
-        scale={scale}
-        targetLabel={parallelLabels?.target ?? ''}
-        sourceLabel={parallelLabels?.source ?? ''}
-        emptyLabel={t('waitingSpeech')}
-      />
-    );
-  }
-
   return (
     /**
-     * ⚠ min-h를 크게 잡으면(예전 58vh) 모바일에서 컨트롤까지 합한 높이가 화면을 넘겨
-     * 페이지가 스크롤되고, 위쪽 상태 바와 "소리 켜기" 안내가 화면 밖으로 밀려난다.
-     * 실제로 iOS에서 음성이 막혔는데 그 안내를 볼 수 없는 사고가 났다.
+     * 모바일·데스크톱 공통 레이아웃 (사용자 지시 2026-08-01):
+     *   위에서부터 **매칭된 짝**(SegmentRow: 번역 크게 + 원문 아래로 한 묶음)을 흐름으로 보여주고,
+     *   아직 짝이 안 지어진 최신 몇 줄만 아래에 병렬(ParallelRows, 좁은 화면은 세로로 쌓임)로 둔다.
+     *   예전엔 좁은 화면을 2분할(StackedPanes)로 갈라 매칭을 안 보여줬는데, 이제 모바일도 데스크톱처럼
+     *   매칭된 내용을 위에서 본다. 한 흐름이라 세로 공간도 더 넉넉히 쓴다.
+     *
+     * ⚠ min-h를 너무 크게 잡으면(예전 58vh) 모바일에서 컨트롤까지 합한 높이가 화면을 넘겨
+     * 페이지가 스크롤되고 "소리 켜기" 안내가 밀려난다. flex-1이 남는 높이를 채우므로 바닥값만 둔다.
      */
-    <div className="relative flex min-h-[24vh] flex-1 flex-col overflow-hidden rounded-xl bg-caption-bg">
+    <div className="relative flex min-h-[38vh] flex-1 flex-col overflow-hidden rounded-xl bg-caption-bg">
       <div
         ref={scrollRef}
         onScroll={onScroll}
