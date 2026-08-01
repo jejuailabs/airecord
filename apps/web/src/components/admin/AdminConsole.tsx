@@ -11,7 +11,9 @@ import {
   Radio,
   Users,
   Wallet,
+  Play,
 } from 'lucide-react';
+import { Link } from '@/i18n/navigation';
 import type { AdminOverview, AdminUserRow, UsageLogRow } from '@/lib/server/admin-query';
 
 /**
@@ -289,6 +291,18 @@ export function AdminConsole() {
             </span>
           )}
         </div>
+
+        {/*
+          직행 테스트 — 토글을 켜고 마주에서 고르는 3단계 없이, 여기서 바로 1세션 화면으로 연다.
+          전역 플래그와 무관(?single=1). 헷갈리지 않게 어드민이 즉시 눌러 확인하는 지름길.
+        */}
+        <Link
+          href="/faceoff?single=1"
+          className="flex h-11 items-center justify-center gap-2 rounded-lg bg-accent font-semibold text-accent-text"
+        >
+          <Play size={16} aria-hidden />
+          1세션 지금 바로 테스트
+        </Link>
       </div>
 
       {/* 회원 */}

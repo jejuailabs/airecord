@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { FaceoffInterpreter } from './FaceoffInterpreter';
 import { FaceoffSingleInterpreter } from './FaceoffSingleInterpreter';
 
@@ -10,9 +11,16 @@ import { FaceoffSingleInterpreter } from './FaceoffSingleInterpreter';
  * 기본은 2세션(안정판)이다. 어드민이 '마주 1세션' 실험 플래그를 켜면(singleEnabled),
  * 상단에 방식 선택 토글이 뜨고 1세션(턴 방식)을 골라 돌려볼 수 있다.
  * 플래그가 꺼져 있으면 토글 자체가 없다 — 일반 사용자는 기존 화면 그대로다.
+ *
+ * `?single=1`로 들어오면(운영 콘솔의 "지금 테스트" 버튼) 토글 없이 **바로 1세션**으로 연다.
+ * 플래그와 무관 — 어드민이 헷갈리는 단계 없이 직접 테스트하는 지름길이다.
  */
 export function FaceoffEntry({ singleEnabled }: { singleEnabled: boolean }) {
   const [mode, setMode] = useState<'classic' | 'single'>('classic');
+  const params = useSearchParams();
+
+  // 운영 콘솔에서 바로 넘어온 직행 테스트 — 선택 화면 없이 1세션으로
+  if (params.get('single') === '1') return <FaceoffSingleInterpreter />;
 
   if (!singleEnabled) return <FaceoffInterpreter />;
 

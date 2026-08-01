@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { setRequestLocale } from 'next-intl/server';
 import { FaceoffEntry } from '@/components/faceoff/FaceoffEntry';
 import { getAppFlags } from '@/lib/server/app-flags';
@@ -16,5 +17,10 @@ export default async function FaceoffPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const flags = await getAppFlags();
-  return <FaceoffEntry singleEnabled={flags.faceoffSingle} />;
+  // FaceoffEntry가 useSearchParams(?single=1)를 쓰므로 Suspense로 감싼다 (프로덕션 빌드 요건)
+  return (
+    <Suspense fallback={null}>
+      <FaceoffEntry singleEnabled={flags.faceoffSingle} />
+    </Suspense>
+  );
 }
