@@ -3,11 +3,14 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb, SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
-import { getPlan } from '@sotong/shared/constants';
+import { getPlan, yearlyKrw } from '@sotong/shared/constants';
 
 export const runtime = 'nodejs';
 
-const bodySchema = z.object({ planId: z.enum(['starter', 'pro', 'business']) });
+const bodySchema = z.object({
+  planId: z.enum(['starter', 'pro', 'business']),
+  cycle: z.enum(['monthly', 'yearly']).default('monthly'),
+});
 
 /**
  * 결제 유도 — PG는 미확정이다 (docs/02 §6: 토스페이먼츠/포트원 vs Stripe, Phase 3 전 결정).
@@ -31,11 +34,15 @@ export async function POST(req: Request) {
   }
 
   try {
+    const cycle = parsed.data.cycle;
     await adminDb().collection('checkoutIntents').add({
       uid: user.uid,
       email: user.email ?? null,
       planId: plan.id,
+      cycle, // 'monthly' | 'yearly'
       monthlyKrw: plan.monthlyKrw,
+      // 실제 청구 예정액 — 연 결제는 10% 할인가
+      chargeKrw: cycle === 'yearly' ? yearlyKrw(plan.monthlyKrw) : plan.monthlyKrw,
       status: 'pg_pending', // PG 연동 시 'created' → 결제창으로 교체
       createdAt: FieldValue.serverTimestamp(),
     });

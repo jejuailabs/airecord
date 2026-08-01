@@ -19,13 +19,13 @@
       "notifications": "Notifications"
     },
     "sidebar": {
-      "monthUsage": "Used this month",
-      "dayUsage": "Used today",
-      "minute": "min",
-      "minuteOf": "min / {total}min",
-      "remaining": "{minutes} min left",
-      "exhausted": "No minutes left this month",
-      "exhaustedDay": "No minutes left today — resets tomorrow",
+      "monthUsage": "Tokens used this month",
+      "dayUsage": "Tokens used today",
+      "minute": "tokens",
+      "minuteOf": "of {total} tokens",
+      "remaining": "{minutes} tokens left",
+      "exhausted": "No tokens left this month",
+      "exhaustedDay": "No tokens left today — resets tomorrow",
       "unlimited": "Admin · unlimited"
     },
     "actions": {
@@ -169,17 +169,32 @@
   },
   "pricing": {
     "title": "Pricing",
-    "subtitle": "Pay for what you use. Honest included minutes instead of fake unlimited.",
+    "subtitle": "Pay for what you use. Counted in tokens, not time — one balance for every mode.",
     "perMonth": "/mo",
+    "perYear": "/yr",
+    "billMonthly": "Monthly",
+    "billYearly": "Yearly",
+    "yearlyBadge": "10% off",
+    "yearlyHint": "Pay yearly and save 10% (over 2 months free)",
     "popular": "Most popular",
     "cta": "Start with this plan",
-    "freeNote": "Every paid plan comes after a free 30 min/month tier. Prices exclude VAT.",
-    "includedMinutes": "{minutes} minutes / month included",
+    "freeNote": "Every paid plan comes after a free 30 tokens/month tier. Prices exclude VAT.",
+    "includedTokens": "{tokens} tokens / month included",
     "retention": "Records kept for {days} days",
     "meetingMode": "Meeting interpreter bot (Zoom · Teams · Meet · Webex)",
     "unlimitedMembers": "Unlimited team members",
-    "overage": "Overage ₩{krw}/min (only if you enable it)",
-    "noOverage": "No overage billing — we notify you when minutes run out",
+    "overage": "Overage ₩{krw}/token (only if you enable it)",
+    "noOverage": "No overage billing — we notify you when tokens run out",
+    "tokenStd": {
+      "title": "Token standard",
+      "subtitle": "1 token = 1 minute of general mode. Each mode burns at its own rate.",
+      "unit": "tokens/min",
+      "per10": "{tokens} tokens per 10 min",
+      "general": "General (in-person)",
+      "meeting": "Meeting (video bot)",
+      "faceoff": "Face-off (two-way)",
+      "faceoffBadge": "Most tokens"
+    },
     "plans": {
       "starter": {
         "name": "Starter",
@@ -213,14 +228,16 @@
   "dashboard": {
     "title": "Start interpreting",
     "stats": {
-      "remaining": "Minutes left",
-      "month": "Used this month",
-      "day": "Used today",
+      "remaining": "Tokens left",
+      "month": "Tokens used this month",
+      "day": "Tokens used today",
       "unlimited": "Admin · unlimited",
       "meeting": "Meeting",
       "inperson": "In-person",
       "minute": "min",
-      "minuteOf": "min / {total}min"
+      "minuteOf": "min / {total}min",
+      "token": "tokens",
+      "tokenOf": "of {total} tokens"
     },
     "chart": {
       "title": "Daily usage",

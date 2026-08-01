@@ -28,6 +28,12 @@ const bodySchema = z.object({
   langB: langCodeSchema,
   audioOut: z.boolean().default(true),
   title: z.string().max(200).optional(),
+  /**
+   * 1세션(턴 방식) 실험 모드.
+   * true면 여기서 번역 키를 미리 발급하지 않는다 — 클라이언트가 차례마다
+   * /api/faceoff/leg로 한 방향 키만 그때그때 받아 연결한다(항상 한 방향만 살아 있음).
+   */
+  single: z.boolean().default(false),
 });
 
 export async function POST(req: Request) {
@@ -35,7 +41,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'bad_request' }, { status: 400 });
   }
-  const { langA, langB, audioOut, title } = parsed.data;
+  const { langA, langB, audioOut, title, single } = parsed.data;
   if (langA === langB) {
     return NextResponse.json({ error: 'same_language' }, { status: 400 });
   }
@@ -60,10 +66,12 @@ export async function POST(req: Request) {
   }
 
   const baseCapSec = Math.min(maxDurationSecFromEnv(), engine.capabilities.maxSessionSec);
-  const maxDurationSec = sessionCapSeconds(ent, baseCapSec);
+  // 1세션은 1배 청구라 남은 토큰으로 열 수 있는 시간도 일반과 같다(2세션만 절반)
+  const maxDurationSec = sessionCapSeconds(ent, baseCapSec, single ? 'inperson' : 'faceoff');
 
   const record = await createSession({
     mode: 'faceoff',
+    single, // 1세션(턴 방식)이면 청구를 1배로 잡는다
     maxDurationSec,
     // 기록에는 A를 원문 언어, B를 표시 언어로 남긴다 (양방향이라 대표값일 뿐)
     sourceLang: langA,
@@ -72,6 +80,20 @@ export async function POST(req: Request) {
     workspaceId: ent.workspaceId,
     title,
   });
+
+  /**
+   * 1세션 모드: 키를 미리 발급하지 않고 세션만 연다.
+   * 클라이언트가 첫 차례에 /api/faceoff/leg로 필요한 방향 키를 받는다.
+   */
+  if (single) {
+    return NextResponse.json({
+      sessionId: record.id,
+      maxDurationSec,
+      langA,
+      langB,
+      single: true,
+    });
+  }
 
   try {
     /**

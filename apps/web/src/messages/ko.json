@@ -19,13 +19,13 @@
       "notifications": "알림"
     },
     "sidebar": {
-      "monthUsage": "이번 달 사용량",
-      "dayUsage": "오늘 사용량",
-      "minute": "분",
-      "minuteOf": "분 / {total}분",
-      "remaining": "남은 시간 {minutes}분",
-      "exhausted": "이번 달 시간을 모두 사용했습니다",
-      "exhaustedDay": "오늘 시간을 모두 사용했습니다 · 내일 다시 채워집니다",
+      "monthUsage": "이번 달 사용 토큰",
+      "dayUsage": "오늘 사용 토큰",
+      "minute": "토큰",
+      "minuteOf": "토큰 / 총 {total}토큰",
+      "remaining": "남은 토큰 {minutes}",
+      "exhausted": "이번 달 토큰을 모두 사용했습니다",
+      "exhaustedDay": "오늘 토큰을 모두 사용했습니다 · 내일 다시 채워집니다",
       "unlimited": "운영자 · 무제한"
     },
     "actions": {
@@ -169,17 +169,32 @@
   },
   "pricing": {
     "title": "요금제",
-    "subtitle": "쓴 만큼만. 무제한 요금제 대신 정직한 포함 시간으로 제공합니다.",
+    "subtitle": "쓴 만큼만. 시간이 아니라 토큰으로 셉니다 — 모든 모드를 한 잔액으로.",
     "perMonth": "/월",
+    "perYear": "/년",
+    "billMonthly": "월 결제",
+    "billYearly": "연 결제",
+    "yearlyBadge": "10% 할인",
+    "yearlyHint": "1년 선납 시 10% 할인 (2개월 이상 무료)",
     "popular": "가장 인기",
     "cta": "이 플랜으로 시작",
-    "freeNote": "모든 유료 플랜 전에 무료 30분/월이 기본 제공됩니다. 가격은 부가세 별도입니다.",
-    "includedMinutes": "월 {minutes}분 포함",
+    "freeNote": "모든 유료 플랜 전에 무료 30토큰/월이 기본 제공됩니다. 가격은 부가세 별도입니다.",
+    "includedTokens": "월 {tokens}토큰 포함",
     "retention": "기록 보관 {days}일",
     "meetingMode": "화상회의 통역 봇 (Zoom·Teams·Meet·Webex)",
     "unlimitedMembers": "팀원 무제한",
-    "overage": "초과 사용 분당 ₩{krw} (직접 켠 경우에만)",
-    "noOverage": "초과 과금 없음 — 포함 시간 소진 시 안내",
+    "overage": "초과 사용 토큰당 ₩{krw} (직접 켠 경우에만)",
+    "noOverage": "초과 과금 없음 — 포함 토큰 소진 시 안내",
+    "tokenStd": {
+      "title": "토큰 표준",
+      "subtitle": "1 토큰 = 일반 모드 1분. 모드마다 원가가 달라 소비 속도가 다릅니다.",
+      "unit": "토큰/분",
+      "per10": "10분당 {tokens}토큰",
+      "general": "일반 (대면·대화)",
+      "meeting": "회의 (화상봇)",
+      "faceoff": "마주 (양방향)",
+      "faceoffBadge": "토큰 최다"
+    },
     "plans": {
       "starter": {
         "name": "Starter",
@@ -213,14 +228,16 @@
   "dashboard": {
     "title": "통역 시작",
     "stats": {
-      "remaining": "남은 통역 시간",
-      "month": "이번 달 사용량",
-      "day": "오늘 사용량",
+      "remaining": "남은 토큰",
+      "month": "이번 달 사용 토큰",
+      "day": "오늘 사용 토큰",
       "unlimited": "운영자 · 무제한",
       "meeting": "회의 통역",
       "inperson": "대면 통역",
       "minute": "분",
-      "minuteOf": "분 / {total}분"
+      "minuteOf": "분 / {total}분",
+      "token": "토큰",
+      "tokenOf": "토큰 / 총 {total}토큰"
     },
     "chart": {
       "title": "일별 사용량",

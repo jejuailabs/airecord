@@ -86,9 +86,11 @@ export function AdminConsole() {
     users: AdminUserRow[];
     usageLog: UsageLogRow[];
     isSuper: boolean;
+    flags?: { faceoffSingle: boolean };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyUid, setBusyUid] = useState<string | null>(null);
+  const [busyFlag, setBusyFlag] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState('');
 
@@ -131,6 +133,26 @@ export function AdminConsole() {
       await load();
     } finally {
       setBusyUid(null);
+    }
+  };
+
+  /** 전역 실험 플래그 토글 (슈퍼관리자 전용). 응답 후 다시 읽는다. */
+  const setAppFlag = async (patch: { faceoffSingle?: boolean }) => {
+    setBusyFlag(true);
+    try {
+      const res = await fetch('/api/admin/flags', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) {
+        const b = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(b.error ?? 'update_failed');
+        return;
+      }
+      await load();
+    } finally {
+      setBusyFlag(false);
     }
   };
 
@@ -220,6 +242,52 @@ export function AdminConsole() {
         />
         <div className="col-span-2">
           <DailyBars daily={o.daily} />
+        </div>
+      </div>
+
+      {/* 테스트 기능 — 실험 플래그. 슈퍼관리자만 켜고 끈다. */}
+      <div className="flex flex-col gap-3 rounded-xl border border-warn/40 bg-warn/5 p-5">
+        <h2 className="flex items-center gap-2 text-[18px] font-semibold">
+          <AlertTriangle size={17} aria-hidden className="text-warn" />
+          테스트 기능
+          <span className="rounded-sm bg-warn/20 px-1.5 py-0.5 text-[11px] font-semibold text-warn">
+            실험
+          </span>
+        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-bg-raised px-4 py-3">
+          <div className="min-w-0">
+            <div className="font-semibold">마주 1세션 (턴 방식)</div>
+            <p className="mt-0.5 text-[13px] text-text-muted">
+              한 번에 한 방향만 통역한다. 음성 겹침·언어 혼란이 없고 토큰도 절반이지만,
+              말할 차례를 버튼으로 넘겨야 한다. 켜면 마주 화면에 「1세션」 선택지가 뜬다.
+            </p>
+            {/* 이 테스트가 얼마나 소비됐는지만 가볍게 — 원가 판정은 하지 않는다 */}
+            <p className="mt-1.5 text-[12.5px] text-text-faint">
+              지금까지 이 테스트로{' '}
+              <span className="font-semibold text-text-muted">{fmt(o.singleTest.sessions)}회</span>
+              {' · 총 '}
+              <span className="font-semibold text-text-muted">{fmt(o.singleTest.minutes)}분</span>
+              {' 통역됨'}
+            </p>
+          </div>
+          {data.isSuper ? (
+            <button
+              onClick={() => void setAppFlag({ faceoffSingle: !data.flags?.faceoffSingle })}
+              disabled={busyFlag}
+              className={`flex h-9 shrink-0 items-center gap-2 rounded-lg px-4 text-[13px] font-semibold transition-colors disabled:opacity-60 ${
+                data.flags?.faceoffSingle
+                  ? 'bg-accent text-accent-text'
+                  : 'border border-border text-text-muted hover:text-text'
+              }`}
+            >
+              {busyFlag ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
+              {data.flags?.faceoffSingle ? '켜짐' : '꺼짐'}
+            </button>
+          ) : (
+            <span className="shrink-0 text-[13px] text-text-faint">
+              {data.flags?.faceoffSingle ? '켜짐' : '꺼짐'} · 슈퍼관리자만 변경
+            </span>
+          )}
         </div>
       </div>
 

@@ -13,13 +13,22 @@
  * 서버는 클라이언트가 보고한 경과 시간을 믿지 않는다 — 자체 시계로만 센다 (docs/07 §5.1).
  */
 import { FieldValue } from 'firebase-admin/firestore';
-import { HEARTBEAT_INTERVAL_MS, HEARTBEAT_MISS_LIMIT } from '@sotong/shared/constants';
+import {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_MISS_LIMIT,
+  tokensForBilledSeconds,
+} from '@sotong/shared/constants';
 import type { SessionMode, SessionStatus, SourceLangSetting, LangCode } from '@sotong/shared/types';
 import { adminDb } from '@/lib/firebase/admin';
 
 export interface LiveSessionRecord {
   id: string;
   mode: SessionMode;
+  /**
+   * 마주 1세션(턴 방식)인가. 마주지만 통역 연결이 한 번에 하나뿐이라
+   * 원가·청구가 일반과 같은 1배다(2세션 마주만 2배). 청구 계산이 이 값을 본다.
+   */
+  single?: boolean;
   status: SessionStatus;
   startedAtMs: number;
   lastHeartbeatAtMs: number;
@@ -51,6 +60,15 @@ const ORPHAN_AFTER_MS = HEARTBEAT_INTERVAL_MS * HEARTBEAT_MISS_LIMIT;
 
 export function maxDurationSecFromEnv(): number {
   return Number(process.env.SESSION_MAX_DURATION_SEC ?? 7200);
+}
+
+/**
+ * 청구에 쓰는 '실효 모드'.
+ * 마주 1세션은 통역 연결이 하나뿐이라 원가가 일반과 같다 → 1배(inperson)로 청구한다.
+ * 나머지는 저장된 mode 그대로. (usage 원장의 sec_/tok_ 버킷 라벨은 실제 mode를 쓴다)
+ */
+function billingMode(record: Pick<LiveSessionRecord, 'mode' | 'single'>): SessionMode {
+  return record.mode === 'faceoff' && record.single ? 'inperson' : record.mode;
 }
 
 function liveRef(id: string) {
@@ -91,6 +109,8 @@ async function persist(rec: LiveSessionRecord): Promise<void> {
 
 export interface CreateSessionInput {
   mode: SessionMode;
+  /** 마주 1세션(턴 방식)이면 true — 청구를 1배로 잡는다 */
+  single?: boolean;
   maxDurationSec: number;
   sourceLang: SourceLangSetting;
   targetLang: LangCode;
@@ -110,6 +130,7 @@ export async function createSession(input: CreateSessionInput): Promise<LiveSess
   const record: LiveSessionRecord = {
     id: crypto.randomUUID(),
     mode: input.mode,
+    ...(input.single ? { single: true } : {}),
     status: 'live',
     startedAtMs: now,
     lastHeartbeatAtMs: now,
@@ -282,12 +303,16 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
       { merge: true },
     );
     if (record.workspaceId) {
-      // 초 단위로 세고 세션당 올림하여 분 단위 청구 (docs/07 §5.2)
-      const minutes = Math.ceil(record.billedSeconds / 60);
+      /**
+       * 토큰 청구 (docs/07 §5.2, 사용자 지시 2026-08-01).
+       * 분은 세션당 올림, 모드 배수를 곱한다 — 마주 10분이면 20토큰이 빠진다.
+       * usedMinutes 필드명은 호환을 위해 유지하되 담기는 값은 '소비 토큰'이다.
+       */
+      const tokens = tokensForBilledSeconds(billingMode(record), record.billedSeconds);
       await db
         .collection('workspaces')
         .doc(record.workspaceId)
-        .set({ billing: { usedMinutes: FieldValue.increment(minutes) } }, { merge: true });
+        .set({ billing: { usedMinutes: FieldValue.increment(tokens) } }, { merge: true });
 
       // 날짜별 사용 원장 — 대시보드·운영콘솔·예상비용의 단일 소스 (docs/03 §2)
       await recordUsage(record);
@@ -312,7 +337,9 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
 export async function recordUsage(record: LiveSessionRecord): Promise<void> {
   if (!record.workspaceId || record.billedSeconds <= 0) return;
   const day = new Date(record.startedAtMs).toISOString().slice(0, 10);
-  const mode = record.mode; // 'inperson' | 'meeting' | 'faceoff'
+  const mode = record.mode; // 'inperson' | 'meeting' | 'faceoff' (버킷 라벨은 실제 mode)
+  // 토큰은 실효 모드로 계산한다 — 마주 1세션은 1배
+  const tokens = tokensForBilledSeconds(billingMode(record), record.billedSeconds);
   try {
     await adminDb()
       .collection('usage')
@@ -326,6 +353,9 @@ export async function recordUsage(record: LiveSessionRecord): Promise<void> {
           uid: record.uid ?? null,
           totalSec: FieldValue.increment(record.billedSeconds),
           [`sec_${mode}`]: FieldValue.increment(record.billedSeconds),
+          // 토큰도 모드 배수 반영해 누적 — 운영콘솔이 초→토큰 재계산 없이 바로 읽는다
+          tokens: FieldValue.increment(tokens),
+          [`tok_${mode}`]: FieldValue.increment(tokens),
           sessions: FieldValue.increment(1),
           updatedAt: FieldValue.serverTimestamp(),
         },

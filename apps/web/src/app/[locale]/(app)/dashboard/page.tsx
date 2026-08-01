@@ -206,7 +206,8 @@ export default async function DashboardPage({
               <span className="tabular text-[26px] font-bold leading-none">
                 {remaining}
                 <span className="text-sm font-normal text-text-muted">
-                  {t('stats.minuteOf', { total: data.includedMinutes })}
+                  {' '}
+                  {t('stats.tokenOf', { total: data.includedMinutes })}
                 </span>
               </span>
               <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
@@ -218,7 +219,7 @@ export default async function DashboardPage({
         <StatCard
           label={t(data.dailyCycle ? 'stats.day' : 'stats.month')}
           value={data.usedMinutes}
-          unit={t('stats.minute')}
+          unit={t('stats.token')}
         />
         <StatCard label={t('stats.meeting')} value={data.meetingMinutes} unit={t('stats.minute')} />
         <StatCard

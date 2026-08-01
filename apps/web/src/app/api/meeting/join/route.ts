@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   }
 
   const baseCapSec = Math.min(maxDurationSecFromEnv(), engine.capabilities.maxSessionSec);
-  const maxDurationSec = sessionCapSeconds(ent, baseCapSec);
+  const maxDurationSec = sessionCapSeconds(ent, baseCapSec, 'meeting');
   const viewerToken = crypto.randomUUID().replace(/-/g, '');
 
   const record = await createSession({

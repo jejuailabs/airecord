@@ -8,8 +8,8 @@
 import { cache } from 'react';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/admin';
-import { cycleKey, getPlan } from '@sotong/shared/constants';
-import type { PlanId } from '@sotong/shared/types';
+import { cycleKey, getPlan, secondsForTokens } from '@sotong/shared/constants';
+import type { PlanId, SessionMode } from '@sotong/shared/types';
 
 export interface Entitlement {
   uid: string;
@@ -165,9 +165,16 @@ export const getEntitlement = cache(async function getEntitlement(
 
 /**
  * 이번 세션에 허용할 최대 길이(초).
- * 남은 분보다 긴 세션을 열면 한도를 넘겨 쓰게 된다 (docs/07 §5.1).
+ * 남은 토큰보다 오래 세션을 열면 한도를 넘겨 쓰게 된다 (docs/07 §5.1).
+ *
+ * mode를 넘기면 모드 배수로 나눠 캡을 정한다 — 마주(2배)는 남은 토큰으로 절반 시간만 열린다.
+ * 안 넘기면 일반(1배)으로 본다(하위호환).
  */
-export function sessionCapSeconds(ent: Entitlement, baseCapSec: number): number {
+export function sessionCapSeconds(
+  ent: Entitlement,
+  baseCapSec: number,
+  mode: SessionMode = 'inperson',
+): number {
   /**
    * 무제한 권한(운영자·무제한 부여)은 세션 길이도 제한하지 않는다.
    * 예전엔 baseCapSec(개발 안전용 5분)을 그대로 돌려줘, 무제한인데도 5분에 세션이 끊겼다.
@@ -176,7 +183,8 @@ export function sessionCapSeconds(ent: Entitlement, baseCapSec: number): number 
   if (ent.isAdmin || ent.unlimited) return UNLIMITED_SESSION_SEC;
   // 초과 사용 허용은 "청구하며 계속"이라 세션 길이 캡은 그대로 둔다 (폭주 방지)
   if (ent.overageEnabled) return baseCapSec;
-  return Math.max(60, Math.min(baseCapSec, Math.floor(ent.remainingMinutes * 60)));
+  // 남은 토큰 → 이 모드로 열 수 있는 초. 마주는 rate=2라 같은 토큰으로 절반만 열린다.
+  return Math.max(60, Math.min(baseCapSec, secondsForTokens(mode, ent.remainingMinutes)));
 }
 
 /**

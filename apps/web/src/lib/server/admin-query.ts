@@ -31,6 +31,8 @@ export interface AdminOverview {
   estCostKrw: number;
   /** 일별 사용 분 — 최근 14일 */
   daily: Array<{ day: string; minutes: number }>;
+  /** 마주 1세션(실험) 소비 — 이 테스트가 얼마나 돌았는지만 가볍게 본다 */
+  singleTest: { sessions: number; minutes: number };
 }
 
 /** 사용 원장 한 줄 (날짜 × 계정) */
@@ -104,6 +106,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     billedAll,
     liveCount,
     recent,
+    singleTestSnap,
   ] = await Promise.all([
     db.collection('users').count().get(),
     db.collection('workspaces').count().get(),
@@ -123,6 +126,11 @@ export async function getAdminOverview(): Promise<AdminOverview> {
       .select('startedAt', 'billedSeconds', 'mode')
       .limit(5_000)
       .get(),
+    /**
+     * 마주 1세션(실험) 소비량 — single==true 는 단일 필드라 자동 인덱스로 충분하다(복합 인덱스 불필요).
+     * 테스트 세션은 소수라 문서를 직접 읽어 코드에서 합해도 싸다.
+     */
+    sessions.where('single', '==', true).select('billedSeconds').limit(2_000).get(),
   ]);
 
   const bucket = new Map<string, number>();
@@ -142,6 +150,9 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
   const billedMinutes = num(billedAll.data().s) / 60;
 
+  // 마주 1세션(실험) 소비 — 횟수와 총 분만 가볍게 센다
+  const singleTestSec = singleTestSnap.docs.reduce((sum, d) => sum + num(d.get('billedSeconds')), 0);
+
   return {
     users: usersCount.data().count,
     workspaces: wsCount.data().count,
@@ -157,6 +168,10 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     // 최근 30일 추정 원가 — mode별 단가로 계산(대면·회의·마주 구성이 다름)
     estCostKrw: Math.round(cost30),
     daily: [...bucket.entries()].map(([day, minutes]) => ({ day, minutes: Math.round(minutes) })),
+    singleTest: {
+      sessions: singleTestSnap.size,
+      minutes: Math.round(singleTestSec / 60),
+    },
   };
 }
 
