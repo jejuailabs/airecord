@@ -275,7 +275,8 @@
     },
     "startFaceoff": {
       "title": "마주통역",
-      "subtitle": "마주 앉아 서로의 말로"
+      "subtitle": "마주 앉아 서로의 말로",
+      "badge": "고급"
     }
   },
   "live": {

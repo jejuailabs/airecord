@@ -275,7 +275,8 @@
     },
     "startFaceoff": {
       "title": "Face-to-face",
-      "subtitle": "Sit across, each in their tongue"
+      "subtitle": "Sit across, each in their tongue",
+      "badge": "Premium"
     }
   },
   "live": {

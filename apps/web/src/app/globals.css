@@ -115,6 +115,10 @@ body {
 .cta-orb-teal {
   background: linear-gradient(145deg, #2DD4BF 0%, #0D9488 100%);
 }
+/* 프리미엄(마주통역) — 샴페인 골드. 고급·고비용 모드를 색으로 구분한다. */
+.cta-orb-gold {
+  background: linear-gradient(145deg, #F7DE8B 0%, #D6A93A 52%, #B07A18 100%);
+}
 
 /* ── 시안 톤 공통 요소 ─────────────────────────────── */
 

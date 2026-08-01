@@ -154,8 +154,9 @@ export default async function DashboardPage({
             />
             <ActionCard
               href="/faceoff"
-              tone="teal"
+              tone="gold"
               compact
+              badge={t('startFaceoff.badge')}
               icon={<UsersRound size={30} />}
               title={t('startFaceoff.title')}
               subtitle={t('startFaceoff.subtitle')}

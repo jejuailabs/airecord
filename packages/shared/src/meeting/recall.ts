@@ -46,6 +46,13 @@ export async function createBot(opts: CreateBotOptions): Promise<{ botId: string
       bot_name: opts.botName,
       chat: { on_bot_join: { send_to: 'everyone', message: opts.chatMessage } },
       recording_config: {
+        /**
+         * ⚠ 아티팩트를 먼저 켜야 그 실시간 이벤트를 구독할 수 있다 (실측 2026-08-01).
+         *   이게 없으면 Recall이 400으로 거부한다:
+         *   "Cannot specify realtime endpoint events for artifacts that are not configured: audio_mixed_raw".
+         *   realtime_endpoints의 events(audio_mixed_raw.data)와 반드시 짝을 이뤄야 한다.
+         */
+        audio_mixed_raw: {},
         realtime_endpoints: [
           { type: 'websocket', url: opts.audioDestinationWs, events: ['audio_mixed_raw.data'] },
         ],
