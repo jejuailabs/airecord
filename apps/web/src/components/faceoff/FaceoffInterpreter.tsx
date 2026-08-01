@@ -176,6 +176,15 @@ export function FaceoffInterpreter() {
   useEffect(() => {
     langBRef.current = langB;
   }, [langB]);
+  /**
+   * 원문(전사) 스트림으로 두 가지를 한다:
+   *   · lastSrcRef — 각 세션의 최근 원문. 번역 줄에 붙여 원문을 함께 보여준다(양방향 3번 문제).
+   *   · suppressUntilRef — 이 세션이 "반대편 언어"를 들은 구간엔 그 세션 번역을 잠깐 끈다.
+   *     (내가 한국어로 말할 때 toA(영→한)가 내 한국어를 통과시켜 내 면에 새는 2번 문제)
+   *     시간 상자(≈발화 1개 길이)로 억제하고 자동 해제해, 다음 차례 첫 문장을 막지 않는다.
+   */
+  const lastSrcRef = useRef<{ toB: string; toA: string }>({ toB: '', toA: '' });
+  const suppressUntilRef = useRef<{ toB: number; toA: number }>({ toB: 0, toA: 0 });
 
   /**
    * 세그먼트를 어느 면에 놓을지 판정한다.
@@ -187,13 +196,34 @@ export function FaceoffInterpreter() {
    * 늦게 오는 원문 때문에 진짜 번역을 놓치는 게 더 나쁘다.
    */
   const pushSegment = useCallback((dir: 'toB' | 'toA', seg: EngineSegment) => {
-    const speakerLang = dir === 'toB' ? langARef.current : langBRef.current;
-    const speakerScript = scriptOfLang(speakerLang);
-    const srcScript = guessScript(seg.sourceText);
-    if (srcScript && srcScript !== speakerScript) return; // 반대 언어 통과분 — 버린다
+    const speakerScript = scriptOfLang(dir === 'toB' ? langARef.current : langBRef.current);
+    const otherScript = scriptOfLang(dir === 'toB' ? langBRef.current : langARef.current);
 
+    /**
+     * 원문(전사) 세그먼트 — 화면엔 번역 줄에 붙여서 보여주므로 여기선 저장·판정만 한다.
+     *   · 이 세션이 반대편 언어를 들었으면(통과분) 잠깐 억제한다.
+     *   · 입력 언어가 맞으면 억제를 풀고 원문을 저장한다.
+     */
+    if (seg.kind === 'source') {
+      const src = seg.sourceText.trim();
+      if (!src) return;
+      const sc = guessScript(src);
+      if (sc && sc === otherScript) {
+        suppressUntilRef.current[dir] = Date.now() + 2_500; // 통과분 구간 억제
+      } else {
+        if (sc && sc === speakerScript) suppressUntilRef.current[dir] = 0; // 올바른 입력 — 억제 해제
+        lastSrcRef.current[dir] = src; // 번역 줄에 붙일 원문
+      }
+      return;
+    }
+
+    // ── 번역(target) 세그먼트 ──
+    if (Date.now() < suppressUntilRef.current[dir]) return; // 반대방향 통과분 억제 구간
     const text = seg.targetText.trim();
     if (!text) return;
+
+    // 이 세션의 최근 원문(같은 화자 언어)을 원문으로 붙인다
+    const sourceText = lastSrcRef.current[dir] || undefined;
 
     const setLive = dir === 'toB' ? setLiveB : setLiveA;
     const setRows = dir === 'toB' ? setRowsB : setRowsA;
@@ -201,10 +231,12 @@ export function FaceoffInterpreter() {
     if (seg.isFinal) {
       setRows((prev) => {
         const idx = prev.findIndex((r) => r.seq === seg.seq);
-        const row: Row = { seq: seg.seq, text, source: seg.sourceText.trim() || undefined };
+        const row: Row = { seq: seg.seq, text, source: sourceText };
         const next = idx >= 0 ? [...prev.slice(0, idx), row, ...prev.slice(idx + 1)] : [...prev, row];
         return next.slice(-MAX_ROWS);
       });
+      // 이 원문은 이 줄이 소비했다 — 다음 발화에 재사용되지 않게 비운다
+      lastSrcRef.current[dir] = '';
 
       /**
        * 저장 큐에도 넣는다(표시와 별개). 같은 조각이 갱신되면 덮어쓴다.
@@ -218,7 +250,7 @@ export function FaceoffInterpreter() {
         pendingRef.current.set(key, {
           seq: prevSave?.seq ?? saveSeqRef.current++,
           atMs: prevSave?.atMs ?? Math.max(0, Date.now() - startedAtRef.current),
-          source: seg.sourceText.trim(),
+          source: sourceText ?? '',
           target: text,
           speaker,
         });

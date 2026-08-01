@@ -90,6 +90,18 @@ export function createSegmentAssembler(
   let detectedLang: string | undefined;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * 원문 버퍼 — 발화 하나하나(“うん” “そう” 같은 짧은 조각)를 각자 한 줄로 뱉으면
+   * 화면이 잘게 부서진다. 문장 단위가 될 때까지 모았다가 한 줄로 내보낸다(번역과 같은 방식).
+   */
+  let sourceBuf = '';
+  let sourceBufStart: number | undefined;
+  let sourceBufEnd: number | undefined;
+  let sourceTimer: ReturnType<typeof setTimeout> | null = null;
+  const sourcePauseMs = options.pauseMs ?? 1_800; // 이만큼 새 원문이 없으면 모은 걸 내보낸다
+  const minSourceChars = 20;
+  const maxSourceChars = 140;
+
   const emit = (s: EngineSegment) => onSegment({ ...s });
 
   function newRow(kind: 'target' | 'source'): EngineSegment {
@@ -150,6 +162,47 @@ export function createSegmentAssembler(
     emit(row);
   }
 
+  /** 모아둔 원문을 한 줄로 내보낸다 (문장 완성 또는 침묵) */
+  function flushSourceBuf() {
+    if (sourceTimer) {
+      clearTimeout(sourceTimer);
+      sourceTimer = null;
+    }
+    const t = sourceBuf.trim();
+    const start = sourceBufStart;
+    const end = sourceBufEnd;
+    sourceBuf = '';
+    sourceBufStart = undefined;
+    sourceBufEnd = undefined;
+    if (t) emitSource(t, start !== undefined ? { startMs: start, endMs: end } : undefined);
+  }
+
+  function armSourceTimer() {
+    if (sourceTimer) clearTimeout(sourceTimer);
+    sourceTimer = setTimeout(flushSourceBuf, sourcePauseMs);
+  }
+
+  /**
+   * 확정 원문 조각을 버퍼에 모은다. 문장부호+최소길이에 닿거나 최대길이를 넘으면 한 줄로 확정,
+   * 아니면 침묵 타이머로 흘려보낸다. 짧은 조각이 각자 줄이 되어 화면이 부서지는 걸 막는다.
+   */
+  function feedSource(text: string, audio?: { startMs: number; endMs?: number }) {
+    const t = text.trim();
+    if (!t || !HAS_WORD.test(t)) return;
+    sourceBuf = sourceBuf ? `${sourceBuf} ${t}` : t;
+    if (audio) {
+      if (sourceBufStart === undefined) sourceBufStart = audio.startMs;
+      if (audio.endMs !== undefined) sourceBufEnd = audio.endMs;
+    }
+    const last = sourceBuf.charAt(sourceBuf.length - 1);
+    const endsSentence = SENTENCE_MARK.includes(last);
+    if ((endsSentence && sourceBuf.length >= minSourceChars) || sourceBuf.length >= maxSourceChars) {
+      flushSourceBuf();
+    } else {
+      armSourceTimer();
+    }
+  }
+
   /** 부가 전사(텍스트만) 경로 — 문장 단위로 잘라 내보낸다 */
   function drainSourceText() {
     for (;;) {
@@ -207,7 +260,8 @@ export function createSegmentAssembler(
           if (!transcript.trim()) break;
           const w = itemId ? vadWindows.get(itemId) : undefined;
           if (itemId) vadWindows.delete(itemId);
-          emitSource(transcript, w);
+          // 즉시 뱉지 않고 문장 단위로 모은다 (짧은 조각 파편화 방지)
+          feedSource(transcript, w);
           break;
         }
 
@@ -251,6 +305,7 @@ export function createSegmentAssembler(
       const tail = sourcePartial.trim();
       sourcePartial = '';
       if (tail) emitSource(tail);
+      flushSourceBuf(); // 모아둔 원문 마지막 조각도 내보낸다
       if (openRow && openRow.targetText.trim()) closeRow(openRow);
       openRow = null;
     },
