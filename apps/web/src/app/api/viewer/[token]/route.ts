@@ -32,6 +32,8 @@ export async function GET(
       sourceLang: grant.sourceLang,
       targetLang: grant.targetLang,
       segments,
+      // 대면처럼 "쌓이는 중" 번역 줄 — 확정되면 segments로 넘어가고 여기선 사라진다
+      livePartial: grant.livePartial,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

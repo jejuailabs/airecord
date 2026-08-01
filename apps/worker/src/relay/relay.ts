@@ -13,12 +13,26 @@
  */
 import type { WebSocket } from 'ws';
 import { getEngine, meetingAudioToEngine } from '@sotong/shared/engine';
-import { SEGMENT_BATCH_MAX_COUNT, SEGMENT_BATCH_MAX_MS } from '@sotong/shared/constants';
+import { SEGMENT_BATCH_MAX_COUNT } from '@sotong/shared/constants';
 import type { EngineSegment } from '@sotong/shared/engine';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
-import { writeSegmentBatch, touchSession, finishSession, readSessionConfig } from '../firestore.js';
+import {
+  writeSegmentBatch,
+  touchSession,
+  finishSession,
+  readSessionConfig,
+  writeLivePartial,
+} from '../firestore.js';
 
 const HARD_CAP_CHECK_MS = 30_000; // 30초마다 상태·경과 갱신 + 하드 캡 검사 (docs/04 §4)
+
+/**
+ * 회의 자막 저장 주기.
+ * 공용 SEGMENT_BATCH_MAX_MS(5초)는 대량 기록엔 알맞지만 회의 자막엔 너무 늦다 —
+ * 확정 문장이 최대 5초 묶여 있다가 나가면 뷰어가 그만큼 뒤처진다(실측 체감 지연의 주범).
+ * 회의는 초당 몇 줄이라 자주 써도 부담이 없다. 1초 안으로 흘려보낸다.
+ */
+const MEETING_FLUSH_MS = 900;
 
 /** Recall.ai 실시간 이벤트 프레임 (공식 스키마의 우리가 쓰는 부분만) */
 interface RecallFrame {
@@ -67,17 +81,54 @@ export async function runRelay(sessionId: string, botWs: WebSocket): Promise<voi
     void writeSegmentBatch(sessionId, toWrite);
   };
 
+  /**
+   * 라이브 부분자막 — 대면처럼 "쌓이는 번역 줄"을 흘린다.
+   * 델타마다 쓰면 쓰기가 폭발하니 ~400ms로 스로틀한다(최신값만 반영).
+   */
+  const PARTIAL_THROTTLE_MS = 400;
+  let pendingPartial: { text: string; seq: number } | null = null;
+  let partialTimer: NodeJS.Timeout | null = null;
+  const scheduleFlushPartial = () => {
+    if (partialTimer || !pendingPartial) return;
+    partialTimer = setTimeout(() => {
+      partialTimer = null;
+      if (pendingPartial) {
+        void writeLivePartial(sessionId, pendingPartial.text, pendingPartial.seq);
+        pendingPartial = null;
+      }
+    }, PARTIAL_THROTTLE_MS);
+  };
+
   session.onSegment((seg) => {
-    if (!seg.isFinal) return; // 부분 전사는 저장하지 않는다 (docs/03 §3)
+    if (!seg.isFinal) {
+      // 부분 번역(target)만 라이브 라인으로 흘린다. 원문 스트림·빈 줄은 무시.
+      if (seg.kind !== 'source' && seg.targetText.trim()) {
+        pendingPartial = { text: seg.targetText, seq: seg.seq };
+        scheduleFlushPartial();
+      }
+      return; // 부분은 segments에 저장하지 않는다 (docs/03 §3) — 라이브 라인으로만 보여준다
+    }
     segmentCount++;
     batch.push(seg);
+    /**
+     * 이 번역 줄이 확정됐으면 라이브 라인을 비운다 — 확정 줄로 편입되므로 중복 표시 방지.
+     * (원문 확정은 라이브 라인과 무관하니 target일 때만)
+     */
+    if (seg.kind !== 'source') {
+      pendingPartial = null;
+      if (partialTimer) {
+        clearTimeout(partialTimer);
+        partialTimer = null;
+      }
+      void writeLivePartial(sessionId, '', seg.seq);
+    }
     if (batch.length >= SEGMENT_BATCH_MAX_COUNT) {
       flush();
     } else if (!batchTimer) {
       batchTimer = setTimeout(() => {
         batchTimer = null;
         flush();
-      }, SEGMENT_BATCH_MAX_MS);
+      }, MEETING_FLUSH_MS);
     }
   });
   session.onError((e) => {
@@ -136,6 +187,8 @@ export async function runRelay(sessionId: string, botWs: WebSocket): Promise<voi
 
   botWs.on('close', async () => {
     clearInterval(capTimer);
+    if (partialTimer) clearTimeout(partialTimer);
+    void writeLivePartial(sessionId, '', -1); // 라이브 라인 비우기 — 끝난 회의에 부분자막이 남지 않게
     flush();
     await session.close();
     if (audioFrames === 0) {

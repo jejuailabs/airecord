@@ -611,7 +611,11 @@
       "hint": "Once the Firestore live subscription is wired up, this screen shows captions."
     },
     "ended": "The meeting has ended.",
-    "invalidLink": "This link is no longer available."
+    "invalidLink": "This link is no longer available.",
+    "save": "Save transcript",
+    "saveName": "interlive-captions",
+    "speakOn": "Voice on",
+    "speakOff": "Listen"
   },
   "notFound": {
     "title": "Page not found",

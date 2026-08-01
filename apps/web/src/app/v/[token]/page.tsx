@@ -1,6 +1,7 @@
 import { headers } from 'next/headers';
 import { getTranslations } from 'next-intl/server';
 import { LiveCaptions } from '@/components/viewer/LiveCaptions';
+import { resolveViewerToken } from '@/lib/server/viewer';
 
 /**
  * 자막 뷰어 (docs/06 §2.4) — 회의 참가자가 링크만으로 들어와 자막을 보는 공개 화면.
@@ -20,6 +21,10 @@ export default async function ViewerPage({
   const t = await getTranslations({ locale, namespace: 'viewer' });
   const tc = await getTranslations({ locale, namespace: 'common' });
 
+  // 음성(TTS) 로케일용 표시 언어 — 토큰이 이상하면 client가 404로 처리하므로 기본값만 둔다
+  const grant = await resolveViewerToken(token).catch(() => null);
+  const targetLang = grant?.targetLang ?? 'en';
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex h-12 items-center px-4">
@@ -32,10 +37,15 @@ export default async function ViewerPage({
       <main className="flex flex-1 flex-col p-4">
         <LiveCaptions
           token={token}
+          targetLang={targetLang}
           labels={{
             waiting: t('waiting'),
             ended: t('ended'),
             invalid: t('invalidLink'),
+            save: t('save'),
+            saveName: t('saveName'),
+            speakOn: t('speakOn'),
+            speakOff: t('speakOff'),
           }}
         />
       </main>

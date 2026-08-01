@@ -145,6 +145,31 @@ export async function touchSession(
 }
 
 /**
+ * 라이브 부분자막(아직 확정 전 번역) — 대면처럼 "쌓이는 줄"을 뷰어에 흘린다.
+ *
+ * 확정 세그먼트와 달리 이건 계속 덮어써지는 한 줄이라 liveSessions/{id} 문서에 둔다
+ * (append가 아니라 최신값 하나). 호출부(relay)가 ~400ms로 스로틀하므로 쓰기량은 통제된다.
+ * text가 비면 확정돼서 라이브 라인이 사라졌다는 뜻이다.
+ */
+export async function writeLivePartial(
+  sessionId: string,
+  text: string,
+  seq: number,
+): Promise<void> {
+  try {
+    await db()
+      .collection(LIVE_COL)
+      .doc(sessionId)
+      .set(
+        { livePartial: text ? { text, seq, atMs: Date.now() } : null },
+        { merge: true },
+      );
+  } catch {
+    // 라이브 라인은 편의 기능이다 — 실패해도 확정 자막·통역엔 영향 없으니 조용히 넘긴다
+  }
+}
+
+/**
  * 봇 상태를 기록한다 (웹훅에서 호출).
  * 화면이 "입장 중 / 통역 중 / 실패"를 구분하려면 이 값이 필요하다 —
  * 없으면 유저는 봇이 회의에 못 들어간 것과 조용히 실패한 것을 구분할 수 없다.

@@ -16,6 +16,8 @@ export interface ViewerGrant {
   sourceLang: string;
   /** 'live'면 아직 진행 중 — 뷰어가 계속 물어봐야 한다 */
   status: string;
+  /** 아직 확정 전인 "쌓이는 중" 번역 줄 (대면처럼 실시간 스트리밍). 없으면 null */
+  livePartial: { text: string; seq: number } | null;
 }
 
 export interface ViewerSegment {
@@ -38,11 +40,17 @@ export async function resolveViewerToken(token: string): Promise<ViewerGrant | n
 
   const live = await adminDb().collection('liveSessions').doc(d.sessionId).get();
   const ld = live.data() ?? {};
+  const lp = ld.livePartial;
+  const livePartial =
+    lp && typeof lp.text === 'string' && lp.text.trim() && typeof lp.seq === 'number'
+      ? { text: lp.text, seq: lp.seq }
+      : null;
   return {
     sessionId: d.sessionId,
     sourceLang: typeof ld.sourceLang === 'string' ? ld.sourceLang : 'auto',
     targetLang: typeof ld.targetLang === 'string' ? ld.targetLang : 'en',
     status: typeof ld.status === 'string' ? ld.status : 'live',
+    livePartial,
   };
 }
 

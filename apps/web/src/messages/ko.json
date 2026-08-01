@@ -611,7 +611,11 @@
       "hint": "Firestore 실시간 구독이 연결되면 이 화면이 자막을 표시합니다."
     },
     "ended": "회의가 끝났습니다.",
-    "invalidLink": "이 링크는 더 이상 사용할 수 없습니다."
+    "invalidLink": "이 링크는 더 이상 사용할 수 없습니다.",
+    "save": "자막 저장",
+    "saveName": "통역자막",
+    "speakOn": "음성 켜짐",
+    "speakOff": "음성 듣기"
   },
   "notFound": {
     "title": "페이지를 찾을 수 없습니다",
