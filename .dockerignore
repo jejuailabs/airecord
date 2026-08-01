@@ -1,0 +1,21 @@
+# Cloud Run 워커 빌드 컨텍스트에서 제외 (docs/02 §5)
+# 컨테이너 안에서 pnpm install로 다시 설치하므로 로컬 node_modules는 담지 않는다.
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+
+# 웹 앱은 워커 이미지에 필요 없다
+apps/web
+
+# 시크릿·로컬 설정은 절대 이미지에 넣지 않는다 (Cloud Run 환경변수로 주입)
+**/.env
+**/.env.local
+**/.env*.local
+
+# 개발 부산물
+.git
+.vscode
+**/*.log
+scratchpad

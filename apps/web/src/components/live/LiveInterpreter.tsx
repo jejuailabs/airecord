@@ -51,6 +51,7 @@ import type { SessionStartResponse } from '@sotong/shared/schemas';
 import { Link } from '@/i18n/navigation';
 import { useMicLevel } from '@/hooks/useMicLevel';
 import { CaptionPanel } from '@/components/caption/CaptionPanel';
+import { startSessionRecorder, uploadRecording, type SessionRecorder } from '@/lib/audio/recorder';
 
 /** 'wrapping' — 입력은 끊었지만 남은 번역이 도착하길 기다리는 구간 */
 type Phase = 'setup' | 'starting' | 'live' | 'wrapping' | 'ended';
@@ -192,6 +193,8 @@ export function LiveInterpreter({
   const [trialBudget, setTrialBudget] = useState(TRIAL_CHAR_LIMIT);
 
   const sessionRef = useRef<BrowserTranslationSession | null>(null);
+  /** 원본 발화 녹음 — 종료 시 stop→업로드 (부가기능) */
+  const recorderRef = useRef<SessionRecorder | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -409,6 +412,10 @@ export function LiveInterpreter({
 
       sessionRef.current?.close();
       sessionRef.current = null;
+
+      // 마이크를 끄기 전에 녹음을 마무리해 blob을 확보한다 (트랙이 멈추면 못 받는다)
+      const recording = recorderRef.current ? await recorderRef.current.stop() : null;
+      recorderRef.current = null;
       micStream?.getTracks().forEach((tr) => tr.stop());
 
       let billed = 0;
@@ -472,6 +479,11 @@ export function LiveInterpreter({
           }
         } catch {
           /* 종료 보고 실패 — 서버 orphan 청소가 마무리한다 (docs/01 §6) */
+        }
+
+        // 기록이 저장된 세션만 녹음을 올린다 (업로드 실패해도 종료는 그대로 진행)
+        if (saved && recording) {
+          void uploadRecording(sessionId, recording.blob, recording.contentType);
         }
       }
       setSavedSessionId(saved ? sessionId : null);
@@ -613,6 +625,12 @@ export function LiveInterpreter({
       setPhase('setup');
       return;
     }
+
+    /**
+     * 원본 발화 녹음 시작 (부가기능 — 실패해도 통역은 그대로).
+     * 통역용과 같은 mic 트랙을 공유한다. 비회원 체험은 기록을 저장 안 하므로 녹음도 하지 않는다.
+     */
+    if (!trial) recorderRef.current = startSessionRecorder(micStream);
 
     startedAtRef.current = Date.now();
     setElapsedSec(0);

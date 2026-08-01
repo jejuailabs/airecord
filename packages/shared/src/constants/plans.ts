@@ -55,7 +55,8 @@ export const PLANS: readonly PlanDef[] = [
   {
     id: 'pro',
     audience: 'personal',
-    monthlyKrw: 39_900,
+    // 회의 모드 원가(₩65/분) × 300분 × 2.5배 방어선 (docs/07). 마주 전량은 예외 — 아래 주석 참고.
+    monthlyKrw: 49_000,
     cycle: 'monthly',
     includedMinutes: 300,
     overageKrwPerMin: 150,
@@ -66,7 +67,8 @@ export const PLANS: readonly PlanDef[] = [
   {
     id: 'business',
     audience: 'business',
-    monthlyKrw: 199_000,
+    // 기업은 회의 모드 비중이 크다 — 회의 원가(₩65/분) × 1500분 × 2.5배 방어선 (docs/07).
+    monthlyKrw: 249_000,
     cycle: 'monthly',
     includedMinutes: 1_500,
     overageKrwPerMin: 130,

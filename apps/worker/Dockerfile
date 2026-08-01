@@ -4,7 +4,7 @@ FROM node:22-slim AS base
 RUN corepack enable
 WORKDIR /app
 
-COPY pnpm-workspace.yaml package.json ./
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY packages/config/package.json packages/config/
 COPY packages/shared/package.json packages/shared/
 COPY apps/worker/package.json apps/worker/

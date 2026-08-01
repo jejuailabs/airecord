@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { currentUid, getSessionDetail } from '@/lib/server/sessions-query';
 import { buildScript } from '@sotong/shared/engine';
 import { FaceoffTranscript } from '@/components/sessions/FaceoffTranscript';
+import { RecordingPlayer } from '@/components/sessions/RecordingPlayer';
 import { languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { SummaryRefresher } from '@/components/sessions/SummaryRefresher';
@@ -163,6 +164,9 @@ export default async function SessionDetailPage({
           </div>
         )}
       </section>
+
+      {/* 원본 음성 (녹음이 있으면) */}
+      <RecordingPlayer sessionId={detail.id} />
 
       {/* 원본 스크립트 — 원문·번역 대조 */}
       <section className="flex flex-col gap-3">

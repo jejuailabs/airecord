@@ -7,7 +7,7 @@ import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
-function adminApp(): App {
+export function adminApp(): App {
   const existing = getApps()[0];
   if (existing) return existing;
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
