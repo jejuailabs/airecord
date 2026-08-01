@@ -14,6 +14,7 @@
 import type { WebSocket } from 'ws';
 import { getEngine, meetingAudioToEngine } from '@sotong/shared/engine';
 import { SEGMENT_BATCH_MAX_COUNT } from '@sotong/shared/constants';
+import { alignTranscripts } from '@sotong/shared/translate/align';
 import type { EngineSegment } from '@sotong/shared/engine';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import {
@@ -22,6 +23,7 @@ import {
   finishSession,
   readSessionConfig,
   writeLivePartial,
+  writeAlignedPairs,
 } from '../firestore.js';
 
 const HARD_CAP_CHECK_MS = 30_000; // 30초마다 상태·경과 갱신 + 하드 캡 검사 (docs/04 §4)
@@ -33,6 +35,18 @@ const HARD_CAP_CHECK_MS = 30_000; // 30초마다 상태·경과 갱신 + 하드 
  * 회의는 초당 몇 줄이라 자주 써도 부담이 없다. 1초 안으로 흘려보낸다.
  */
 const MEETING_FLUSH_MS = 900;
+
+/**
+ * 원문↔번역 정렬 주기 — 기록을 대면처럼 "짝지어진 줄"로 만든다.
+ * 회의 중 20초마다 밀린 줄을 짝짓고, 종료 때 남은 꼬리를 한 번 더 맞춘다.
+ * (종료 후에만 몰아서 하면 Cloud Run이 요청 밖 CPU를 죄어 다 못 끝낼 수 있다)
+ */
+const ALIGN_INTERVAL_MS = 20_000;
+/** 이 나이(ms)보다 어린 줄은 정렬하지 않는다 — raw 문서 쓰기(0.9초 배치+재시도)가 끝난 뒤라야
+ *  paired 덮어쓰기·삭제가 어긋나지 않는다. */
+const ALIGN_MIN_AGE_MS = 10_000;
+/** 한 번에 정렬기에 보내는 최대 줄 수 (대면과 동일) */
+const ALIGN_WINDOW = 40;
 
 /** Recall.ai 실시간 이벤트 프레임 (공식 스키마의 우리가 쓰는 부분만) */
 interface RecallFrame {
@@ -99,6 +113,43 @@ export async function runRelay(sessionId: string, botWs: WebSocket): Promise<voi
     }, PARTIAL_THROTTLE_MS);
   };
 
+  /**
+   * 원문↔번역 정렬(대면과 동일한 2층) — 확정 줄을 모아뒀다가 주기적으로 짝짓고,
+   * Firestore 기록을 paired 문서로 고쳐 쓴다. 짝지어진 줄은 목록에서 빠진다.
+   */
+  const unaligned = new Map<number, { seg: EngineSegment; addedAtMs: number }>();
+  let alignBusy = false;
+  const alignPass = async (minAgeMs = ALIGN_MIN_AGE_MS) => {
+    if (alignBusy) return;
+    const cutoff = Date.now() - minAgeMs;
+    const rows = [...unaligned.values()]
+      .filter((r) => r.addedAtMs <= cutoff)
+      .map((r) => r.seg)
+      .sort((a, b) => a.seq - b.seq);
+    const src = rows.filter((s) => s.kind === 'source' && s.sourceText.trim());
+    const tgt = rows.filter((s) => s.kind !== 'source' && s.targetText.trim());
+    if (src.length === 0 || tgt.length === 0) return;
+    alignBusy = true;
+    try {
+      const res = await alignTranscripts(
+        src.slice(0, ALIGN_WINDOW).map((s) => ({ seq: s.seq, text: s.sourceText.slice(0, 600) })),
+        tgt.slice(0, ALIGN_WINDOW).map((s) => ({ seq: s.seq, text: s.targetText.slice(0, 600) })),
+      );
+      if (!res || res.pairs.length === 0) return;
+      const bySeq = new Map(rows.map((s) => [s.seq, s]));
+      const consumed = await writeAlignedPairs(sessionId, res.pairs, bySeq);
+      for (const n of consumed) unaligned.delete(n);
+      if (consumed.length > 0) {
+        console.log(`[relay] ${sessionId}: aligned ${res.pairs.length} pairs (${consumed.length} rows)`);
+      }
+    } catch (e) {
+      console.error(`[relay] ${sessionId}: align pass failed`, e);
+    } finally {
+      alignBusy = false;
+    }
+  };
+  const alignTimer = setInterval(() => void alignPass(), ALIGN_INTERVAL_MS);
+
   session.onSegment((seg) => {
     if (!seg.isFinal) {
       // 부분 번역(target)만 라이브 라인으로 흘린다. 원문 스트림·빈 줄은 무시.
@@ -110,6 +161,10 @@ export async function runRelay(sessionId: string, botWs: WebSocket): Promise<voi
     }
     segmentCount++;
     batch.push(seg);
+    // 정렬 후보로 적립 (paired로 소비되면 빠진다)
+    if ((seg.kind === 'source' ? seg.sourceText : seg.targetText).trim()) {
+      unaligned.set(seg.seq, { seg, addedAtMs: Date.now() });
+    }
     /**
      * 이 번역 줄이 확정됐으면 라이브 라인을 비운다 — 확정 줄로 편입되므로 중복 표시 방지.
      * (원문 확정은 라이브 라인과 무관하니 target일 때만)
@@ -187,10 +242,18 @@ export async function runRelay(sessionId: string, botWs: WebSocket): Promise<voi
 
   botWs.on('close', async () => {
     clearInterval(capTimer);
+    clearInterval(alignTimer);
     if (partialTimer) clearTimeout(partialTimer);
     void writeLivePartial(sessionId, '', -1); // 라이브 라인 비우기 — 끝난 회의에 부분자막이 남지 않게
     flush();
     await session.close();
+    /**
+     * 마지막 정렬 — 끝자락 줄들을 한 번 더 짝짓는다 (대면의 finalAlign과 같은 역할).
+     * raw 문서 쓰기(0.9초 배치)가 끝나길 잠깐 기다린 뒤 나이 제한 없이 돈다.
+     * Cloud Run이 연결 종료 후 CPU를 죄면 못 끝낼 수 있다 — 실패해도 기록은 raw로 남는다(최선노력).
+     */
+    await new Promise((r) => setTimeout(r, 2_500));
+    await alignPass(0).catch(() => undefined);
     if (audioFrames === 0) {
       console.error(`[relay] ${sessionId}: closed without receiving any audio frame`);
     }

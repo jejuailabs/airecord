@@ -145,6 +145,62 @@ export async function touchSession(
 }
 
 /**
+ * 정렬 결과를 기록에 반영한다 — 회의 기록을 대면처럼 "짝지어진 줄"로 고쳐 쓴다.
+ *
+ * 짝마다: 첫 번역 줄 자리(문서 id = 그 seq)에 원문·번역을 합친 paired 문서를 덮어쓰고,
+ * 짝에 소비된 나머지 원문·번역 문서는 지운다. 텍스트는 이어 붙이기만 한다(align.ts 원칙).
+ *
+ * batch는 원자적이다 — 커밋 실패 시 아무것도 안 바뀌므로 빈 배열을 돌려주고,
+ * 호출부는 다음 주기에 같은 줄로 다시 시도하면 된다.
+ */
+export async function writeAlignedPairs(
+  sessionId: string,
+  pairs: Array<{ sourceSeqs: number[]; targetSeqs: number[] }>,
+  rowsBySeq: Map<number, EngineSegment>,
+): Promise<number[]> {
+  const pad = (n: number) => String(n).padStart(6, '0');
+  const consumed: number[] = [];
+  try {
+    const batch = db().batch();
+    const col = db().collection('sessions').doc(sessionId).collection('segments');
+    for (const p of pairs) {
+      const srcRows = p.sourceSeqs
+        .map((n) => rowsBySeq.get(n))
+        .filter(Boolean) as EngineSegment[];
+      const tgtRows = p.targetSeqs
+        .map((n) => rowsBySeq.get(n))
+        .filter(Boolean) as EngineSegment[];
+      if (srcRows.length === 0 || tgtRows.length === 0) continue;
+      const anchor = tgtRows[0]!;
+      batch.set(
+        col.doc(pad(anchor.seq)),
+        {
+          seq: anchor.seq,
+          startMs: anchor.startMs,
+          endMs: tgtRows[tgtRows.length - 1]!.endMs ?? null,
+          sourceText: srcRows.map((r) => r.sourceText).join(' ').trim(),
+          targetText: tgtRows.map((r) => r.targetText).join(' ').trim(),
+          kind: 'paired',
+          isFinal: true,
+          createdAt: FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      );
+      for (const n of [...p.sourceSeqs, ...p.targetSeqs]) {
+        if (n !== anchor.seq) batch.delete(col.doc(pad(n)));
+        consumed.push(n);
+      }
+    }
+    if (consumed.length === 0) return [];
+    await batch.commit();
+    return consumed;
+  } catch (e) {
+    console.error(`[firestore] writeAlignedPairs(${sessionId}) failed`, e);
+    return []; // 다음 주기에 같은 줄로 재시도
+  }
+}
+
+/**
  * 라이브 부분자막(아직 확정 전 번역) — 대면처럼 "쌓이는 줄"을 뷰어에 흘린다.
  *
  * 확정 세그먼트와 달리 이건 계속 덮어써지는 한 줄이라 liveSessions/{id} 문서에 둔다

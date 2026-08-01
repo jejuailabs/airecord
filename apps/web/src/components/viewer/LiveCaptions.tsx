@@ -16,6 +16,14 @@ import { Download, Radio, Volume2, VolumeX } from 'lucide-react';
 const POLL_MS = 1_000;
 /** 화면에 남기는 최대 줄 수 — 무한히 쌓으면 폰에서 스크롤이 무거워진다 */
 const MAX_ROWS = 300;
+/**
+ * 원문↔번역 정렬 주기 — 대면(LiveInterpreter)과 같은 12초.
+ * 정렬은 화면을 기다리게 하지 않는다: raw 줄은 즉시 흐르고, 정렬이 따라잡으면
+ * 그 줄들이 "번역+원문 한 묶음"으로 합쳐진다.
+ */
+const ALIGN_MS = 12_000;
+/** 한 번에 정렬기에 보내는 최대 줄 수 (align API 스키마 상한 60, 대면은 40) */
+const ALIGN_WINDOW = 40;
 
 /** 표시 언어 → 음성(TTS) 로케일. 없으면 원래 코드를 그대로 쓴다. */
 const TTS_LOCALE: Record<string, string> = {
@@ -58,6 +66,15 @@ export function LiveCaptions({
   /** 음성 상태·이미 읽은 줄 — tick 클로저에서 최신값을 보려고 ref로 둔다 */
   const speakingRef = useRef(false);
   const spokenSeqs = useRef<Set<number>>(new Set());
+  /**
+   * 원문↔번역 정렬(대면과 동일한 2층).
+   * paired — 정렬기가 짝지어 합친 줄. consumed — 짝으로 소비돼 raw 표시에서 빠지는 seq들.
+   * 정렬 실패는 조용히 넘어간다: raw 줄이 그대로 남아 있으니 화면은 항상 흐른다.
+   */
+  const [paired, setPaired] = useState<Row[]>([]);
+  const consumedRef = useRef<Set<number>>(new Set());
+  const alignBusyRef = useRef(false);
+  const statusRef = useRef<'live' | 'ended' | 'invalid'>('live');
 
   const speak = (text: string) => {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
@@ -108,6 +125,7 @@ export function LiveCaptions({
         if (!alive) return;
         if (res.status === 404) {
           setStatus('invalid');
+          statusRef.current = 'invalid';
           return;
         }
         if (res.ok) {
@@ -131,7 +149,9 @@ export function LiveCaptions({
             }
           }
           setLive(json.livePartial?.text ?? '');
-          setStatus(json.status === 'ended' ? 'ended' : 'live');
+          const next = json.status === 'ended' ? ('ended' as const) : ('live' as const);
+          setStatus(next);
+          statusRef.current = next;
           if (json.status === 'ended' && json.segments.length === 0) return;
         }
       } catch {
@@ -149,10 +169,87 @@ export function LiveCaptions({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  /**
+   * 정렬 루프 — 대면(LiveInterpreter.finalAlign)과 같은 방식.
+   * 12초마다 아직 짝 없는 원문·번역 줄(마지막 40개)을 /api/session/align에 보내
+   * "몇 번 원문 ↔ 몇 번 번역" 대응표만 받아 합친다. 텍스트는 이어 붙이기만 한다 —
+   * 고쳐 쓰면 실제 발화와 달라진다(align.ts의 원칙).
+   * 회의가 끝나면 마지막 한 번 더 맞추고 멈춘다.
+   */
+  useEffect(() => {
+    let alive = true;
+    let finalDone = false;
+
+    const alignTick = async () => {
+      if (!alive || alignBusyRef.current) return;
+      if (statusRef.current === 'invalid') return;
+      if (statusRef.current === 'ended') {
+        if (finalDone) return;
+        finalDone = true; // 종료 후 마지막 1회
+      }
+      const unconsumed = [...allRows.current.values()].filter(
+        (r) => !consumedRef.current.has(r.seq),
+      );
+      const src = unconsumed.filter((r) => r.sourceText.trim() && !r.targetText.trim());
+      // 원문이 이미 붙어 있는 줄(워커가 짝지어 저장한 paired 문서)은 다시 정렬하지 않는다
+      const tgt = unconsumed.filter((r) => r.targetText.trim() && !r.sourceText.trim());
+      if (src.length === 0 || tgt.length === 0) return;
+
+      alignBusyRef.current = true;
+      try {
+        const res = await fetch('/api/session/align', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: src.slice(-ALIGN_WINDOW).map((r) => ({ seq: r.seq, text: r.sourceText.slice(0, 600) })),
+            target: tgt.slice(-ALIGN_WINDOW).map((r) => ({ seq: r.seq, text: r.targetText.slice(0, 600) })),
+          }),
+        });
+        if (!alive || !res.ok) return;
+        const body = (await res.json()) as {
+          pairs?: Array<{ sourceSeqs: number[]; targetSeqs: number[] }>;
+        };
+        const pairs = body.pairs ?? [];
+        if (pairs.length === 0) return;
+
+        const merged: Row[] = [];
+        const consumed: number[] = [];
+        for (const p of pairs) {
+          const srcRows = p.sourceSeqs.map((n) => allRows.current.get(n)).filter(Boolean) as Row[];
+          const tgtRows = p.targetSeqs.map((n) => allRows.current.get(n)).filter(Boolean) as Row[];
+          if (srcRows.length === 0 || tgtRows.length === 0) continue;
+          merged.push({
+            seq: tgtRows[0]!.seq,
+            sourceText: srcRows.map((r) => r.sourceText).join(' ').trim(),
+            targetText: tgtRows.map((r) => r.targetText).join(' ').trim(),
+          });
+          consumed.push(...p.sourceSeqs, ...p.targetSeqs);
+        }
+        if (merged.length === 0) return;
+        for (const n of consumed) consumedRef.current.add(n);
+        setPaired((prev) => {
+          const seqs = new Set(merged.map((m) => m.seq));
+          return [...prev.filter((p2) => !seqs.has(p2.seq)), ...merged].sort((a, b) => a.seq - b.seq);
+        });
+      } catch {
+        /* 정렬 실패 — raw 줄이 그대로 있으니 다음 주기에 다시 */
+      } finally {
+        alignBusyRef.current = false;
+      }
+    };
+
+    const iv = setInterval(() => void alignTick(), ALIGN_MS);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
   // 새 줄·라이브 줄이 오면 아래로 따라간다
   useEffect(() => {
     bottom.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [rows.length, live]);
+  }, [rows.length, paired.length, live]);
 
   if (status === 'invalid') {
     return (
@@ -162,7 +259,18 @@ export function LiveCaptions({
     );
   }
 
-  const hasContent = rows.length > 0 || live;
+  /**
+   * 표시 목록 — 짝지어진 줄이 raw 줄(소비된 것 제외)을 대체하며 제자리에 들어간다.
+   * 정렬이 늦어도 raw가 먼저 흐르고 있으므로 화면이 비는 순간은 없다.
+   */
+  const displayRows = [
+    ...paired,
+    ...rows.filter((r) => !consumedRef.current.has(r.seq)),
+  ]
+    .sort((a, b) => a.seq - b.seq)
+    .slice(-MAX_ROWS);
+
+  const hasContent = displayRows.length > 0 || live;
   if (!hasContent) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-lg bg-caption-bg p-8 text-center">
@@ -205,7 +313,7 @@ export function LiveCaptions({
           예전엔 원문을 text-caption-source/60로 너무 죽여 검은 배경에서 안 보였다(사용자 지적).
           두 스트림을 실시간에 묶지 않으므로 번역만 있는 줄·원문만 있는 줄이 따로 흐른다.
         */}
-        {rows.map((r) =>
+        {displayRows.map((r) =>
           r.targetText ? (
             <div key={r.seq} className="flex flex-col gap-0.5">
               <p className="text-[20px] font-semibold leading-relaxed text-caption-target">
