@@ -201,7 +201,8 @@ export function LiveCaptions({
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-lg bg-caption-bg p-4">
         {/*
-          번역 우선 — 알아들을 언어(번역)를 크고 밝게, 원문은 곁다리로 작고 흐리게.
+          대면과 같은 위계 — 번역(알아들을 언어)은 크고 밝게, 원문은 작지만 **읽히게**.
+          예전엔 원문을 text-caption-source/60로 너무 죽여 검은 배경에서 안 보였다(사용자 지적).
           두 스트림을 실시간에 묶지 않으므로 번역만 있는 줄·원문만 있는 줄이 따로 흐른다.
         */}
         {rows.map((r) =>
@@ -211,11 +212,11 @@ export function LiveCaptions({
                 {r.targetText}
               </p>
               {r.sourceText ? (
-                <p className="text-[13px] leading-relaxed text-caption-source/70">{r.sourceText}</p>
+                <p className="text-[13.5px] leading-relaxed text-caption-source">{r.sourceText}</p>
               ) : null}
             </div>
           ) : (
-            <p key={r.seq} className="text-[13px] leading-relaxed text-caption-source/60">
+            <p key={r.seq} className="text-[14px] leading-relaxed text-caption-source">
               {r.sourceText}
             </p>
           ),

@@ -4,71 +4,73 @@ import { memo } from 'react';
 import type { EngineSegment } from '@sotong/shared/engine';
 
 /**
- * 아직 짝이 안 지어진 구간 — 원문과 번역을 좌우로 나란히 흘린다.
+ * 아직 짝이 안 지어진 구간 — **번역 중심 한 흐름**으로 흘린다 (사용자 지시 2026-08-02).
  *
- * 실시간에는 둘을 묶지 않는다(신뢰도가 다르다). 대신 각자 자기 속도로 흐르게 두고,
- * 정렬기가 따라잡으면 위쪽 '짝지어진 구간'으로 옮겨간다.
- * 좁은 화면에서는 좌우가 성립하지 않아 번역만 보여준다 — 원문은 정렬 후에 보인다.
+ * 예전엔 좌우(넓은 화면)·위아래 두 블록(좁은 화면)으로 원문·번역을 갈라 보여줬는데,
+ * 그러면 원문(자동감지, 잡음 포함)이 한 덩어리로 쌓여 번역을 밀어냈다.
+ * 이제 원문·번역을 시간순으로 섞되 **번역은 크고 밝게, 원문은 작게** — 새로 흐르는 중심이
+ * 늘 번역이 되게 한다. 정렬기가 따라잡으면 위쪽 '짝지어진 줄'로 옮겨가며 이 자리는 비워진다.
  */
 export const ParallelRows = memo(function ParallelRows({
   target,
   source,
   scale,
-  targetLabel,
-  sourceLabel,
   mergingSeqs,
 }: {
   target: EngineSegment[];
   source: EngineSegment[];
   scale: number;
-  targetLabel: string;
-  sourceLabel: string;
-  /** 지금 짝지어져 위로 올라가는 중인 줄 — 가운데로 빨려드는 모션을 준다 */
+  /** (미사용) 예전 좌우 병합 애니메이션용 — 인터페이스 유지 */
+  targetLabel?: string;
+  sourceLabel?: string;
   mergingSeqs?: ReadonlySet<number>;
 }) {
   if (target.length === 0 && source.length === 0) return null;
 
+  const merged = [
+    ...target.map((s) => ({
+      key: `t${s.seq}`,
+      seq: s.seq,
+      kind: 't' as const,
+      text: s.targetText,
+      isFinal: s.isFinal,
+    })),
+    ...source.map((s) => ({
+      key: `s${s.seq}`,
+      seq: s.seq,
+      kind: 's' as const,
+      text: s.sourceText,
+      isFinal: true,
+    })),
+  ]
+    .filter((m) => m.text.trim())
+    .sort((a, b) => a.seq - b.seq);
+
   return (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-      {/* 번역 — 통역 음성과 같은 생성물이라 가장 믿을 수 있다. 항상 보인다. */}
-      <div className="flex flex-col gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-caption-source">
-          {targetLabel}
-        </span>
-        {target.map((s) => (
+    <div className="flex flex-col gap-2">
+      {merged.map((m) =>
+        m.kind === 't' ? (
           <p
-            key={s.seq}
+            key={m.key}
             className={`font-semibold tracking-tight text-caption-target ${
-              s.isFinal ? '' : 'caption-caret'
-            } ${mergingSeqs?.has(s.seq) ? 'row-merging row-merging-left' : 'line-in-target'}`}
+              m.isFinal ? '' : 'caption-caret'
+            } ${mergingSeqs?.has(m.seq) ? 'row-merging row-merging-left' : 'line-in-target'}`}
             style={{ fontSize: `calc(clamp(14px, 3.3vw, 20px) * ${scale})`, lineHeight: 1.4 }}
           >
-            {s.targetText}
+            {m.text}
           </p>
-        ))}
-      </div>
-
-      {/*
-        원문 — 전사 레그가 굶으면 비어 있을 수 있다.
-        ⚠ 좁은 화면에서 감추지 않는다. 감추면 "원문이 안 온다"와 "원문을 안 보여준다"를
-        구분할 수 없어 문제 추적이 불가능해진다. 모바일에서는 아래로 쌓인다.
-      */}
-      <div className="flex flex-col gap-3 border-t border-[color:var(--caption-source)]/20 pt-3 sm:border-t-0 sm:pt-0">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-caption-source">
-          {sourceLabel}
-        </span>
-        {source.map((s) => (
+        ) : (
           <p
-            key={s.seq}
+            key={m.key}
             className={`text-caption-source ${
-              mergingSeqs?.has(s.seq) ? 'row-merging row-merging-right' : 'line-in-source'
+              mergingSeqs?.has(m.seq) ? 'row-merging row-merging-right' : 'line-in-source'
             }`}
             style={{ fontSize: `calc(clamp(12px, 2.7vw, 14px) * ${scale})`, lineHeight: 1.5 }}
           >
-            {s.sourceText}
+            {m.text}
           </p>
-        ))}
-      </div>
+        ),
+      )}
     </div>
   );
 });
