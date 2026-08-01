@@ -20,7 +20,7 @@ import { FieldSelect } from '@/components/ui/SettingRow';
 import { Link } from '@/i18n/navigation';
 
 const MAX_CHARS = 5000;
-const DEBOUNCE_MS = 700;
+const DEBOUNCE_MS = 400;
 type Tone = 'plain' | 'formal' | 'casual';
 type ErrorKey = 'keyMissing' | 'failed' | 'quota' | 'tooLong';
 
@@ -76,7 +76,31 @@ export function TextTranslator() {
           );
           return;
         }
-        setResult((await res.json()) as TranslateTextResponse);
+        /**
+         * 스트리밍 — 생성되는 글자를 받는 즉시 화면에 흘린다.
+         * 예전엔 완성된 JSON을 기다려 통짜로 띄웠다(긴 문단이면 수 초간 빈 화면).
+         * 더 최근 요청이 시작되면 이 스트림은 즉시 취소한다.
+         */
+        const remainHeader = res.headers.get('X-Remaining-Chars');
+        const remaining = remainHeader === null ? null : Number(remainHeader);
+        const reader = res.body?.getReader();
+        if (!reader) {
+          setResult({ translated: '', remainingChars: remaining });
+          return;
+        }
+        const decoder = new TextDecoder();
+        let acc = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (id !== reqIdRef.current) {
+            void reader.cancel();
+            return;
+          }
+          if (done) break;
+          acc += decoder.decode(value, { stream: true });
+          setResult({ translated: acc, remainingChars: remaining });
+        }
+        setResult({ translated: acc, remainingChars: remaining });
       } catch {
         if (id === reqIdRef.current) setError('failed');
       } finally {

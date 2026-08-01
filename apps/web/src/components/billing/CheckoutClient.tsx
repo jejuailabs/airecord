@@ -19,9 +19,15 @@ export function CheckoutClient({ planId }: { planId: 'starter' | 'pro' | 'busine
   const params = useSearchParams();
   const yearly = params.get('cycle') === 'yearly';
   const [state, setState] = useState<'idle' | 'busy' | 'reserved' | 'failed'>('idle');
+  /** Business 전용 — 회사 지갑 지정 (합류 코드가 이때 발급된다) */
+  const [companyName, setCompanyName] = useState('');
+  const [bizNo, setBizNo] = useState('');
+  const [joinCode, setJoinCode] = useState<string | null>(null);
 
   if (!plan) return null;
 
+  const isBusiness = plan.id === 'business';
+  const companyMissing = isBusiness && (companyName.trim().length < 2 || bizNo.trim().length < 10);
   const price = yearly ? yearlyKrw(plan.monthlyKrw) : plan.monthlyKrw;
 
   const submit = async () => {
@@ -30,9 +36,19 @@ export function CheckoutClient({ planId }: { planId: 'starter' | 'pro' | 'busine
       const res = await fetch('/api/billing/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId, cycle: yearly ? 'yearly' : 'monthly' }),
+        body: JSON.stringify({
+          planId,
+          cycle: yearly ? 'yearly' : 'monthly',
+          ...(isBusiness ? { companyName: companyName.trim(), bizNo: bizNo.trim() } : {}),
+        }),
       });
-      setState(res.ok ? 'reserved' : 'failed');
+      if (res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { joinCode?: string };
+        setJoinCode(body.joinCode ?? null);
+        setState('reserved');
+      } else {
+        setState('failed');
+      }
     } catch {
       setState('failed');
     }
@@ -72,15 +88,51 @@ export function CheckoutClient({ planId }: { planId: 'starter' | 'pro' | 'busine
           <CheckCircle2 size={28} aria-hidden className="text-accent" />
           <p className="font-semibold">{t('reserved.title')}</p>
           <p className="text-sm text-text-muted">{t('reserved.body')}</p>
+          {joinCode ? (
+            <div className="mt-1 w-full rounded-md bg-bg-sunken px-4 py-3">
+              <p className="text-[13px] font-semibold text-text-muted">{t('company.codeTitle')}</p>
+              <p className="tabular mt-1 text-[24px] font-bold tracking-[0.2em]">{joinCode}</p>
+              <p className="mt-1 text-[12.5px] text-text-faint">{t('company.codeHint')}</p>
+            </div>
+          ) : null}
           <Link href="/dashboard" className="mt-2 text-sm font-semibold text-accent">
             {t('reserved.toDashboard')}
           </Link>
         </div>
       ) : (
         <>
+          {isBusiness ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg-raised p-5">
+              <p className="text-[14px] font-semibold">{t('company.title')}</p>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12.5px] font-semibold text-text-muted">
+                  {t('company.name')}
+                </span>
+                <input
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder={t('company.namePh')}
+                  className="h-11 rounded-lg border border-border bg-bg-sunken px-3 text-[15px]"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[12.5px] font-semibold text-text-muted">
+                  {t('company.bizNo')}
+                </span>
+                <input
+                  value={bizNo}
+                  onChange={(e) => setBizNo(e.target.value)}
+                  placeholder="000-00-00000"
+                  inputMode="numeric"
+                  className="h-11 rounded-lg border border-border bg-bg-sunken px-3 text-[15px]"
+                />
+              </label>
+              <p className="text-[12.5px] text-text-faint">{t('company.note')}</p>
+            </div>
+          ) : null}
           <button
             onClick={submit}
-            disabled={state === 'busy'}
+            disabled={state === 'busy' || companyMissing}
             className="h-12 rounded-md bg-accent font-semibold text-accent-text disabled:opacity-50"
           >
             {state === 'busy' ? t('busy') : t('submit')}

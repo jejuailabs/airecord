@@ -64,7 +64,7 @@ export function SidebarBody({
     { href: '/translate/file', icon: FileText, label: t('nav.translateFile'), ready: true },
     { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: true },
     { href: '/pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
-    { href: '/settings', icon: Settings, label: t('nav.settings'), ready: false },
+    { href: '/settings', icon: Settings, label: t('nav.settings'), ready: true },
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
     // 운영 콘솔은 관리자에게만. '준비 중'으로도 노출하지 않는다 (존재를 알리지 않는다)
     ...(isAdmin

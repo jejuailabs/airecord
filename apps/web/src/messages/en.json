@@ -223,6 +223,46 @@
     "failed": {
       "title": "Could not save your request",
       "action": "Check your network and try again."
+    },
+    "company": {
+      "title": "Company info (Business)",
+      "name": "Company name",
+      "namePh": "e.g. Stolzon Bio",
+      "bizNo": "Business registration no.",
+      "note": "Teammates join from [Settings → Join company] by searching your company name and entering the code issued below. Tokens are shared from the company wallet.",
+      "codeTitle": "Team join code",
+      "codeHint": "Share this code with your team. You can regenerate or edit it anytime in Settings."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your account and company (team) usage.",
+    "companyJoin": {
+      "title": "Join a company",
+      "hint": "Type at least 2 characters to search, pick your company, then enter the join code. Once joined, usage is billed to the company wallet.",
+      "searchPh": "Search company name",
+      "repick": "Change",
+      "codePh": "Join code",
+      "join": "Join",
+      "wrongCode": "That code is not valid.",
+      "locked": "Too many attempts. Try again in about {min} min.",
+      "done": "Joined {name}. Refreshing…"
+    },
+    "companyManage": {
+      "title": "{name} · Company admin",
+      "codeLabel": "Team join code",
+      "copy": "Copy",
+      "copied": "Copied",
+      "regen": "Regenerate",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel",
+      "badFormat": "Use 6–20 letters and digits.",
+      "failed": "Could not update. Try again.",
+      "regenHint": "Regenerating invalidates the previous code immediately.",
+      "members": "{count} members",
+      "owner": "Owner",
+      "remove": "Remove"
     }
   },
   "dashboard": {

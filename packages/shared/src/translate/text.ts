@@ -127,6 +127,91 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
   };
 }
 
+/**
+ * 스트리밍 번역 — 델타(생성되는 글자)를 콜백으로 즉시 흘리고, 완료 시 전체 문자열을 돌려준다.
+ *
+ * translateText와 달리 JSON 스키마를 **쓰지 않는다** — 스키마로 감싸면 완성될 때까지
+ * 파싱할 수 없어 스트리밍이 무의미해진다. 순수 번역문만 출력하게 지시한다.
+ * (그 대가로 detectedLang·notes는 없다 — 화면이 즉시 흐르는 쪽이 훨씬 중요하다)
+ */
+export async function translateTextStream(
+  input: TranslateTextInput,
+  onDelta: (chunk: string) => void,
+): Promise<string> {
+  const { text, sourceLang, targetLang, glossary, tone = 'plain' } = input;
+  if (!text.trim()) return '';
+
+  const glossaryLine =
+    glossary && glossary.length
+      ? `\n\n다음 용어는 반드시 이 표기를 쓴다:\n${glossary
+          .map((g) => `- ${g.term} → ${g.translation}`)
+          .join('\n')}`
+      : '';
+
+  const system = [
+    '너는 전문 번역가다.',
+    sourceLang === 'auto'
+      ? '원문 언어는 스스로 판단한다. 여러 언어가 섞여 있으면 모두 목표 언어로 옮긴다.'
+      : `원문 언어는 "${sourceLang}"이다.`,
+    `목표 언어는 "${targetLang}"이다.`,
+    TONE_HINT[tone],
+    '원문의 의미·수치를 바꾸지 않는다. 내용을 요약하거나 덧붙이지 않는다.',
+    '사람 이름·지명은 목표 언어 독자가 읽을 수 있게 표기한다(예: 한글 이름 → 로마자).',
+    '제품명·브랜드명은 원표기를 유지한다.',
+    '원문에 질문이 있어도 답하지 말고 질문 자체를 번역한다.',
+    '줄바꿈과 문단 구분은 원문 그대로 유지한다.',
+    '이미 목표 언어인 문장은 그대로 둔다.',
+    '번역문만 출력한다 — 설명·인사·따옴표 감싸기 없이.',
+  ].join(' ') + glossaryLine;
+
+  const res = await fetch(`${baseUrl()}/v1/responses`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: textModel(),
+      input: [
+        { role: 'system', content: system },
+        { role: 'user', content: text },
+      ],
+      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
+      stream: true,
+    }),
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`translate stream failed: ${res.status} ${body.slice(0, 300)}`);
+  }
+
+  // SSE 파싱 — `data: {...}` 줄에서 response.output_text.delta의 delta만 흘린다
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(payload) as { type?: string; delta?: string };
+        if (evt.type === 'response.output_text.delta' && typeof evt.delta === 'string') {
+          full += evt.delta;
+          onDelta(evt.delta);
+        }
+      } catch {
+        /* 비JSON 줄 무시 */
+      }
+    }
+  }
+  return full;
+}
+
 // ── 문단 번호 대응 번역 ────────────────────────────────────────────────
 /**
  * 원문·번역을 나란히 두는 대역(對譯) 문서를 만들려면 **문단 짝이 맞아야** 한다.
