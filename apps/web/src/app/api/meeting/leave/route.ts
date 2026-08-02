@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { leaveBot } from '@sotong/shared/meeting/recall';
 import { endSession, getSession, finalizeSessionDoc } from '@/lib/server/session-store';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { revokeViewerToken } from '@/lib/server/viewer';
+import { generateAndStoreSummary } from '@/lib/server/summarize';
 
 export const runtime = 'nodejs';
 
@@ -47,7 +49,14 @@ export async function POST(req: Request) {
   }
 
   const result = await endSession(sessionId, 'user');
-  if (result) await finalizeSessionDoc(result.record);
+  if (result) {
+    await finalizeSessionDoc(result.record);
+    /**
+     * 회의도 대면처럼 제목·요약을 만든다 (session/end와 같은 after 방식).
+     * 이게 없으면 기록이 "제목 없음 + 요약 대기 중"으로 영영 남는다 (실사용 확인 2026-08-02).
+     */
+    after(() => generateAndStoreSummary(sessionId, result.record.targetLang));
+  }
   await revokeViewerToken(sessionId).catch(() => null);
 
   return NextResponse.json({

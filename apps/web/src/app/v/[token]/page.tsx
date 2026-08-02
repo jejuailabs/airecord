@@ -103,8 +103,13 @@ export default async function ViewerPage({
   };
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex h-12 items-center px-4">
+    /**
+     * 화면 높이에 고정한다 (h-dvh) — 자막이 쌓여도 **페이지가 아래로 자라지 않는다.**
+     * 예전엔 min-h-screen이라 브라우저 전체가 늘어나 상단 메뉴(언어·종료)가
+     * 스크롤 위로 사라졌다 (사용자 지적 2026-08-02). 스크롤은 자막 박스 안에서만 흐른다.
+     */
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <header className="flex h-12 shrink-0 items-center px-4">
         <span className="flex items-center gap-2 text-sm font-bold tracking-tight">
           <span aria-hidden className="inline-block h-2 w-2 rounded-full bg-accent" />
           {tc('appName')}
@@ -116,7 +121,7 @@ export default async function ViewerPage({
         ) : null}
       </header>
 
-      <main className="flex flex-1 flex-col p-4">
+      <main className="flex min-h-0 flex-1 flex-col p-4">
         <LiveCaptions
           token={token}
           initialLang={initialLang}
@@ -140,7 +145,7 @@ export default async function ViewerPage({
       </main>
 
       {/* 첫 진입 고지 배너 (docs/08 §2.2) */}
-      <footer className="border-t border-border px-4 py-3 text-center text-[13px] text-text-faint">
+      <footer className="shrink-0 border-t border-border px-4 py-3 text-center text-[13px] text-text-faint">
         {t('consentNotice')}
       </footer>
     </div>

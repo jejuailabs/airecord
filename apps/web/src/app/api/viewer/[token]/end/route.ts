@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { leaveBot } from '@sotong/shared/meeting/recall';
 import { adminDb, SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { endSession, getSession, finalizeSessionDoc } from '@/lib/server/session-store';
 import { resolveViewerToken, revokeViewerToken } from '@/lib/server/viewer';
+import { generateAndStoreSummary } from '@/lib/server/summarize';
 
 export const runtime = 'nodejs';
 
@@ -56,7 +58,11 @@ export async function POST(
   }
 
   const result = await endSession(grant.sessionId, 'user');
-  if (result) await finalizeSessionDoc(result.record);
+  if (result) {
+    await finalizeSessionDoc(result.record);
+    // 회의도 대면처럼 제목·요약을 만든다 — 없으면 기록이 "요약 대기 중"으로 영영 남는다
+    after(() => generateAndStoreSummary(grant.sessionId, result.record.targetLang));
+  }
   await revokeViewerToken(grant.sessionId).catch(() => null);
 
   return NextResponse.json({

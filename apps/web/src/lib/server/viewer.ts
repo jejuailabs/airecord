@@ -131,11 +131,23 @@ export async function readSegmentsAfterInLang(
       targetText: typeof d.targetText === 'string' ? d.targetText : '',
       kind: typeof d.kind === 'string' ? d.kind : null,
     };
-    // 원문(sourceText)은 말한 그대로 둔다 — 번역만 뷰어의 언어로 바뀐다
-    if (seg.targetText.trim()) {
+    /**
+     * 번역의 원본:
+     *   · 번역 줄이 있으면 그걸 다시 번역한다 (기본 표시 언어 → 뷰어 언어)
+     *   · **원문만 있는 줄은 원문에서 직접 번역한다** — 발화 언어와 세션 표시 언어가
+     *     같으면(예: 영어 회의 + 표시 English) 번역 줄이 거의 없어서, 이걸 건너뛰면
+     *     뷰어가 다른 언어를 골라도 화면이 원문 그대로 남는다 (실사용 확인 2026-08-02).
+     * 원문(sourceText) 표시는 어느 쪽이든 말한 그대로 둔다.
+     */
+    const basis = seg.targetText.trim() || seg.sourceText.trim();
+    if (basis) {
       const cached = (d.alt as Record<string, string> | undefined)?.[lang];
-      if (typeof cached === 'string') seg.targetText = cached;
-      else need.push({ n: seg.seq, text: seg.targetText, ref: doc.ref });
+      if (typeof cached === 'string') {
+        // 원문과 같은 번역(이미 뷰어 언어인 발화)은 빈 번역으로 둬 같은 말이 두 번 보이지 않게 한다
+        if (cached !== seg.sourceText.trim() || seg.targetText.trim()) seg.targetText = cached;
+      } else {
+        need.push({ n: seg.seq, text: basis, ref: doc.ref });
+      }
     }
     out.push(seg);
   }
@@ -177,8 +189,9 @@ export async function readSegmentsAfterInLang(
 
     for (const seg of out) {
       const tr = bySeq.get(seg.seq);
-      if (tr) seg.targetText = tr;
-      // 번역이 안 온 줄은 기본 언어 그대로 나간다 — 빈 줄보다 낫다
+      if (!tr) continue; // 번역이 안 온 줄은 기본 언어 그대로 나간다 — 빈 줄보다 낫다
+      // 원문과 같은 번역(이미 뷰어 언어인 발화)은 빈 번역으로 둬 같은 말이 두 번 보이지 않게 한다
+      if (tr !== seg.sourceText.trim() || seg.targetText.trim()) seg.targetText = tr;
     }
   }
   return out;

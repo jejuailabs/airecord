@@ -59,6 +59,12 @@ export async function attachBotId(sessionId: string, botId: string): Promise<voi
 const LIVE_COL = 'liveSessions';
 
 const ORPHAN_AFTER_MS = HEARTBEAT_INTERVAL_MS * HEARTBEAT_MISS_LIMIT;
+/**
+ * 회의는 웹 클라이언트(10초 하트비트)가 아니라 **워커가 30초 주기**로만 생존 신호를 찍는다.
+ * 웹 기준(30초)을 그대로 쓰면 정상 진행 중인 회의도 읽는 타이밍에 따라 orphaned로 오판돼
+ * 종료 시 상태·과금 초가 잘려 저장된다 (실사용 확인 2026-08-02 — 회의 기록 실종의 한 원인).
+ */
+const MEETING_ORPHAN_AFTER_MS = 90_000;
 
 export function maxDurationSecFromEnv(): number {
   return Number(process.env.SESSION_MAX_DURATION_SEC ?? 7200);
@@ -83,7 +89,8 @@ function liveRef(id: string) {
  */
 function applyOrphan(rec: LiveSessionRecord, now: number): LiveSessionRecord {
   if (rec.status !== 'live') return rec;
-  if (now - rec.lastHeartbeatAtMs <= ORPHAN_AFTER_MS) return rec;
+  const limit = rec.mode === 'meeting' ? MEETING_ORPHAN_AFTER_MS : ORPHAN_AFTER_MS;
+  if (now - rec.lastHeartbeatAtMs <= limit) return rec;
   return {
     ...rec,
     status: 'orphaned',
@@ -168,7 +175,14 @@ export async function createSession(input: CreateSessionInput): Promise<LiveSess
 
   // 로그인 세션만 유저에게 보이는 기록으로 남긴다 (비회원 체험은 저장하지 않는다)
   if (input.uid) {
-    void adminDb()
+    /**
+     * ⚠ 이 쓰기도 기다린다. 예전엔 응답을 빨리 주려고 흘려보냈는데(void),
+     * Vercel 람다는 응답 직후 얼어붙어 쓰기가 유실될 수 있다. 그러면 워커의
+     * merge 쓰기가 **주인 없는 문서**를 만들어, 자막은 다 있는데 세션 기록
+     * 조회(startedByUid)에 영영 안 걸린다 (실사용 확인 2026-08-02 — 회의 기록 실종).
+     * 실패해도 세션 시작은 막지 않는다 — 종료 시 finalize가 메타를 복구한다.
+     */
+    await adminDb()
       .collection('sessions')
       .doc(record.id)
       .set({
@@ -295,12 +309,41 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
   if (!record.uid) return;
   try {
     const db = adminDb();
+    /**
+     * 회의는 세그먼트를 **워커**가 쓰므로 웹의 liveSessions.segmentCount(워커 touch,
+     * 30초 주기)가 실제보다 작거나 0일 수 있다. 저장된 줄 수를 직접 세서 큰 쪽을 쓴다 —
+     * 목록의 "자막 N개"가 0으로 나오면 기록이 없는 것처럼 보인다 (실사용 확인 2026-08-02).
+     */
+    let segmentCount = record.segmentCount;
+    if (record.mode === 'meeting') {
+      try {
+        const agg = await db
+          .collection('sessions')
+          .doc(record.id)
+          .collection('segments')
+          .count()
+          .get();
+        segmentCount = Math.max(segmentCount, agg.data().count);
+      } catch {
+        /* 집계 실패 — 있는 값으로 간다 */
+      }
+    }
     await db.collection('sessions').doc(record.id).set(
       {
         status: record.status,
         endedAt: FieldValue.serverTimestamp(),
         billedSeconds: record.billedSeconds,
-        segmentCount: record.segmentCount,
+        segmentCount,
+        /**
+         * 소유자 메타를 종료 시점에 한 번 더 못 박는다.
+         * 시작 시 문서 쓰기가 유실됐어도 여기서 복구돼 기록 조회에 걸린다.
+         */
+        startedByUid: record.uid,
+        workspaceId: record.workspaceId ?? null,
+        mode: record.mode,
+        sourceLang: record.sourceLang,
+        targetLang: record.targetLang,
+        startedAt: new Date(record.startedAtMs),
       },
       { merge: true },
     );
