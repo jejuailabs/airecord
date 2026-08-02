@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { resolveViewerToken, readSegmentsAfter } from '@/lib/server/viewer';
+import { langCodeSchema } from '@sotong/shared/schemas';
+import type { LangCode } from '@sotong/shared/types';
+import {
+  resolveViewerToken,
+  readSegmentsAfter,
+  readSegmentsAfterInLang,
+} from '@/lib/server/viewer';
 
 export const runtime = 'nodejs';
 
@@ -23,8 +29,23 @@ export async function GET(
     return NextResponse.json({ error: 'invalid_token' }, { status: 404 });
   }
 
-  const after = Number(new URL(req.url).searchParams.get('after') ?? '-1');
-  const segments = await readSegmentsAfter(grant.sessionId, Number.isFinite(after) ? after : -1);
+  const url = new URL(req.url);
+  const after = Number(url.searchParams.get('after') ?? '-1');
+  const afterSeq = Number.isFinite(after) ? after : -1;
+
+  /**
+   * 뷰어 표시 언어 (사용자 지시 2026-08-02).
+   * 세션 기본 언어와 다르면 확정 자막을 재번역해 내려준다 — 참가자마다 자기 언어로 본다.
+   * livePartial(쌓이는 중 줄)은 기본 언어라 이때는 숨긴다 — 언어가 섞여 보이면 혼란만 준다.
+   */
+  const langRaw = url.searchParams.get('lang');
+  const langParsed = langCodeSchema.safeParse(langRaw);
+  const lang: LangCode | null = langParsed.success ? langParsed.data : null;
+  const wantAlt = lang !== null && lang !== grant.targetLang;
+
+  const segments = wantAlt
+    ? await readSegmentsAfterInLang(grant.sessionId, afterSeq, lang, grant.targetLang)
+    : await readSegmentsAfter(grant.sessionId, afterSeq);
 
   return NextResponse.json(
     {
@@ -33,7 +54,7 @@ export async function GET(
       targetLang: grant.targetLang,
       segments,
       // 대면처럼 "쌓이는 중" 번역 줄 — 확정되면 segments로 넘어가고 여기선 사라진다
-      livePartial: grant.livePartial,
+      livePartial: wantAlt ? null : grant.livePartial,
     },
     { headers: { 'Cache-Control': 'no-store' } },
   );

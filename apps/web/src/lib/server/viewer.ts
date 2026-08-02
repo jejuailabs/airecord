@@ -9,6 +9,8 @@
  *   만료된 링크로 남의 회의 자막이 열린다 — 그 위험을 감수할 이유가 없다.
  */
 import { adminDb } from '@/lib/firebase/admin';
+import { translateParagraphs } from '@sotong/shared/translate';
+import type { LangCode } from '@sotong/shared/types';
 
 export interface ViewerGrant {
   sessionId: string;
@@ -85,6 +87,101 @@ export async function readSegmentsAfter(
       kind: typeof d.kind === 'string' ? d.kind : null,
     };
   });
+}
+
+// ── 뷰어별 표시 언어 (사용자 지시 2026-08-02) ─────────────────────────
+/**
+ * 봇을 보낸 쪽이 고른 표시 언어(세션 targetLang)와 다른 언어로 보는 참가자에게는
+ * **확정 자막을 재번역**해 준다. 실시간 세션을 하나 더 열지 않는다 — 이미 나온
+ * 글자를 gpt-4o-mini로 다시 번역하는 것이라 원가가 사실상 0이고, 원음은 어차피
+ * 줌에서 들리므로 1~2초 지연이 허용된다 (마주통역과 달리 음성이 주가 아니다).
+ *
+ * 번역 결과는 세그먼트 문서의 `alt.{lang}`에 캐시한다 — 같은 언어로 보는
+ * 참가자가 몇 명이든, 폴링이 몇 번이든 언어당 한 번만 과금된다.
+ */
+/** 한 폴링에서 재번역까지 마치는 줄 수 — 입장 직후 백로그는 다음 폴링이 이어받는다 */
+const ALT_BATCH_LIMIT = 50;
+/** 재번역 한 호출에 보내는 본문 길이 상한 (translate/document.ts CHUNK_CHARS와 같은 감각) */
+const ALT_CHUNK_CHARS = 2_600;
+
+export async function readSegmentsAfterInLang(
+  sessionId: string,
+  afterSeq: number,
+  lang: LangCode,
+  /** 세션의 기본 표시 언어 — 재번역의 원문 언어 힌트로 쓴다 */
+  primaryLang: string,
+): Promise<ViewerSegment[]> {
+  let q = adminDb()
+    .collection('sessions')
+    .doc(sessionId)
+    .collection('segments')
+    .orderBy('seq', 'asc')
+    .limit(ALT_BATCH_LIMIT);
+  if (afterSeq >= 0) q = q.where('seq', '>', afterSeq);
+  const snap = await q.get();
+
+  const out: ViewerSegment[] = [];
+  const need: Array<{ n: number; text: string; ref: FirebaseFirestore.DocumentReference }> = [];
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    const seg: ViewerSegment = {
+      seq: typeof d.seq === 'number' ? d.seq : 0,
+      startMs: typeof d.startMs === 'number' ? d.startMs : 0,
+      sourceText: typeof d.sourceText === 'string' ? d.sourceText : '',
+      targetText: typeof d.targetText === 'string' ? d.targetText : '',
+      kind: typeof d.kind === 'string' ? d.kind : null,
+    };
+    // 원문(sourceText)은 말한 그대로 둔다 — 번역만 뷰어의 언어로 바뀐다
+    if (seg.targetText.trim()) {
+      const cached = (d.alt as Record<string, string> | undefined)?.[lang];
+      if (typeof cached === 'string') seg.targetText = cached;
+      else need.push({ n: seg.seq, text: seg.targetText, ref: doc.ref });
+    }
+    out.push(seg);
+  }
+
+  if (need.length > 0) {
+    const bySeq = new Map<number, string>();
+    // 문단 번호 대응 번역 — 순서·개수가 어긋날 수 없다 (translate/text.ts의 원칙)
+    for (let i = 0; i < need.length; ) {
+      const group: typeof need = [];
+      let size = 0;
+      while (
+        i < need.length &&
+        (group.length === 0 || size + need[i]!.text.length <= ALT_CHUNK_CHARS)
+      ) {
+        group.push(need[i]!);
+        size += need[i]!.text.length;
+        i += 1;
+      }
+      const got = await translateParagraphs({
+        paragraphs: group.map((g) => ({ n: g.n, text: g.text })),
+        // 원문은 세션 기본 표시 언어다. 코드가 아니면(이례) 자동 감지로 둔다.
+        sourceLang: /^[a-z]{2}$/.test(primaryLang) ? (primaryLang as LangCode) : 'auto',
+        targetLang: lang,
+        tone: 'plain',
+      }).catch(() => new Map<number, string>());
+      for (const [n, text] of got) if (text) bySeq.set(n, text);
+    }
+
+    // 캐시 적재 — 실패해도 이번 응답은 그대로 나간다 (다음 폴링이 다시 번역할 뿐)
+    const batch = adminDb().batch();
+    let writes = 0;
+    for (const item of need) {
+      const tr = bySeq.get(item.n);
+      if (!tr) continue;
+      batch.set(item.ref, { alt: { [lang]: tr } }, { merge: true });
+      writes += 1;
+    }
+    if (writes > 0) await batch.commit().catch(() => null);
+
+    for (const seg of out) {
+      const tr = bySeq.get(seg.seq);
+      if (tr) seg.targetText = tr;
+      // 번역이 안 온 줄은 기본 언어 그대로 나간다 — 빈 줄보다 낫다
+    }
+  }
+  return out;
 }
 
 /** 회의가 끝나면 링크를 닫는다 — 끝난 회의 링크가 계속 열려 있으면 안 된다 */

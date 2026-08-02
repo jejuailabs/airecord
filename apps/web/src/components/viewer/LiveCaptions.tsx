@@ -40,11 +40,18 @@ interface Row {
 
 export function LiveCaptions({
   token,
-  targetLang,
+  initialLang,
+  langOptions,
   labels,
 }: {
   token: string;
-  targetLang: string;
+  /**
+   * 이 뷰어의 시작 표시 언어 — 서버가 브라우저 언어·세션 언어쌍으로 자동 판단한다.
+   * 상대방은 아무것도 고르지 않아도 자기 언어로 보인다 (사용자 지시 2026-08-02).
+   */
+  initialLang: string;
+  /** 표시 언어 선택지 — 제3의 언어 참가자용 보조 수단 */
+  langOptions: Array<{ code: string; label: string }>;
   labels: {
     waiting: string;
     ended: string;
@@ -53,8 +60,10 @@ export function LiveCaptions({
     saveName: string;
     speakOn: string;
     speakOff: string;
+    langLabel: string;
   };
 }) {
+  const [lang, setLang] = useState(initialLang);
   const [rows, setRows] = useState<Row[]>([]);
   const [live, setLive] = useState(''); // 쌓이는 중 번역 줄
   const [status, setStatus] = useState<'live' | 'ended' | 'invalid'>('live');
@@ -80,7 +89,8 @@ export function LiveCaptions({
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
     if (!synth || !text.trim()) return;
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = TTS_LOCALE[targetLang] ?? targetLang;
+    // 음성도 내가 보는 언어로 읽는다 — 기본 언어가 아니라 선택된 표시 언어
+    u.lang = TTS_LOCALE[lang] ?? lang;
     synth.speak(u);
   };
 
@@ -117,9 +127,21 @@ export function LiveCaptions({
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
+    /**
+     * 표시 언어가 바뀌면 처음부터 다시 받는다 — 서버가 그 언어로 재번역해 내려준다.
+     * (캐시 덕에 이미 한 번 본 언어는 재과금 없이 즉시 온다)
+     */
+    lastSeq.current = -1;
+    allRows.current.clear();
+    consumedRef.current.clear();
+    spokenSeqs.current.clear();
+    setRows([]);
+    setPaired([]);
+    setLive('');
+
     const tick = async () => {
       try {
-        const res = await fetch(`/api/viewer/${token}?after=${lastSeq.current}`, {
+        const res = await fetch(`/api/viewer/${token}?after=${lastSeq.current}&lang=${lang}`, {
           cache: 'no-store',
         });
         if (!alive) return;
@@ -167,7 +189,7 @@ export function LiveCaptions({
       if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, lang]);
 
   /**
    * 정렬 루프 — 대면(LiveInterpreter.finalAlign)과 같은 방식.
@@ -284,8 +306,21 @@ export function LiveCaptions({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      {/* 도구 — 음성 토글 + 자막 저장 (로그인 없이) */}
+      {/* 도구 — 표시 언어 + 음성 토글 + 자막 저장 (로그인 없이) */}
       <div className="flex justify-end gap-2">
+        {/* 기본값은 서버가 자동으로 맞춰준다 — 제3의 언어 참가자만 바꾸면 된다 */}
+        <select
+          value={lang}
+          onChange={(e) => setLang(e.target.value)}
+          aria-label={labels.langLabel}
+          className="h-9 rounded-lg border border-border bg-bg-raised px-2 text-[13px] font-semibold text-text-muted"
+        >
+          {langOptions.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
         <button
           onClick={toggleSpeak}
           aria-pressed={speaking}
