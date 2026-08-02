@@ -38,11 +38,12 @@ import {
   HEARTBEAT_INTERVAL_MS,
   TRANSLATE_TARGET_LANGS,
   TRIAL_CHAR_LIMIT,
+  guessScript,
   languageLabel,
 } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import type { EngineSegment, DiagSnapshot } from '@sotong/shared/engine';
-import { summarizeDiag, unsavedRows, chunkForSave } from '@sotong/shared/engine';
+import { summarizeDiag, unsavedRows, chunkForSave, scriptOfLang } from '@sotong/shared/engine';
 import {
   connectBrowserSession,
   type BrowserTranslationSession,
@@ -81,13 +82,6 @@ const SILENT_WAV =
 const WRAP_MAX_MS = 5_000;
 /** 이 시간 동안 자막 갱신이 없으면 더 기다리지 않고 닫는다 */
 const WRAP_IDLE_MS = 1_500;
-/**
- * 정렬(2층) 주기.
- * 너무 잦으면 비용만 늘고, 너무 뜸하면 병렬 구간이 길어진다.
- */
-const ALIGN_INTERVAL_MS = 12_000;
-/** 빈 집합 상수 — 매 렌더마다 새 Set을 만들면 자막이 통째로 다시 그려진다 */
-const EMPTY_SEQS: ReadonlySet<number> = new Set<number>();
 
 /**
  * 한 번에 보낼 수 있는 줄 수 — 서버 스키마 상한과 같아야 한다(schemas/index.ts).
@@ -215,13 +209,12 @@ export function LiveInterpreter({
   const endingRef = useRef(false);
   /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
   const lastSegmentAtRef = useRef(0);
-  /** 합류 모션 — 가운데로 빨려드는 줄 / 방금 앉은 줄 */
-  const [mergingSeqs, setMergingSeqs] = useState<ReadonlySet<number>>(EMPTY_SEQS);
-  const [justPairedSeqs, setJustPairedSeqs] = useState<ReadonlySet<number>>(EMPTY_SEQS);
-  /** 정렬 요청이 겹치지 않게 하는 잠금 */
-  const aligningRef = useRef(false);
-  /** 이미 짝이 지어진 줄 번호 — 다시 정렬 대상에 넣지 않는다 */
-  const alignedRef = useRef(new Set<number>());
+  /**
+   * 마주통역 방식의 느슨한 원문 짝짓기 (2026-08-02, AI 정렬 대체).
+   * 최근에 확정된 원문 문장을 들고 있다가, 번역 줄이 확정되는 순간 그 줄에 붙인다.
+   * 붙인 뒤 비우므로 원문이 늦으면 그 줄은 번역만 나간다 — 틀린 원문을 붙이느니 비워 둔다.
+   */
+  const lastSrcRef = useRef('');
   /** 서버가 받았다고 확인해 준 줄 번호 — 종료 시 중복해서 다시 보내지 않는다 */
   const sentSeqsRef = useRef(new Set<number>());
   /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
@@ -239,6 +232,10 @@ export function LiveInterpreter({
   useEffect(() => {
     targetLangRef.current = targetLang;
   }, [targetLang]);
+  const sourceLangRef = useRef<SourceLangSetting>('auto');
+  useEffect(() => {
+    sourceLangRef.current = sourceLang;
+  }, [sourceLang]);
 
   // 마지막 언어쌍 기억 → 다음에 미리 채움 (docs/06 §2.1)
   // 대면 통역과 대화 통역은 고르는 값이 달라 저장 칸을 따로 쓴다
@@ -306,71 +303,6 @@ export function LiveInterpreter({
       });
   }, []);
 
-  /**
-   * 종료 직전 마지막 정렬.
-   *
-   * 라이브 중에는 12초 주기라 끝자락 몇 줄이 짝 없이 남는다. 기록은 그 상태로 굳으므로
-   * 저장 전에 남은 구간을 한 번 더 맞춘다. 실패해도 저장은 진행한다 —
-   * 짝이 덜 지어진 기록이, 기록이 없는 것보다 낫다.
-   *
-   * 반환값: 저장해야 할 줄들(짝지어진 줄 + 아직 안 지어진 줄).
-   */
-  const finalAlign = useCallback(async (): Promise<EngineSegment[]> => {
-    const all = segmentsRef.current;
-    const pending = [...pendingFinalsRef.current.values()];
-    const src = all.filter((s) => s.kind === 'source' && !alignedRef.current.has(s.seq));
-    const tgt = all.filter((s) => s.kind === 'target' && !alignedRef.current.has(s.seq));
-    if (src.length === 0 || tgt.length === 0) return pending;
-
-    try {
-      const res = await fetch('/api/session/align', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: src.slice(-40).map((s) => ({ seq: s.seq, text: s.sourceText })),
-          target: tgt.slice(-40).map((s) => ({ seq: s.seq, text: s.targetText })),
-        }),
-      });
-      if (!res.ok) return pending;
-      const body = (await res.json()) as {
-        pairs?: Array<{ sourceSeqs: number[]; targetSeqs: number[] }>;
-      };
-      const pairs = body.pairs ?? [];
-      if (pairs.length === 0) return pending;
-
-      const bySeq = new Map(all.map((s) => [s.seq, s]));
-      const merged: EngineSegment[] = [];
-      const consumed = new Set<number>();
-      for (const p of pairs) {
-        const srcRows = p.sourceSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
-        const tgtRows = p.targetSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
-        if (srcRows.length === 0 || tgtRows.length === 0) continue;
-        // ⚠ 여기서도 텍스트는 이어 붙이기만 한다 — 고쳐 쓰면 음성과 달라진다
-        merged.push({
-          ...tgtRows[0]!,
-          kind: 'paired',
-          sourceText: srcRows.map((s) => s.sourceText).join(' ').trim(),
-          targetText: tgtRows.map((s) => s.targetText).join(' ').trim(),
-          isFinal: true,
-        });
-        [...p.sourceSeqs, ...p.targetSeqs].forEach((n) => consumed.add(n));
-      }
-      if (merged.length === 0) return pending;
-
-      // 화면도 마지막 모습으로 맞춘다 — 종료 화면에서 보이는 게 저장본과 같아야 한다
-      setSegments((prev) => {
-        const kept = prev.filter((s) => !consumed.has(s.seq));
-        return [...kept, ...merged].sort((a, b) => a.seq - b.seq);
-      });
-
-      // 짝지어진 줄은 새로 저장하고, 소비된 원본 줄은 저장 목록에서 뺀다
-      const keptPending = pending.filter((s) => !consumed.has(s.seq));
-      return [...keptPending, ...merged].sort((a, b) => a.seq - b.seq);
-    } catch {
-      return pending;
-    }
-  }, []);
-
   const stopTimers = useCallback(() => {
     if (heartbeatTimerRef.current) clearInterval(heartbeatTimerRef.current);
     if (clockTimerRef.current) clearInterval(clockTimerRef.current);
@@ -433,12 +365,7 @@ export function LiveInterpreter({
         for (const s of unsavedRows(segmentsRef.current, sentSeqsRef.current)) {
           pendingFinalsRef.current.set(s.seq, s);
         }
-        /**
-         * 종료 직전 마지막 정렬 — 남은 조각들을 여기서 취합한다.
-         * 라이브 중에는 12초 주기라 끝자락 몇 줄은 짝이 안 지어진 채 남는다.
-         * 기록·PDF는 그 상태로 굳으므로, 저장 전에 한 번 더 맞춰 준다.
-         */
-        const finalRows = await finalAlign();
+        const finalRows = [...pendingFinalsRef.current.values()].sort((a, b) => a.seq - b.seq);
 
         /**
          * 남은 줄이 종료 요청 상한을 넘으면 넘치는 만큼 하트비트로 먼저 흘려보낸다.
@@ -494,7 +421,7 @@ export function LiveInterpreter({
       setMicStream(null);
       if (document.fullscreenElement) void document.exitFullscreen();
     },
-    [micStream, stopTimers, finalAlign],
+    [micStream, stopTimers],
   );
 
   const start = useCallback(async () => {
@@ -574,30 +501,50 @@ export function LiveInterpreter({
         {
           onSegment: (seg) => {
             lastSegmentAtRef.current = Date.now();
+            /**
+             * 원문 조각은 화면에 독립 줄로 올리지 않는다 (마주통역과 같은 방식).
+             * 원문 언어를 알면 문자 체계가 다른 조각(짧은 발화 오판 — 한문·태국어 등)은
+             * 여기서 버린다 — 화면·저장·짝짓기 전부에서 빠져 기록이 오염되지 않는다.
+             */
+            if (seg.kind === 'source') {
+              const src = seg.sourceText.trim();
+              if (!src) return;
+              const expectLang = isTalk
+                ? talkingRef.current
+                  ? targetLangRef.current
+                  : speakLangRef.current
+                : sourceLangRef.current;
+              if (expectLang !== 'auto' && guessScript(src) !== scriptOfLang(expectLang)) return;
+              lastSrcRef.current = src;
+              return;
+            }
+
+            /**
+             * 번역 줄이 확정되는 순간 최근 원문을 붙여 즉시 짝을 완성한다.
+             * 짝 줄은 그대로 저장 큐에 들어가 하트비트가 올린다 — 별도 정렬 단계가 없다.
+             */
+            const row = seg.isFinal
+              ? { ...seg, kind: 'paired' as const, sourceText: lastSrcRef.current }
+              : seg;
+            if (seg.isFinal) {
+              lastSrcRef.current = ''; // 이 원문은 이 줄이 소비했다 — 다음 줄에 재사용 금지
+              pendingFinalsRef.current.set(row.seq, row);
+            }
             setSegments((prev) => {
-              const idx = prev.findIndex((p) => p.seq === seg.seq);
-              const next = idx >= 0 ? [...prev.slice(0, idx), seg, ...prev.slice(idx + 1)] : [...prev, seg];
+              const idx = prev.findIndex((p) => p.seq === row.seq);
+              const next = idx >= 0 ? [...prev.slice(0, idx), row, ...prev.slice(idx + 1)] : [...prev, row];
               segmentsLenRef.current = next.length;
               /**
                * ⚠ ref를 여기서 바로 갱신한다.
-               * 예전에는 useEffect로 뒤늦게 맞췄는데, 종료 시 dispose()가 마지막 줄들을 쏟아낸
-               * 직후 finalAlign()이 곧바로 ref를 읽어 **그 줄들을 못 보고 지나쳤다.**
-               * 상태 반영을 기다릴 수 없는 자리라 동기적으로 맞춰 둔다.
+               * 종료 시 dispose()가 마지막 줄들을 쏟아낸 직후 doEnd()가 곧바로 ref를 읽으므로
+               * 상태 반영을 기다릴 수 없다 — 동기적으로 맞춰 둔다.
                */
               segmentsRef.current = next;
               return next;
             });
-            /**
-             * ⚠ 여기서는 아무것도 저장 큐에 넣지 않는다.
-             * 조립기는 'target' | 'source'만 만들고 'paired'는 **정렬기만** 만든다
-             * (segment-assembler.ts). 예전엔 여기서 kind==='paired'를 걸렀는데,
-             * 그 조건이 영원히 거짓이라 하트비트가 세션 내내 빈 배치만 보냈다.
-             * 정렬 전 줄을 보내면 나중에 합쳐질 때 같은 말이 두 번 저장되므로,
-             * 저장은 정렬 직후(합친 줄)와 종료 시(끝내 못 합친 줄) 두 곳에서만 한다.
-             */
             if (trial) {
               // 부분 전사도 즉시 계수한다 — 한도를 넘긴 뒤에 끊으면 이미 돈이 나간 뒤다
-              charsBySeqRef.current.set(seg.seq, seg.targetText.length);
+              charsBySeqRef.current.set(row.seq, row.targetText.length);
               let used = 0;
               for (const n of charsBySeqRef.current.values()) used += n;
               setTrialUsedChars(used);
@@ -638,11 +585,11 @@ export function LiveInterpreter({
     setSegments([]);
     /**
      * seq는 세션마다 다시 1부터다.
-     * 이 둘을 안 비우면 이어서 연 두 번째 세션이 첫 세션의 번호에 걸려
-     * 정렬은 건너뛰고 저장은 "이미 보냈다"로 판정된다 — 통째로 기록이 안 남는다.
+     * 안 비우면 이어서 연 두 번째 세션이 첫 세션의 번호에 걸려
+     * 저장이 "이미 보냈다"로 판정된다 — 통째로 기록이 안 남는다.
      */
-    alignedRef.current = new Set();
     sentSeqsRef.current = new Set();
+    lastSrcRef.current = '';
     pendingFinalsRef.current.clear();
     segmentsLenRef.current = 0;
     lastSegmentAtRef.current = Date.now();
@@ -761,91 +708,6 @@ export function LiveInterpreter({
     }, 2_000);
     return () => clearInterval(id);
   }, [phase, audioOut, remoteStream]);
-
-  /**
-   * ── 2층: 원문 ↔ 번역 정렬 ─────────────────────────────────────────────
-   *
-   * 실시간(1층)은 두 스트림을 각자 흘린다. 여기서는 쌓인 구간을 주기적으로 AI에 보내
-   * "몇 번 ↔ 몇 번"만 받아 와 합친다. 정렬을 기다리느라 자막이 늦어지면 안 되므로,
-   * 이 요청이 실패하거나 느려도 화면은 그대로 흐른다.
-   *
-   * ⚠ 정렬기는 텍스트를 만들지 않는다 — 대응표만 받는다(align.ts 참고).
-   */
-  useEffect(() => {
-    if (phase !== 'live') return;
-    const id = setInterval(() => {
-      if (aligningRef.current) return;
-      const all = segmentsRef.current;
-      const src = all.filter((s) => s.kind === 'source' && !alignedRef.current.has(s.seq));
-      const tgt = all.filter((s) => s.kind === 'target' && s.isFinal && !alignedRef.current.has(s.seq));
-      // 마지막 줄은 아직 뒷말이 남았을 수 있으니 정렬 대상에서 뺀다
-      const srcPool = src.slice(0, -1);
-      const tgtPool = tgt.slice(0, -1);
-      if (srcPool.length < 2 || tgtPool.length < 2) return;
-
-      aligningRef.current = true;
-      void fetch('/api/session/align', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          source: srcPool.slice(0, 40).map((s) => ({ seq: s.seq, text: s.sourceText })),
-          target: tgtPool.slice(0, 40).map((s) => ({ seq: s.seq, text: s.targetText })),
-        }),
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then(async (body: { pairs?: Array<{ sourceSeqs: number[]; targetSeqs: number[] }> } | null) => {
-          const pairs = body?.pairs ?? [];
-          if (pairs.length === 0) return;
-
-          /**
-           * 합쳐지는 장면을 보여준다.
-           * 먼저 병렬 구간의 해당 줄들을 가운데로 빨아들이고(320ms), 그 다음 합친 줄을 올린다.
-           * 이 모션이 화면의 유일한 설명이다 — 왜 위아래가 다르게 생겼는지를 이걸로 이해한다.
-           */
-          const consumedSeqs = new Set(pairs.flatMap((p) => [...p.sourceSeqs, ...p.targetSeqs]));
-          setMergingSeqs(consumedSeqs);
-          await new Promise((r) => setTimeout(r, 320));
-          setMergingSeqs(EMPTY_SEQS);
-
-          setSegments((prev) => {
-            const bySeq = new Map(prev.map((s) => [s.seq, s]));
-            const merged: EngineSegment[] = [];
-            for (const p of pairs) {
-              const srcRows = p.sourceSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
-              const tgtRows = p.targetSeqs.map((n) => bySeq.get(n)).filter(Boolean) as EngineSegment[];
-              if (srcRows.length === 0 || tgtRows.length === 0) continue;
-              // ⚠ 텍스트는 이어 붙이기만 한다. 고쳐 쓰면 음성과 달라진다.
-              merged.push({
-                ...tgtRows[0]!,
-                seq: tgtRows[0]!.seq,
-                kind: 'paired',
-                sourceText: srcRows.map((s) => s.sourceText).join(' ').trim(),
-                targetText: tgtRows.map((s) => s.targetText).join(' ').trim(),
-                isFinal: true,
-              });
-              [...p.sourceSeqs, ...p.targetSeqs].forEach((n) => alignedRef.current.add(n));
-            }
-            if (merged.length === 0) return prev;
-            // 합친 줄은 여기서 확정이다 — 저장 큐에 넣어야 하트비트가 실제로 올린다
-            for (const m of merged) pendingFinalsRef.current.set(m.seq, m);
-            const kept = prev.filter((s) => !consumedSeqs.has(s.seq));
-            return [...kept, ...merged].sort((a, b) => a.seq - b.seq);
-          });
-
-          // 새로 앉은 줄에 등장 모션을 준다 — 애니메이션이 끝나면 표시를 지운다
-          const arrived = new Set(pairs.map((p) => p.targetSeqs[0]!).filter((n) => n != null));
-          setJustPairedSeqs(arrived);
-          setTimeout(() => setJustPairedSeqs(EMPTY_SEQS), 1_000);
-        })
-        .catch(() => {
-          /* 정렬 실패는 무시 — 다음 주기에 다시 시도한다 */
-        })
-        .finally(() => {
-          aligningRef.current = false;
-        });
-    }, ALIGN_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [phase]);
 
   /** 진단 로그 내려받기 — 폰에서 본 걸 그대로 붙여넣을 수 있게 파일로 남긴다 */
   const downloadTrace = useCallback(() => {
@@ -1583,12 +1445,11 @@ export function LiveInterpreter({
   }
 
   /**
-   * 화면 구성: 짝지어진 줄은 위에, 아직 안 지어진 구간은 아래 좌우 병렬로.
-   * 정렬기가 따라잡으면 아래 것이 위로 옮겨간다.
+   * 화면 구성: 확정된 짝(번역+원문)이 위에서부터 쌓이고, 아직 흐르는 번역만 아래에 보인다.
+   * 원문은 독립 줄로 흐르지 않는다 — 번역이 확정되는 순간 그 줄에 붙는다 (마주통역과 같은 리듬).
    */
-  const pairedRows = segments.filter((s) => s.kind !== 'source' && s.kind !== 'target');
+  const pairedRows = segments.filter((s) => s.kind === 'paired');
   const pendingTargetRows = segments.filter((s) => s.kind === 'target');
-  const pendingSourceRows = segments.filter((s) => s.kind === 'source');
 
   // ── LIVE ──
   const capWarning =
@@ -1733,10 +1594,6 @@ export function LiveInterpreter({
       <CaptionPanel
         segments={pairedRows}
         pendingTarget={pendingTargetRows}
-        pendingSource={pendingSourceRows}
-        parallelLabels={{ target: languageLabel(targetLang), source: t('setup.autoDetect') }}
-        mergingSeqs={mergingSeqs}
-        justPairedSeqs={justPairedSeqs}
         scale={SIZE_SCALE[captionSize]}
         live
       />
