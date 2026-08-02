@@ -11,7 +11,7 @@ const env = (k: string): string | undefined =>
   typeof process !== 'undefined' ? process.env?.[k] : undefined;
 
 const baseUrl = () => env('OPENAI_BASE_URL') ?? 'https://api.openai.com';
-const textModel = () => env('TEXT_TRANSLATION_MODEL') ?? 'gpt-5';
+const textModel = () => env('TEXT_TRANSLATION_MODEL') ?? 'gpt-4o-mini';
 const apiKey = () => {
   const k = env('OPENAI_API_KEY');
   if (!k) throw new Error('OPENAI_API_KEY is not set');

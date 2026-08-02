@@ -6,9 +6,17 @@
  * 방어선 (docs/07 §4.2): 어떤 플랜이든 "포함분 100% 소진 + 전량 모드 A" 시나리오에서 GM 50% 이상.
  *
  * 마진 검증 (혼합 ₩58/분):
- *   starter  ₩14,900 / 100분  → 원가 ₩5,800  → GM 61.1%  ✅
- *   pro      ₩39,900 / 300분  → 원가 ₩17,400 → GM 56.4%  ✅
- *   business ₩199,000 / 1,500분 → 원가 ₩87,000 → GM 56.3% ✅ (docs/07 §4.2와 동일)
+ *   starter  ₩9,900   / 70분   → 원가 ₩4,060  → GM 59.0%  ✅
+ *   pro      ₩26,900  / 200분  → 원가 ₩11,600 → GM 56.9%  ✅
+ *   business ₩126,900 / 1,000분 → 원가 ₩58,000 → GM 54.3% ✅
+ *
+ * 토큰당 단가 — 볼륨 할인 (Starter 기준 5%씩):
+ *   starter  ₩141/토큰 (기준)
+ *   pro      ₩135/토큰 (-5%)
+ *   business ₩127/토큰 (-10%)
+ *
+ * 텍스트·파일 번역 (gpt-4o-mini / gpt-4o 비전):
+ *   원가가 통역의 1/30~1/50 수준이라 Pro 이상은 무제한 무료 제공해도 마진에 영향 없음.
  */
 /**
  * 토큰 표준 — 요금의 단일 단위. **1 토큰 = 일반(대면/대화) 모드 1분.**
@@ -77,6 +85,7 @@ export interface PlanDef {
   overageKrwPerMin: number | null;
   retentionDays: number;
   meetingMode: boolean;   // 모드 A(화상회의 봇)
+  unlimitedTranslation: boolean; // 텍스트·파일 번역 무제한 (Pro 이상)
   maxMembers: number | null; // null = 무제한
 }
 
@@ -86,45 +95,47 @@ export const PLANS: readonly PlanDef[] = [
     audience: 'personal',
     monthlyKrw: 0,
     cycle: 'monthly',
-    includedMinutes: 30,
+    includedMinutes: 20,
     overageKrwPerMin: null,
     retentionDays: 7,
     meetingMode: false,
+    unlimitedTranslation: false,
     maxMembers: 1,
   },
   {
     id: 'starter',
     audience: 'personal',
-    monthlyKrw: 14_900,
+    monthlyKrw: 9_900,
     cycle: 'monthly',
-    includedMinutes: 100,
+    includedMinutes: 70,
     overageKrwPerMin: null,
     retentionDays: 30,
     meetingMode: false,
+    unlimitedTranslation: false,
     maxMembers: 1,
   },
   {
     id: 'pro',
     audience: 'personal',
-    // 회의 모드 원가(₩65/분) × 300분 × 2.5배 방어선 (docs/07). 마주 전량은 예외 — 아래 주석 참고.
-    monthlyKrw: 49_000,
+    monthlyKrw: 26_900,
     cycle: 'monthly',
-    includedMinutes: 300,
+    includedMinutes: 200,
     overageKrwPerMin: 150,
     retentionDays: 90,
     meetingMode: true,
+    unlimitedTranslation: true,
     maxMembers: 1,
   },
   {
     id: 'business',
     audience: 'business',
-    // 기업은 회의 모드 비중이 크다 — 회의 원가(₩65/분) × 1500분 × 2.5배 방어선 (docs/07).
-    monthlyKrw: 249_000,
+    monthlyKrw: 126_900,
     cycle: 'monthly',
-    includedMinutes: 1_500,
+    includedMinutes: 1_000,
     overageKrwPerMin: 130,
     retentionDays: 365,
     meetingMode: true,
+    unlimitedTranslation: true,
     maxMembers: null,
   },
 ] as const;
@@ -148,6 +159,49 @@ export function grossMarginAtFullUsage(plan: PlanDef, blendedCostKrwPerMin: numb
   if (plan.monthlyKrw === 0) return 0; // Free는 획득비용으로 간주
   const cost = plan.includedMinutes * blendedCostKrwPerMin;
   return (plan.monthlyKrw - cost) / plan.monthlyKrw;
+}
+
+// ── 토큰 충전 (구독과 별개의 단발 구매) ────────────────────────────────
+/**
+ * 충전 팩 — 구독 토큰당 단가보다 ~10% 비싸게 (사용자 지시 2026-08-02).
+ * 구독이 항상 유리해야 구독이 기본 선택으로 남는다.
+ *
+ *   small  ₩158/토큰 (Starter ₩141 +12%)
+ *   medium ₩149/토큰 (Pro ₩135 +10%)
+ *   large  ₩140/토큰 (Business ₩127 +10%)
+ *
+ * 충전 토큰은 주기 리셋과 무관하게 이월된다 — 산 것을 날리면 환불 분쟁이 된다.
+ * 소비 순서: 구독 포함분 먼저, 충전분은 그 다음 (finalizeSessionDoc 참고).
+ */
+export interface TopupPack {
+  id: 'small' | 'medium' | 'large';
+  tokens: number;
+  krw: number;
+}
+
+export const TOPUP_PACKS: readonly TopupPack[] = [
+  { id: 'small', tokens: 50, krw: 7_900 },
+  { id: 'medium', tokens: 100, krw: 14_900 },
+  { id: 'large', tokens: 200, krw: 27_900 },
+] as const;
+
+export function getTopupPack(id: string): TopupPack | undefined {
+  return TOPUP_PACKS.find((p) => p.id === id);
+}
+
+/**
+ * 후불 크레딧 — Pro 이상(초과 단가가 있는 플랜) 전용.
+ *
+ * 세션 도중 토큰이 소진돼도 회의·통역을 끊지 않고 이만큼 더 쓰게 한다:
+ *   일반 60분 · 회의 40분 · 마주 30분 (사용자 요구 30~60분 범위).
+ * 초과분은 플랜의 overageKrwPerMin 단가로 미결제 금액(billing.debt*)에 쌓이고,
+ * **미결제가 남아 있으면 새 세션을 열 수 없다** (entitlement.canStart).
+ */
+export const POSTPAID_LIMIT_TOKENS = 60;
+
+/** 이 플랜이 후불 크레딧 대상인가 — 초과 단가가 정의된 플랜(Pro·Business)만 */
+export function postpaidEligible(plan: PlanDef | undefined): boolean {
+  return plan?.overageKrwPerMin != null;
 }
 
 /**

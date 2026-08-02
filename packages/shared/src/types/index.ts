@@ -38,7 +38,7 @@ export interface User {
 }
 
 // ── 워크스페이스 (과금 단위) ────────────────────────
-export type PlanId = 'free' | 'team' | 'business' | 'enterprise';
+export type PlanId = 'free' | 'starter' | 'pro' | 'business';
 
 export interface Workspace {
   id: string;

@@ -149,7 +149,7 @@
       "finishing": "Finishing sign-in",
       "hint": "Please wait a moment — don't close this window."
     },
-    "freeNote": "30 free minutes every month. No card required.",
+    "freeNote": "20 free minutes every month. No card required.",
     "failed": {
       "title": "Sign-in failed",
       "action": "Allow popups for this site or try again in a moment."
@@ -178,7 +178,10 @@
     "yearlyHint": "Pay yearly and save 10% (over 2 months free)",
     "popular": "Most popular",
     "cta": "Start with this plan",
-    "freeNote": "Every paid plan comes after a free 30 tokens/month tier. Prices exclude VAT.",
+    "freeNote": "Every paid plan comes after a free 20 tokens/month tier. Prices exclude VAT.",
+    "unlimitedTranslation": "Unlimited text & file translation",
+    "perMonthBilled": "/mo billed yearly",
+    "yearlyTotal": "{amount}/yr total",
     "includedTokens": "{tokens} tokens / month included",
     "retention": "Records kept for {days} days",
     "meetingMode": "Meeting interpreter bot (Zoom · Teams · Meet · Webex)",

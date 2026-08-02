@@ -8,7 +8,13 @@
 import { cache } from 'react';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase/admin';
-import { cycleKey, getPlan, secondsForTokens } from '@sotong/shared/constants';
+import {
+  cycleKey,
+  getPlan,
+  secondsForTokens,
+  POSTPAID_LIMIT_TOKENS,
+  postpaidEligible,
+} from '@sotong/shared/constants';
 import type { PlanId, SessionMode } from '@sotong/shared/types';
 
 export interface Entitlement {
@@ -34,6 +40,15 @@ export interface Entitlement {
    * 둘을 한 필드로 합치면 나중에 청구서를 만들 때 누가 공짜였는지 구분할 수 없다.
    */
   unlimited: boolean;
+  /** 충전 팩으로 산 토큰 잔액 — 주기 리셋과 무관하게 이월. 포함분 소진 후에 소비된다 */
+  topupTokens: number;
+  /** 후불 사용 미결제 금액(원). 0보다 크면 새 세션을 열 수 없다 */
+  debtKrw: number;
+  /**
+   * 이번 세션에서 잔액 소진 후 추가로 쓸 수 있는 후불 토큰.
+   * Pro 이상만 > 0. 세션 길이 캡에 더해져 회의 중 끊김을 막는다 (사용자 지시 2026-08-02).
+   */
+  postpaidLimitTokens: number;
   /** 지금 세션을 열 수 있는가 */
   canStart: boolean;
 }
@@ -76,6 +91,9 @@ export const getEntitlement = cache(async function getEntitlement(
     remainingMinutes: admin ? Number.POSITIVE_INFINITY : (free?.includedMinutes ?? 10),
     overageEnabled: false,
     unlimited: false,
+    topupTokens: 0,
+    debtKrw: 0,
+    postpaidLimitTokens: 0,
     canStart: true,
   };
 
@@ -106,6 +124,8 @@ export const getEntitlement = cache(async function getEntitlement(
           overageEnabled?: boolean;
           unlimited?: boolean;
           cycleKey?: string;
+          topupTokens?: number;
+          debtKrw?: number;
         }
       | undefined;
 
@@ -113,6 +133,9 @@ export const getEntitlement = cache(async function getEntitlement(
     const overageEnabled = Boolean(billing?.overageEnabled);
     // 운영자가 켜 준 무제한 — 한도 계산 자체를 건너뛴다
     const unlimited = Boolean(billing?.unlimited);
+    // 충전 잔액은 주기 리셋의 영향을 받지 않는다 — 산 토큰을 날리면 환불 분쟁이 된다
+    const topupTokens = Math.max(0, billing?.topupTokens ?? 0);
+    const debtKrw = Math.max(0, billing?.debtKrw ?? 0);
 
     /**
      * 주기가 바뀌었으면 사용량을 되돌린다.
@@ -137,10 +160,11 @@ export const getEntitlement = cache(async function getEntitlement(
         )
         .catch((e) => console.error('[entitlement] cycle reset failed', e));
     }
+    // 남은 토큰 = 포함분 잔여 + 충전 잔액 (충전분은 포함분 소진 후 소비된다)
     const remainingMinutes =
       isAdmin || unlimited
         ? Number.POSITIVE_INFINITY
-        : Math.max(0, includedMinutes - usedMinutes);
+        : Math.max(0, includedMinutes - usedMinutes) + topupTokens;
 
     return {
       uid,
@@ -153,9 +177,19 @@ export const getEntitlement = cache(async function getEntitlement(
       usedMinutes,
       overageEnabled,
       unlimited,
+      topupTokens,
+      debtKrw,
+      postpaidLimitTokens: postpaidEligible(planDef) ? POSTPAID_LIMIT_TOKENS : 0,
       remainingMinutes,
-      // 운영자·무제한이거나, 남은 분이 있거나, 초과 사용을 켠 경우에만 시작할 수 있다
-      canStart: isAdmin || unlimited || remainingMinutes > 0 || overageEnabled,
+      /**
+       * 시작 가능 판정.
+       * 후불 미결제가 남아 있으면 잔액이 있어도 막는다 (사용자 지시 2026-08-02:
+       * "종료되면 그걸 결제하지 않으면 진행이 되지 않게"). 운영자·무제한만 예외.
+       */
+      canStart:
+        isAdmin ||
+        unlimited ||
+        (debtKrw <= 0 && (remainingMinutes > 0 || overageEnabled)),
     };
   } catch (e) {
     console.error('[entitlement] lookup failed', e);

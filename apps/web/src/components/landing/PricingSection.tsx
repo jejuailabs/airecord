@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { Check } from 'lucide-react';
-import { PLANS, MODE_TOKENS_PER_MIN, yearlyKrw } from '@sotong/shared/constants';
+import { PLANS, MODE_TOKENS_PER_MIN, yearlyKrw, YEARLY_DISCOUNT } from '@sotong/shared/constants';
 import { Link } from '@/i18n/navigation';
 
 const SHOWN = ['starter', 'pro', 'business'] as const;
@@ -66,7 +66,8 @@ export function PricingSection() {
         {SHOWN.map((id) => {
           const plan = PLANS.find((p) => p.id === id)!;
           const highlighted = id === 'pro';
-          const yearPrice = yearlyKrw(plan.monthlyKrw);
+          const yearTotal = yearlyKrw(plan.monthlyKrw);
+          const yearMonthly = Math.round((plan.monthlyKrw * (1 - YEARLY_DISCOUNT)) / 100) * 100;
           return (
             <div
               key={id}
@@ -84,13 +85,16 @@ export function PricingSection() {
               </div>
               <div>
                 <span className="tabular text-[32px] font-bold leading-none">
-                  {won(yearly ? yearPrice : plan.monthlyKrw)}
+                  {won(yearly ? yearMonthly : plan.monthlyKrw)}
                 </span>
                 <span className="text-sm text-text-muted">
-                  {yearly ? t('perYear') : t('perMonth')}
+                  {yearly ? t('perMonthBilled') : t('perMonth')}
                 </span>
                 {yearly ? (
-                  <p className="mt-1 text-[12px] text-accent">{t('yearlyHint')}</p>
+                  <p className="mt-1 text-[13px] text-text-muted">
+                    {t('yearlyTotal', { amount: won(yearTotal) })}
+                    <span className="ml-1.5 text-[12px] text-accent">{t('yearlyBadge')}</span>
+                  </p>
                 ) : null}
               </div>
               <p className="text-sm text-text-muted">{t(`plans.${id}.for`)}</p>
@@ -98,6 +102,7 @@ export function PricingSection() {
                 <Feature>{t('includedTokens', { tokens: plan.includedMinutes })}</Feature>
                 <Feature>{t('retention', { days: plan.retentionDays })}</Feature>
                 {plan.meetingMode ? <Feature>{t('meetingMode')}</Feature> : null}
+                {plan.unlimitedTranslation ? <Feature>{t('unlimitedTranslation')}</Feature> : null}
                 {plan.maxMembers === null ? <Feature>{t('unlimitedMembers')}</Feature> : null}
                 {plan.overageKrwPerMin ? (
                   <Feature>{t('overage', { krw: plan.overageKrwPerMin })}</Feature>

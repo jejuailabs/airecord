@@ -149,7 +149,7 @@
       "finishing": "로그인을 마무리하는 중입니다",
       "hint": "창을 닫지 말고 잠시만 기다려 주세요."
     },
-    "freeNote": "가입 즉시 매달 30분 무료. 카드 등록이 필요 없습니다.",
+    "freeNote": "가입 즉시 매달 20분 무료. 카드 등록이 필요 없습니다.",
     "failed": {
       "title": "로그인에 실패했습니다",
       "action": "팝업 차단을 해제하거나 잠시 후 다시 시도해 주세요."
@@ -178,7 +178,10 @@
     "yearlyHint": "1년 선납 시 10% 할인 (2개월 이상 무료)",
     "popular": "가장 인기",
     "cta": "이 플랜으로 시작",
-    "freeNote": "모든 유료 플랜 전에 무료 30토큰/월이 기본 제공됩니다. 가격은 부가세 별도입니다.",
+    "freeNote": "모든 유료 플랜 전에 무료 20토큰/월이 기본 제공됩니다. 가격은 부가세 별도입니다.",
+    "unlimitedTranslation": "텍스트·파일 번역 무제한",
+    "perMonthBilled": "연 결제 시 /월",
+    "yearlyTotal": "연 {amount}",
     "includedTokens": "월 {tokens}토큰 포함",
     "retention": "기록 보관 {days}일",
     "meetingMode": "화상회의 통역 봇 (Zoom·Teams·Meet·Webex)",
