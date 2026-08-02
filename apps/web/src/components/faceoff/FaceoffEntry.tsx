@@ -2,8 +2,24 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { Coins } from 'lucide-react';
 import { FaceoffInterpreter } from './FaceoffInterpreter';
 import { FaceoffSingleInterpreter } from './FaceoffSingleInterpreter';
+
+/**
+ * 마주는 통역 세션 2개가 동시에 돌아 토큰을 1분당 2개 쓴다 (MODE_TOKENS_PER_MIN).
+ * 시작 전에 명확히 알린다 (사용자 지시 2026-08-02) — 통역 화면(엔진)은 건드리지 않는다.
+ */
+function TokenNotice() {
+  const t = useTranslations('faceoffEntry');
+  return (
+    <div className="mx-auto flex w-fit items-center gap-2 rounded-lg bg-warn-weak px-4 py-2 text-[13.5px] font-semibold text-warn">
+      <Coins size={15} aria-hidden />
+      {t('tokenNotice')}
+    </div>
+  );
+}
 
 /**
  * 마주통역 진입점.
@@ -22,10 +38,18 @@ export function FaceoffEntry({ singleEnabled }: { singleEnabled: boolean }) {
   // 운영 콘솔에서 바로 넘어온 직행 테스트 — 선택 화면 없이 1세션으로
   if (params.get('single') === '1') return <FaceoffSingleInterpreter />;
 
-  if (!singleEnabled) return <FaceoffInterpreter />;
+  if (!singleEnabled) {
+    return (
+      <div className="flex flex-col gap-3">
+        <TokenNotice />
+        <FaceoffInterpreter />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
+      <TokenNotice />
       {/* 라이브(fixed inset-0)로 들어가면 이 토글은 화면 아래로 가려진다 — setup에서만 보인다 */}
       <div className="mx-auto inline-flex rounded-full border border-border bg-bg-raised p-1 text-[13px]">
         <button

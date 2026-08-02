@@ -17,6 +17,8 @@ import {
   HEARTBEAT_INTERVAL_MS,
   HEARTBEAT_MISS_LIMIT,
   tokensForBilledSeconds,
+  getPlan,
+  postpaidEligible,
 } from '@sotong/shared/constants';
 import type { SessionMode, SessionStatus, SourceLangSetting, LangCode } from '@sotong/shared/types';
 import { adminDb } from '@/lib/firebase/admin';
@@ -307,12 +309,63 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
        * 토큰 청구 (docs/07 §5.2, 사용자 지시 2026-08-01).
        * 분은 세션당 올림, 모드 배수를 곱한다 — 마주 10분이면 20토큰이 빠진다.
        * usedMinutes 필드명은 호환을 위해 유지하되 담기는 값은 '소비 토큰'이다.
+       *
+       * 정산 순서 (사용자 지시 2026-08-02) — 트랜잭션으로 읽고-계산하고-쓴다:
+       *   1. 구독 포함분  2. 충전 잔액(topupTokens)  3. 후불(Pro 이상, 미결제 debtKrw로 적립)
+       * 동시에 끝나는 세션 둘이 같은 충전 잔액을 겹쳐 쓰지 않으려면 증분만으로는 안 되고,
+       * 잔액을 읽은 값 기준으로 나눠야 하므로 트랜잭션이 필요하다.
        */
       const tokens = tokensForBilledSeconds(billingMode(record), record.billedSeconds);
-      await db
-        .collection('workspaces')
-        .doc(record.workspaceId)
-        .set({ billing: { usedMinutes: FieldValue.increment(tokens) } }, { merge: true });
+      const wsRef = db.collection('workspaces').doc(record.workspaceId);
+      const overage = await db.runTransaction(async (tx) => {
+        const ws = await tx.get(wsRef);
+        const plan = getPlan((ws.get('plan') as string | undefined) ?? 'free');
+        const b = (ws.get('billing') ?? {}) as {
+          includedMinutes?: number;
+          usedMinutes?: number;
+          topupTokens?: number;
+          unlimited?: boolean;
+        };
+        const included = plan?.includedMinutes ?? b.includedMinutes ?? 0;
+        const used = b.usedMinutes ?? 0;
+        const topup = Math.max(0, b.topupTokens ?? 0);
+
+        // 이번 세션이 '포함분 너머'로 쓴 토큰 (이전 세션이 이미 넘긴 몫은 제외)
+        const overflow = b.unlimited
+          ? 0
+          : Math.max(0, used + tokens - included) - Math.max(0, used - included);
+        const topupUse = Math.min(topup, overflow);
+        const rest = overflow - topupUse;
+        // 후불 대상 플랜만 미결제로 적립. 그 외(캡 올림 오차 등)는 소액이라 그냥 흡수한다.
+        const debtKrw =
+          rest > 0 && postpaidEligible(plan) ? rest * (plan?.overageKrwPerMin ?? 0) : 0;
+
+        tx.set(
+          wsRef,
+          {
+            billing: {
+              usedMinutes: FieldValue.increment(tokens),
+              ...(topupUse > 0 ? { topupTokens: FieldValue.increment(-topupUse) } : {}),
+              ...(debtKrw > 0
+                ? {
+                    debtKrw: FieldValue.increment(debtKrw),
+                    debtTokens: FieldValue.increment(rest),
+                  }
+                : {}),
+            },
+          },
+          { merge: true },
+        );
+        return debtKrw > 0 ? { tokens: rest, krw: debtKrw } : null;
+      });
+
+      // 후불이 발생했으면 세션 문서에도 남긴다 — 정산 화면·감사용
+      if (overage) {
+        await db
+          .collection('sessions')
+          .doc(record.id)
+          .set({ overage: { ...overage, settled: false } }, { merge: true });
+      }
 
       // 날짜별 사용 원장 — 대시보드·운영콘솔·예상비용의 단일 소스 (docs/03 §2)
       await recordUsage(record);

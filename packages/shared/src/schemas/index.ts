@@ -29,6 +29,11 @@ export const sessionStartResponseSchema = z.object({
   callUrl: z.string(),
   keyExpiresAt: z.number(),
   maxDurationSec: z.number(),
+  /**
+   * 세션 시작 후 이 시점(초)부터는 잔액이 아니라 **후불 크레딧**으로 달린다 (Pro 이상).
+   * 화면이 "포함 토큰 소진 — 후불 과금 중" 배너를 띄우는 기준. 해당 없으면 null.
+   */
+  postpaidFromSec: z.number().nullable().default(null),
   /** 체험 세션에 허용된 번역 글자수. 비체험이면 null */
   charBudget: z.number().nullable().default(null),
   /**

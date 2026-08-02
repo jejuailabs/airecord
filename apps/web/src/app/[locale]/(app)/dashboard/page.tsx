@@ -8,10 +8,15 @@ import { listSessions, type SessionListItem } from '@/lib/server/sessions-query'
 import { getPlan, cycleKey, languageLabel } from '@sotong/shared/constants';
 import type { SourceLangSetting } from '@sotong/shared/types';
 import { ActionCard } from '@/components/ui/ActionCard';
+import { TokenBalanceCard } from '@/components/billing/TokenBalanceCard';
 
 interface DashData {
   includedMinutes: number;
   usedMinutes: number;
+  /** 충전 팩 잔액 — 주기 리셋과 무관하게 이월 */
+  topupTokens: number;
+  /** 후불 미결제 금액(원) — 0보다 크면 새 세션이 막혀 있다 */
+  debtKrw: number;
   /** 운영자 — 한도 없음 */
   unlimited: boolean;
   /** 사용량이 매일 초기화되는 플랜인가 (무료) */
@@ -50,6 +55,8 @@ async function loadData(): Promise<DashData> {
   const fallback: DashData = {
     includedMinutes: free?.includedMinutes ?? 10,
     usedMinutes: 0,
+    topupTokens: 0,
+    debtKrw: 0,
     unlimited: false,
     dailyCycle: (free?.cycle ?? 'daily') === 'daily',
     meetingMinutes: 0,
@@ -96,6 +103,8 @@ async function loadData(): Promise<DashData> {
     return {
       includedMinutes: ent.includedMinutes,
       usedMinutes: ent.usedMinutes,
+      topupTokens: ent.topupTokens,
+      debtKrw: ent.debtKrw,
       unlimited: ent.isAdmin || ent.unlimited,
       dailyCycle: getPlan(ent.plan)?.cycle === 'daily',
       meetingMinutes: minutesOf('meeting'),
@@ -124,9 +133,8 @@ export default async function DashboardPage({
   const t = await getTranslations('dashboard');
   const ts = await getTranslations('sessions');
   const data = await loadData();
-  const remaining = Math.max(0, data.includedMinutes - data.usedMinutes);
-  const pct = data.includedMinutes > 0 ? (remaining / data.includedMinutes) * 100 : 0;
-  const barColor = pct <= 0 ? 'bg-danger' : pct < 20 ? 'bg-warn' : 'bg-accent';
+  // 남은 토큰 = 포함분 잔여 + 충전 잔액 (entitlement.remainingMinutes와 같은 식)
+  const remaining = Math.max(0, data.includedMinutes - data.usedMinutes) + data.topupTokens;
 
   return (
     <div className="flex flex-col gap-8">
@@ -191,32 +199,15 @@ export default async function DashboardPage({
         </div>
       </section>
 
-      {/* ── 통계 카드 4 ── */}
+      {/* ── 통계 카드 — 토큰 잔액이 주인공 (분 환산·충전·후불 정산 포함) ── */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div className="flex flex-col gap-2 rounded-xl border border-border bg-bg-raised p-5">
-          <span className="text-[13px] font-semibold text-text-muted">{t('stats.remaining')}</span>
-          {data.unlimited ? (
-            <>
-              <span className="tabular text-[26px] font-bold leading-none">∞</span>
-              <span className="inline-flex w-fit items-center rounded-md bg-accent-weak px-2 py-0.5 text-[12px] font-semibold text-accent">
-                {t('stats.unlimited')}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="tabular text-[26px] font-bold leading-none">
-                {remaining}
-                <span className="text-sm font-normal text-text-muted">
-                  {' '}
-                  {t('stats.tokenOf', { total: data.includedMinutes })}
-                </span>
-              </span>
-              <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
-                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
-              </div>
-            </>
-          )}
-        </div>
+        <TokenBalanceCard
+          remaining={remaining}
+          included={data.includedMinutes}
+          topupTokens={data.topupTokens}
+          debtKrw={data.debtKrw}
+          unlimited={data.unlimited}
+        />
         <StatCard
           label={t(data.dailyCycle ? 'stats.day' : 'stats.month')}
           value={data.usedMinutes}

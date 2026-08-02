@@ -6,6 +6,7 @@ import { createSession, maxDurationSecFromEnv } from '@/lib/server/session-store
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { grantCharBudget, guestKey } from '@/lib/server/guest-quota';
 import { getEntitlement, sessionCapSeconds } from '@/lib/server/entitlement';
+import { secondsForTokens } from '@sotong/shared/constants';
 
 export const runtime = 'nodejs';
 
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
   let uid: string | undefined;
   let workspaceId: string | undefined;
   let maxDurationSec: number;
+  let postpaidFromSec: number | null = null;
 
   if (trial) {
     // 비회원: 이번 달 남은 글자수 안에서만 체험을 연다
@@ -55,16 +57,26 @@ export async function POST(req: Request) {
     if (!ent.canStart) {
       return NextResponse.json(
         {
-          error: 'quota_exhausted',
+          // 후불 미결제로 막힌 것과 토큰 소진은 안내가 달라야 한다
+          error: ent.debtKrw > 0 ? 'debt_unpaid' : 'quota_exhausted',
           usedMinutes: ent.usedMinutes,
           includedMinutes: ent.includedMinutes,
+          debtKrw: ent.debtKrw,
         },
         { status: 402 },
       );
     }
     workspaceId = ent.workspaceId;
-    // 남은 분보다 긴 세션을 열지 않는다
+    // 남은 분보다 긴 세션을 열지 않는다 (Pro 이상은 후불 크레딧만큼 더 열린다)
     maxDurationSec = sessionCapSeconds(ent, baseCapSec);
+    /**
+     * 잔액이 캡 안에서 먼저 바닥나는 경우에만 후불 진입 시점을 알려준다.
+     * 화면은 이 시점부터 "후불 과금 중" 배너를 띄운다 — 몰래 청구하지 않는다.
+     */
+    if (ent.postpaidLimitTokens > 0 && Number.isFinite(ent.remainingMinutes)) {
+      const balanceSec = secondsForTokens('inperson', ent.remainingMinutes);
+      if (balanceSec < maxDurationSec) postpaidFromSec = balanceSec;
+    }
   }
   const record = await createSession({
     mode: 'inperson',
@@ -94,6 +106,7 @@ export async function POST(req: Request) {
       callUrl: grant.callUrl,
       keyExpiresAt: grant.expiresAt,
       maxDurationSec,
+      postpaidFromSec,
       charBudget,
       transcribe,
     };

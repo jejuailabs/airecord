@@ -167,6 +167,9 @@
       "freeNote": "카드 등록 없이 Google 계정으로 바로 시작됩니다."
     }
   },
+  "faceoffEntry": {
+    "tokenNotice": "마주통역은 통역 세션 2개가 동시에 돌아 1분당 2토큰을 사용합니다 (10분 = 20토큰)"
+  },
   "pricing": {
     "title": "요금제",
     "subtitle": "쓴 만큼만. 시간이 아니라 토큰으로 셉니다 — 모든 모드를 한 잔액으로.",
@@ -281,6 +284,20 @@
       "minuteOf": "분 / {total}분",
       "token": "토큰",
       "tokenOf": "토큰 / 총 {total}토큰"
+    },
+    "tokens": {
+      "remaining": "남은 토큰",
+      "unlimited": "운영자 · 무제한",
+      "of": "/ 총 {total}토큰",
+      "asMinutes": "일반 {general}분 · 회의 {meeting}분 · 마주 {faceoff}분",
+      "topupBtn": "토큰 충전",
+      "topupHeld": "충전 +{tokens}",
+      "debt": "후불 미결제 {amount}",
+      "debtHint": "결제 전까지 새 통역·회의를 시작할 수 없습니다.",
+      "settleBtn": "결제하기",
+      "pgPending": "신청이 접수되었습니다 — 결제 연동 준비 중입니다.",
+      "packTokens": "{tokens}토큰",
+      "packNote": "충전 토큰은 소멸되지 않고 이월되며, 구독 포함분을 먼저 사용한 뒤 차감됩니다."
     },
     "chart": {
       "title": "일별 사용량",
@@ -399,6 +416,7 @@
       "audioDiag": "음성 상태: {detail}",
       "audioWaiting": "번역 음성을 준비하는 중입니다. 말을 시작하면 통역 음성이 함께 나옵니다.",
       "capWarning": "{sec}초 후 세션 최대 시간에 도달해 자동 종료됩니다.",
+      "postpaid": "포함 토큰을 모두 사용해 지금부터 후불로 이어집니다. 종료 후 정산 전까지 새 세션을 열 수 없습니다.",
       "omitted": "{count, plural, other {이전 자막 #개는 화면에서 생략됨}}",
       "sameLanguage": "표시 언어와 같은 말",
       "waitingSpeech": "말을 시작하면 자막이 여기에 나타납니다"
@@ -451,7 +469,11 @@
       },
       "quotaExhausted": {
         "title": "통역 시간을 모두 사용했습니다",
-        "action": "무료 플랜은 매달 다시 채워집니다. 지금 바로 더 쓰시려면 요금제를 올려 주세요."
+        "action": "무료 플랜은 매달 다시 채워집니다. 지금 바로 더 쓰시려면 요금제를 올리거나 토큰을 충전해 주세요."
+      },
+      "debtUnpaid": {
+        "title": "후불 사용 금액이 결제되지 않았습니다",
+        "action": "대시보드에서 미결제 금액을 결제하면 바로 다시 시작할 수 있습니다."
       },
       "authRequired": {
         "title": "로그인이 필요합니다",

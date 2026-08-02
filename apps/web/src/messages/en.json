@@ -167,6 +167,9 @@
       "freeNote": "Starts instantly with your Google account — no card required."
     }
   },
+  "faceoffEntry": {
+    "tokenNotice": "Face-off runs two interpretation sessions at once and uses 2 tokens per minute (10 min = 20 tokens)"
+  },
   "pricing": {
     "title": "Pricing",
     "subtitle": "Pay for what you use. Counted in tokens, not time — one balance for every mode.",
@@ -281,6 +284,20 @@
       "minuteOf": "min / {total}min",
       "token": "tokens",
       "tokenOf": "of {total} tokens"
+    },
+    "tokens": {
+      "remaining": "Tokens left",
+      "unlimited": "Admin · unlimited",
+      "of": "/ {total} total",
+      "asMinutes": "General {general} min · Meeting {meeting} min · Face-off {faceoff} min",
+      "topupBtn": "Top up",
+      "topupHeld": "Top-up +{tokens}",
+      "debt": "Unpaid postpaid balance {amount}",
+      "debtHint": "New sessions stay locked until this is settled.",
+      "settleBtn": "Settle now",
+      "pgPending": "Request received — payment integration coming soon.",
+      "packTokens": "{tokens} tokens",
+      "packNote": "Top-up tokens never expire and are used after your plan's included tokens."
     },
     "chart": {
       "title": "Daily usage",
@@ -399,6 +416,7 @@
       "audioDiag": "Audio state: {detail}",
       "audioWaiting": "Preparing the translated voice. It plays as soon as someone speaks.",
       "capWarning": "The session reaches its time limit in {sec}s and will end automatically.",
+      "postpaid": "Included tokens are used up — you're now on postpaid credit. New sessions stay locked until it's settled after this one ends.",
       "omitted": "{count, plural, other {# earlier captions hidden from view}}",
       "sameLanguage": "same as display language",
       "waitingSpeech": "Start speaking and captions will appear here"
@@ -451,7 +469,11 @@
       },
       "quotaExhausted": {
         "title": "You've used all your interpretation minutes",
-        "action": "The free plan refills every month. Upgrade your plan to keep going right now."
+        "action": "The free plan refills every month. Upgrade your plan or top up tokens to keep going right now."
+      },
+      "debtUnpaid": {
+        "title": "Your postpaid balance hasn't been settled",
+        "action": "Settle the outstanding amount from the dashboard and you can start again right away."
       },
       "authRequired": {
         "title": "Sign-in required",

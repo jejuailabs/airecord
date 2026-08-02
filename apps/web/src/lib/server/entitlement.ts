@@ -217,8 +217,16 @@ export function sessionCapSeconds(
   if (ent.isAdmin || ent.unlimited) return UNLIMITED_SESSION_SEC;
   // 초과 사용 허용은 "청구하며 계속"이라 세션 길이 캡은 그대로 둔다 (폭주 방지)
   if (ent.overageEnabled) return baseCapSec;
-  // 남은 토큰 → 이 모드로 열 수 있는 초. 마주는 rate=2라 같은 토큰으로 절반만 열린다.
-  return Math.max(60, Math.min(baseCapSec, secondsForTokens(mode, ent.remainingMinutes)));
+  /**
+   * 남은 토큰 + 후불 크레딧(Pro 이상 60토큰) → 이 모드로 열 수 있는 초.
+   * 크레딧 덕에 회의 중 토큰이 소진돼도 일반 60분·회의 40분·마주 30분은 이어진다.
+   * 초과분은 종료 시 미결제로 쌓이고, 결제 전까지 새 세션이 막힌다 (finalizeSessionDoc).
+   * 마주는 rate=2라 같은 토큰으로 절반만 열린다.
+   */
+  return Math.max(
+    60,
+    Math.min(baseCapSec, secondsForTokens(mode, ent.remainingMinutes + ent.postpaidLimitTokens)),
+  );
 }
 
 /**

@@ -65,6 +65,7 @@ type ErrorKey =
   | 'unsupportedPair'
   | 'guestQuota'
   | 'quotaExhausted'
+  | 'debtUnpaid'
   | 'authRequired';
 
 const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
@@ -194,6 +195,9 @@ export function LiveInterpreter({
   const clockTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAtRef = useRef(0);
   const maxDurationRef = useRef(0);
+  /** 이 시점(초)부터 후불 크레딧으로 달린다 (Pro 이상, 서버 계산). null이면 해당 없음 */
+  const postpaidFromRef = useRef<number | null>(null);
+  const [inPostpaid, setInPostpaid] = useState(false);
   /** 하트비트에 실어 보낼 확정 세그먼트 배치 (docs/01 §4.1 — 개별 쓰기 금지) */
   const pendingFinalsRef = useRef(new Map<number, EngineSegment>());
   /** 체험 모드 번역 글자수 — seq별 최신 길이를 합산한다(부분 전사가 덮어써도 중복 계수 안 되게) */
@@ -465,9 +469,11 @@ export function LiveInterpreter({
                 ? 'guestQuota'
                 : body.error === 'quota_exhausted'
                   ? 'quotaExhausted'
-                  : body.error === 'auth_required'
-                    ? 'authRequired'
-                    : 'startFailed',
+                  : body.error === 'debt_unpaid'
+                    ? 'debtUnpaid'
+                    : body.error === 'auth_required'
+                      ? 'authRequired'
+                      : 'startFailed',
         );
         setPhase('setup');
         return;
@@ -481,6 +487,8 @@ export function LiveInterpreter({
 
     sessionIdRef.current = grant.sessionId;
     maxDurationRef.current = grant.maxDurationSec;
+    postpaidFromRef.current = grant.postpaidFromSec ?? null;
+    setInPostpaid(false);
     // 서버가 내려준 예산(월 잔여 반영)을 따른다 — 클라이언트 상수보다 우선
     charBudgetRef.current = grant.charBudget ?? TRIAL_CHAR_LIMIT;
     charsBySeqRef.current.clear();
@@ -601,6 +609,10 @@ export function LiveInterpreter({
       setElapsedSec(elapsed);
       const remain = maxDurationRef.current - elapsed;
       setRemainingSec(remain);
+      // 잔액 소진 시점을 넘겼으면 후불 배너를 켠다 — 몰래 청구하지 않는다
+      if (postpaidFromRef.current !== null && elapsed >= postpaidFromRef.current) {
+        setInPostpaid(true);
+      }
       if (remain <= 0) void doEnd('cap');
     }, 1000);
 
@@ -1549,6 +1561,11 @@ export function LiveInterpreter({
       {capWarning ? (
         <div className="shrink-0 rounded-lg bg-warn-weak px-5 py-3 text-[16px] font-semibold text-warn">
           {t('running.capWarning', { sec: remainingSec })}
+        </div>
+      ) : inPostpaid ? (
+        /* 포함 토큰 소진 — 지금부터는 후불 크레딧. 종료 후 정산해야 다음 세션이 열린다 */
+        <div className="shrink-0 rounded-lg bg-warn-weak px-5 py-3 text-[15px] font-semibold text-warn">
+          {t('running.postpaid')}
         </div>
       ) : null}
 
