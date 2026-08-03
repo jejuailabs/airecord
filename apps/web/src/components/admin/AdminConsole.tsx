@@ -7,6 +7,7 @@ import {
   Building2,
   Clock,
   Infinity as InfinityIcon,
+  Languages,
   Loader2,
   Radio,
   Users,
@@ -14,7 +15,24 @@ import {
   Play,
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import type { AdminOverview, AdminUserRow, UsageLogRow } from '@/lib/server/admin-query';
+import type {
+  AdminOverview,
+  AdminUserRow,
+  UsageLogRow,
+  TranslationLogRow,
+} from '@/lib/server/admin-query';
+
+/**
+ * 번역 종류별 표시 — 셀 색·필터의 축 (사용자 지시 2026-08-03).
+ * 무작위로 섞여도 색으로 한눈에 구분되게 한다.
+ */
+const KIND_META: Record<string, { label: string; cell: string; dot: string }> = {
+  text: { label: '텍스트', cell: 'bg-accent/12 text-accent', dot: 'bg-accent' },
+  file: { label: '파일', cell: 'bg-warn/15 text-warn', dot: 'bg-warn' },
+  layout: { label: '원본형', cell: 'bg-accent-2/15 text-accent-2', dot: 'bg-accent-2' },
+};
+const KIND_ORDER = ['text', 'file', 'layout'] as const;
+type KindFilter = 'all' | 'text' | 'file' | 'layout';
 
 /**
  * 운영 콘솔 (docs/06 §2.6).
@@ -87,6 +105,7 @@ export function AdminConsole() {
     overview: AdminOverview;
     users: AdminUserRow[];
     usageLog: UsageLogRow[];
+    translationLog?: TranslationLogRow[];
     isSuper: boolean;
     flags?: { faceoffSingle: boolean };
   } | null>(null);
@@ -95,6 +114,7 @@ export function AdminConsole() {
   const [busyFlag, setBusyFlag] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [q, setQ] = useState('');
+  const [kindFilter, setKindFilter] = useState<KindFilter>('all');
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -441,6 +461,140 @@ export function AdminConsole() {
           </table>
         </div>
       </div>
+
+      {/* 번역 로그 — 파일·텍스트·원본형 번역. 종류별 셀 색 + 상단 카테고리 필터 */}
+      {(() => {
+        const log = data.translationLog ?? [];
+        const counts = KIND_ORDER.map((k) => log.filter((r) => r.kind === k).length);
+        const shown = kindFilter === 'all' ? log : log.filter((r) => r.kind === kindFilter);
+        const dtFmt = new Intl.DateTimeFormat('ko-KR', {
+          month: 'numeric',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        return (
+          <div className="flex flex-col gap-3">
+            <h2 className="flex items-center gap-2 text-[18px] font-semibold">
+              <Languages size={17} aria-hidden className="text-accent" />
+              번역 로그{' '}
+              <span className="text-[14px] font-normal text-text-faint">파일·텍스트·원본형</span>
+            </h2>
+
+            {/* 카테고리 필터 버튼 */}
+            <div className="flex flex-wrap gap-2">
+              <FilterChip
+                label="전체"
+                count={log.length}
+                active={kindFilter === 'all'}
+                onClick={() => setKindFilter('all')}
+              />
+              {KIND_ORDER.map((k, i) => (
+                <FilterChip
+                  key={k}
+                  label={KIND_META[k]!.label}
+                  count={counts[i]!}
+                  dot={KIND_META[k]!.dot}
+                  active={kindFilter === k}
+                  onClick={() => setKindFilter(k)}
+                />
+              ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-border bg-bg-raised">
+              <table className="w-full min-w-[760px] text-[14px]">
+                <thead>
+                  <tr className="border-b border-border text-left text-[12px] uppercase tracking-wide text-text-muted">
+                    <th className="px-4 py-3 font-semibold">시각</th>
+                    <th className="px-4 py-3 font-semibold">종류</th>
+                    <th className="px-4 py-3 font-semibold">계정</th>
+                    <th className="px-4 py-3 font-semibold">내용</th>
+                    <th className="px-4 py-3 font-semibold">언어</th>
+                    <th className="px-4 py-3 text-right font-semibold">분량</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((r) => {
+                    const meta = KIND_META[r.kind] ?? {
+                      label: r.kind,
+                      cell: 'bg-bg-sunken text-text-muted',
+                      dot: 'bg-text-faint',
+                    };
+                    return (
+                      <tr key={r.id} className="border-b border-border last:border-0">
+                        <td className="tabular whitespace-nowrap px-4 py-2.5 text-text-muted">
+                          {r.createdAtMs ? dtFmt.format(new Date(r.createdAtMs)) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[12.5px] font-semibold ${meta.cell}`}
+                          >
+                            {meta.label}
+                          </span>
+                        </td>
+                        <td className="max-w-[180px] truncate px-4 py-2.5">
+                          {r.email ?? r.workspaceName ?? (r.uid ? r.uid.slice(0, 8) : '—')}
+                        </td>
+                        <td className="max-w-[260px] truncate px-4 py-2.5 text-text-muted">
+                          {r.title || '—'}
+                        </td>
+                        <td className="tabular whitespace-nowrap px-4 py-2.5 text-text-muted">
+                          {r.sourceLang} → {r.targetLang}
+                        </td>
+                        <td className="tabular px-4 py-2.5 text-right text-text-muted">
+                          {r.pageCount ? `${r.pageCount}쪽` : r.charCount ? `${fmt(r.charCount)}자` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {shown.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center text-text-muted">
+                        {log.length === 0
+                          ? '아직 번역 기록이 없습니다. 파일·텍스트를 번역하면 여기 쌓입니다.'
+                          : '이 카테고리에는 기록이 없습니다.'}
+                      </td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
     </div>
+  );
+}
+
+/** 카테고리 필터 칩 — 색 점 + 개수 */
+function FilterChip({
+  label,
+  count,
+  dot,
+  active,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  dot?: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[13.5px] font-semibold transition-colors ${
+        active
+          ? 'border-accent bg-accent text-accent-text'
+          : 'border-border text-text-muted hover:border-accent hover:text-accent'
+      }`}
+    >
+      {dot ? <span aria-hidden className={`h-2 w-2 rounded-full ${dot}`} /> : null}
+      {label}
+      <span className={`tabular text-[12px] ${active ? 'opacity-80' : 'text-text-faint'}`}>
+        {count}
+      </span>
+    </button>
   );
 }

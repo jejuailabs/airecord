@@ -735,5 +735,168 @@
   "notFound": {
     "title": "Page not found",
     "action": "Back to dashboard"
+  },
+  "about": {
+    "meta": {
+      "title": "About InterLive — AI Real-time Interpretation & Translation",
+      "description": "InterLive is an AI-powered real-time interpretation and translation service. In-person, video call & meeting interpretation plus PDF, DOCX and HWPX file translation in 15 languages."
+    },
+    "hero": {
+      "eyebrow": "AI Real-time Interpretation & Translation",
+      "title": "What is InterLive?",
+      "definition": "InterLive is a SaaS service that uses AI to recognize speech and translate in real time, eliminating language barriers. It provides in-person interpretation, video meeting bots, two-way conversation interpretation, and document translation — all in one platform, supporting 15 languages including Korean, English, and Japanese."
+    },
+    "clusters": {
+      "title": "Explore All Features",
+      "interpretation": {
+        "title": "Interpretation",
+        "desc": "4 interpretation modes: in-person, meeting, conversation, face-to-face"
+      },
+      "translation": {
+        "title": "Translation",
+        "desc": "Text, PDF, DOCX and HWPX file translation"
+      },
+      "technology": {
+        "title": "AI Technology",
+        "desc": "How speech recognition, real-time translation and TTS work"
+      },
+      "useCases": {
+        "title": "Use Cases",
+        "desc": "Business, education and travel scenarios"
+      },
+      "guide": {
+        "title": "Guide",
+        "desc": "From getting started to advanced settings"
+      },
+      "pricing": {
+        "title": "Pricing",
+        "desc": "Compare Free to Business plans"
+      },
+      "glossary": {
+        "title": "Glossary",
+        "desc": "50+ interpretation & translation terms"
+      },
+      "faq": {
+        "title": "FAQ",
+        "desc": "Frequently asked questions"
+      }
+    },
+    "stats": {
+      "languages": {
+        "value": "15",
+        "label": "Languages"
+      },
+      "modes": {
+        "value": "4",
+        "label": "Interpretation Modes"
+      },
+      "formats": {
+        "value": "5",
+        "label": "File Formats"
+      },
+      "token": {
+        "value": "1 Token",
+        "label": "= 1 Min Interpretation"
+      }
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "q": "What is InterLive?",
+          "a": "InterLive is a web-based interpretation and translation service powered by AI that recognizes and translates speech in real time. No app installation required — use it directly in your browser. It provides in-person interpretation, video meeting bots, two-way conversation interpretation, and document translation in 15 languages."
+        },
+        {
+          "q": "Can I use it for free?",
+          "a": "Yes. You can try translation up to 500 characters without logging in. After signing up, the free plan gives you 20 tokens (approx. 20 minutes) per month at no cost. Paid plans start from ₩9,900/month."
+        },
+        {
+          "q": "What languages are supported?",
+          "a": "InterLive supports 15 languages: Korean, English, Japanese, Chinese, Spanish, French, German, Portuguese, Italian, Russian, Vietnamese, Thai, Indonesian, Arabic, and Hindi."
+        }
+      ]
+    }
+  },
+  "featuresHub": {
+    "meta": {
+      "title": "Features — 4 AI Interpretation Modes | InterLive",
+      "description": "Discover InterLive's AI real-time interpretation features. In-person, conversation, face-to-face and meeting bot — 4 modes to break language barriers in any situation."
+    },
+    "hero": {
+      "eyebrow": "AI Real-time Interpretation",
+      "title": "4 Interpretation Modes for Every Situation",
+      "subtitle": "From lectures to meetings, conversations to simultaneous interpretation — one platform covers every language challenge."
+    },
+    "definition": {
+      "title": "What is AI Real-time Interpretation?",
+      "body": "AI real-time interpretation is the technology that instantly recognizes speech and translates it into another language, delivering output as subtitles or voice. InterLive uses this technology to offer 4 interpretation modes that enable multilingual communication without a professional interpreter."
+    },
+    "modes": {
+      "title": "Mode Comparison",
+      "live": {
+        "name": "In-person",
+        "path": "/features/live",
+        "badge": "Simplest",
+        "desc": "Start interpreting with one microphone button. Perfect for lectures, presentations and 1:1 meetings.",
+        "direction": "One-way",
+        "tokenRate": "1 token/min",
+        "bestFor": "Lectures, presentations, in-person meetings"
+      },
+      "conversation": {
+        "name": "Conversation",
+        "path": "/features/conversation",
+        "badge": "Push-to-talk",
+        "desc": "Press to speak, release to hear — walkie-talkie style for natural two-way conversation.",
+        "direction": "Two-way",
+        "tokenRate": "1 token/min",
+        "bestFor": "Negotiations, consultations, casual conversation"
+      },
+      "faceoff": {
+        "name": "Face-to-face",
+        "path": "/features/faceoff",
+        "badge": "2-person",
+        "desc": "Place one device between two people, each speaking their own language. Two sessions run simultaneously.",
+        "direction": "Simultaneous two-way",
+        "tokenRate": "2 tokens/min",
+        "bestFor": "In-person negotiations, interviews, contract meetings"
+      },
+      "meeting": {
+        "name": "Meeting",
+        "path": "/features/meeting",
+        "badge": "Bot automated",
+        "desc": "Paste a meeting URL → bot joins → subtitle link posted in chat. Supports Zoom, Teams, Meet and Webex.",
+        "direction": "One-way (many-to-many)",
+        "tokenRate": "1.5 tokens/min",
+        "bestFor": "Video conferences, international conferences, webinars"
+      }
+    },
+    "common": {
+      "learnMore": "Learn more →",
+      "startFree": "Start free",
+      "tokenLabel": "Token rate",
+      "directionLabel": "Direction",
+      "bestForLabel": "Best for"
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "q": "What is AI simultaneous interpretation?",
+          "a": "AI simultaneous interpretation is technology that translates and outputs speech into another language almost simultaneously as the speaker talks. InterLive uses GPT-based AI to provide real-time interpretation across 15 languages."
+        },
+        {
+          "q": "Which mode uses the fewest tokens?",
+          "a": "In-person and Conversation modes are the most efficient at 1 token per minute. The meeting bot uses 1.5 tokens/min. Face-to-face (simultaneous two-way) uses 2 tokens/min."
+        },
+        {
+          "q": "How do I get real-time interpretation in a Zoom meeting?",
+          "a": "In InterLive's Meeting mode, enter your Zoom meeting URL and a bot joins automatically. The bot shares a subtitle link in the meeting chat, which participants can open without logging in to see real-time captions."
+        },
+        {
+          "q": "Is voice output (TTS) supported?",
+          "a": "Yes. In all interpretation modes you can enable AI voice synthesis (TTS) to hear the translation spoken aloud — like having a live AI interpreter beside you."
+        }
+      ]
+    }
   }
 }

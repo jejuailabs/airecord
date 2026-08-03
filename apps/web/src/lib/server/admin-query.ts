@@ -50,6 +50,22 @@ export interface UsageLogRow {
   estCostKrw: number;
 }
 
+/** 번역 로그 한 줄 — 파일·텍스트·원본형 번역 1건 (관리자용, translationRecords 교차 조회) */
+export interface TranslationLogRow {
+  id: string;
+  createdAtMs: number | null;
+  /** 'text' | 'file' | 'layout' — 카테고리(셀 색·필터의 축) */
+  kind: string;
+  title: string;
+  sourceLang: string;
+  targetLang: string;
+  uid: string | null;
+  email: string | null;
+  workspaceName: string | null;
+  pageCount: number | null;
+  charCount: number | null;
+}
+
 export interface AdminUserRow {
   uid: string;
   email: string | null;
@@ -286,6 +302,64 @@ export async function getUsageLog(days = 30, limit = 500): Promise<UsageLogRow[]
       faceoffMin: Math.round(faSec / 60),
       totalMin: Math.round((inSec + meSec + faSec) / 60),
       estCostKrw: Math.round(cost),
+    };
+  });
+}
+
+/**
+ * 번역 로그 — 파일·텍스트·원본형 번역 기록(translationRecords)을 교차 조회한다.
+ *
+ * translationRecords는 최상위 평면 컬렉션이라 collectionGroup이 필요 없다.
+ * ⚠ 다만 orderBy('createdAt')를 걸면 인덱스를 요구할 수 있어(usage 원장에서 겪음),
+ *   **필터·정렬 없이** 상한만큼 끌어와 코드에서 최신순으로 정렬한다.
+ * 계정 이름·이메일은 한 번에 모아 붙인다(줄마다 따로 읽지 않는다).
+ */
+export async function getTranslationLog(limit = 500): Promise<TranslationLogRow[]> {
+  const db = adminDb();
+  const RAW_CAP = 3_000;
+  const snap = await db.collection('translationRecords').limit(RAW_CAP).get();
+  if (snap.size >= RAW_CAP) {
+    console.warn(`[admin] translation log hit raw cap ${RAW_CAP} — 일부 기록이 누락될 수 있음`);
+  }
+  const toMs = (v: unknown): number | null => {
+    const t = v as { toMillis?: () => number } | undefined;
+    return typeof t?.toMillis === 'function' ? t.toMillis() : null;
+  };
+  const docs = snap.docs
+    .sort((a, b) => (toMs(b.get('createdAt')) ?? 0) - (toMs(a.get('createdAt')) ?? 0))
+    .slice(0, limit);
+  if (docs.length === 0) return [];
+
+  const uids = [
+    ...new Set(docs.map((d) => d.get('uid') as string | undefined).filter(Boolean) as string[]),
+  ];
+  const wsIds = [
+    ...new Set(
+      docs.map((d) => d.get('workspaceId') as string | undefined).filter(Boolean) as string[],
+    ),
+  ];
+  const [userDocs, wsDocs] = await Promise.all([
+    uids.length ? db.getAll(...uids.map((id) => db.collection('users').doc(id))) : [],
+    wsIds.length ? db.getAll(...wsIds.map((id) => db.collection('workspaces').doc(id))) : [],
+  ]);
+  const userById = new Map(userDocs.filter((d) => d.exists).map((d) => [d.id, d]));
+  const wsById = new Map(wsDocs.filter((d) => d.exists).map((d) => [d.id, d]));
+
+  return docs.map((d) => {
+    const uid = (d.get('uid') as string | undefined) ?? null;
+    const wsId = (d.get('workspaceId') as string | undefined) ?? '';
+    return {
+      id: d.id,
+      createdAtMs: toMs(d.get('createdAt')),
+      kind: (d.get('kind') as string | undefined) ?? 'file',
+      title: (d.get('title') as string | undefined) ?? '',
+      sourceLang: (d.get('sourceLang') as string | undefined) ?? 'auto',
+      targetLang: (d.get('targetLang') as string | undefined) ?? 'en',
+      uid,
+      email: uid ? ((userById.get(uid)?.get('email') as string | undefined) ?? null) : null,
+      workspaceName: (wsById.get(wsId)?.get('name') as string | undefined) ?? null,
+      pageCount: num(d.get('pageCount'), 0) || null,
+      charCount: num(d.get('charCount'), 0) || null,
     };
   });
 }

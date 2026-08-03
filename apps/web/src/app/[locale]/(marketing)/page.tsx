@@ -33,6 +33,11 @@ export default async function LandingPage({
       {/* ── 히어로: InterLive 시안 — 그라데이션 패널 + 원형 CTA + 대시보드 목업 ── */}
       <section className="brand-panel grid items-center gap-8 overflow-hidden rounded-lg p-6 py-10 md:p-10 lg:grid-cols-[5fr_6fr]">
         <div className="flex flex-col gap-6 text-white">
+          <img
+            src="/logo-interlive-dark.png"
+            alt="InterLive"
+            className="h-10 w-auto self-start object-contain sm:h-12"
+          />
           <span className="w-fit rounded-sm bg-white/10 px-2.5 py-1 text-[12px] font-semibold text-white/90">
             {t('hero.badge')}
           </span>

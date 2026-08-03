@@ -87,12 +87,12 @@ export function SidebarBody({
         onClick={onNavigate}
         className="flex h-[72px] items-center gap-2.5 px-6 text-[19px] font-bold tracking-tight text-caption-target"
       >
-        <span
+        <img
+          src="/icon-interlive.png"
+          alt=""
           aria-hidden
-          className="cta-orb-violet inline-flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-bold text-white"
-        >
-          IL
-        </span>
+          className="h-8 w-8 rounded-lg object-contain"
+        />
         {t('appName')}
       </Link>
 

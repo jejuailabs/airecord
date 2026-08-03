@@ -60,7 +60,12 @@ export function AppHeader() {
           href="/"
           className="flex shrink-0 items-center gap-2 whitespace-nowrap font-bold tracking-tight"
         >
-          <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />
+          <img
+            src="/icon-interlive.png"
+            alt=""
+            aria-hidden
+            className="h-6 w-6 object-contain"
+          />
           {t('appName')}
         </Link>
         <nav className="hidden items-center gap-1 text-sm sm:flex">
