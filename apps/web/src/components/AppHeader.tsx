@@ -63,7 +63,7 @@ export function AppHeader() {
           <img
             src="/main_logo_tra.png"
             alt="InterLive"
-            className="h-6 w-auto max-w-[110px] object-contain"
+            className="h-9 w-auto max-w-[160px] object-contain"
           />
         </Link>
         <nav className="hidden items-center gap-1 text-sm sm:flex">

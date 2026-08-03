@@ -90,7 +90,7 @@ export function SidebarBody({
         <img
           src="/main_logo_tra.png"
           alt="InterLive"
-          className="h-8 w-auto max-w-[140px] object-contain"
+          className="h-12 w-auto max-w-[180px] object-contain"
         />
       </Link>
 
