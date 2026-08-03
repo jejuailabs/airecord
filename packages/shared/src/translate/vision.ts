@@ -5,12 +5,15 @@
  * 배치 정보가 사라져 오역이 는다. 모델이 이미지를 직접 보면 맥락을 함께 읽는다.
  */
 import type { LangCode, SourceLangSetting } from '../types';
+import { reasoningParam } from './reasoning';
 
 const env = (k: string): string | undefined =>
   typeof process !== 'undefined' ? process.env?.[k] : undefined;
 
 const baseUrl = () => env('OPENAI_BASE_URL') ?? 'https://api.openai.com';
+// 이미지 인식은 모델 크기 영향이 좀 더 커서 기본은 4o (사용자 지시 2026-08-03)
 const visionModel = () => env('VISION_TRANSLATION_MODEL') ?? 'gpt-4o';
+const visionEffort = () => env('VISION_TRANSLATION_EFFORT') ?? 'low';
 const apiKey = () => {
   const k = env('OPENAI_API_KEY');
   if (!k) throw new Error('OPENAI_API_KEY is not set');
@@ -92,7 +95,7 @@ export async function translateImage(input: TranslateImageInput): Promise<Transl
           ],
         },
       ],
-      reasoning: { effort: env('VISION_TRANSLATION_EFFORT') ?? 'low' },
+      ...reasoningParam(visionModel(), visionEffort()),
       text: {
         format: { type: 'json_schema', name: 'image_translation', strict: true, schema: SCHEMA },
       },
@@ -185,7 +188,7 @@ export async function ocrImage(input: OcrImageInput): Promise<OcrImageResult> {
           ],
         },
       ],
-      reasoning: { effort: env('VISION_TRANSLATION_EFFORT') ?? 'low' },
+      ...reasoningParam(visionModel(), visionEffort()),
       text: {
         format: { type: 'json_schema', name: 'image_ocr', strict: true, schema: OCR_SCHEMA },
       },

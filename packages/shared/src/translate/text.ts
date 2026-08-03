@@ -2,16 +2,22 @@
  * 텍스트 번역 엔진 (실시간 통역과 분리).
  *
  * 통역은 지연이 생명이라 실시간 전용 모델을 쓰지만,
- * 텍스트는 정확도가 전부다. 몇 초 늦어도 되므로 추론형 모델로 한 번에 처리한다.
+ * 텍스트는 정확도가 전부다. 몇 초 늦어도 된다.
+ * 번역은 추론이 필요 없는 작업이라 기본 모델은 값싼 gpt-4o-mini다 (사용자 지시 2026-08-03).
  * 모델명은 하드코딩하지 않는다 (core.md §3-7).
+ *
+ * ⚠ reasoning 파라미터는 추론 모델만 받는다 — reasoningParam으로 감싸서 보낸다.
+ *   4o 계열에 그대로 보내면 요청이 거부된다 (reasoning.ts 주석 참고).
  */
 import type { LangCode, SourceLangSetting } from '../types';
+import { reasoningParam } from './reasoning';
 
 const env = (k: string): string | undefined =>
   typeof process !== 'undefined' ? process.env?.[k] : undefined;
 
 const baseUrl = () => env('OPENAI_BASE_URL') ?? 'https://api.openai.com';
 const textModel = () => env('TEXT_TRANSLATION_MODEL') ?? 'gpt-4o-mini';
+const textEffort = () => env('TEXT_TRANSLATION_EFFORT') ?? 'minimal';
 const apiKey = () => {
   const k = env('OPENAI_API_KEY');
   if (!k) throw new Error('OPENAI_API_KEY is not set');
@@ -105,8 +111,8 @@ export async function translateText(input: TranslateTextInput): Promise<Translat
         { role: 'system', content: system },
         { role: 'user', content: text },
       ],
-      // 번역은 깊은 추론이 필요 없다. 기본값으로 두면 짧은 문장에도 10초 넘게 걸린다(실측).
-      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
+      // 추론 모델일 때만 붙는다 (4o 계열이면 빈 객체) — 추론 모델은 강도를 낮춰 지연을 줄인다
+      ...reasoningParam(textModel(), textEffort()),
       text: {
         format: { type: 'json_schema', name: 'translation', strict: true, schema: SCHEMA },
       },
@@ -173,7 +179,7 @@ export async function translateTextStream(
         { role: 'system', content: system },
         { role: 'user', content: text },
       ],
-      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
+      ...reasoningParam(textModel(), textEffort()),
       stream: true,
     }),
   });
@@ -307,7 +313,7 @@ export async function translateParagraphs(
         { role: 'system', content: system },
         { role: 'user', content: user },
       ],
-      reasoning: { effort: env('TEXT_TRANSLATION_EFFORT') ?? 'minimal' },
+      ...reasoningParam(textModel(), textEffort()),
       text: {
         format: {
           type: 'json_schema',
