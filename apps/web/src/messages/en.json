@@ -899,5 +899,1208 @@
         }
       ]
     }
+  },
+  "featureC1": {
+    "live": {
+      "meta": {
+        "title": "Live Interpretation — One-mic AI Real-time Interpretation",
+        "description": "AI recognizes and translates speech in real time for lectures, presentations and 1:1 meetings. One mic button to start, 15 languages, 1 token per minute."
+      },
+      "hero": {
+        "eyebrow": "Live Interpretation",
+        "title": "AI Real-time Interpretation with One Microphone",
+        "subtitle": "AI instantly recognizes and translates speech at lectures, presentations and meetings. Works in the browser — no install needed."
+      },
+      "definition": {
+        "title": "What is live interpretation?",
+        "body": "Live interpretation is an interpretation method where AI recognizes a speaker's voice in real time and translates it into another language. InterLive's live interpretation mode starts with one microphone button, automatically detects the language of each utterance, and instantly outputs subtitles or AI voice in 15 languages."
+      },
+      "features": [
+        {
+          "title": "Automatic language detection",
+          "desc": "Language is detected per utterance — no manual switching needed, even in multilingual presentations."
+        },
+        {
+          "title": "AI voice output (TTS)",
+          "desc": "Translations are spoken aloud by an AI voice in real time."
+        },
+        {
+          "title": "Fullscreen caption mode",
+          "desc": "Captions fill the entire screen — ideal for large monitors and projectors."
+        },
+        {
+          "title": "Auto-saved sessions",
+          "desc": "A side-by-side transcript is saved automatically when the session ends."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What is AI live interpretation?",
+            "a": "AI live interpretation is a service where AI recognizes a presenter's voice in real time and translates it into another language as subtitles. InterLive's live mode starts with one button and supports 15 languages."
+          },
+          {
+            "q": "How many people can use live interpretation?",
+            "a": "Live interpretation is designed for one speaker with an audience reading subtitles. The presenter runs InterLive on their device and the audience reads captions on the shared screen."
+          },
+          {
+            "q": "What languages are supported?",
+            "a": "Korean, English, Japanese, Chinese, Spanish, French, German, Portuguese, Italian, Russian, Vietnamese, Thai, Indonesian, Arabic, and Hindi — 15 languages total."
+          },
+          {
+            "q": "Does it require an internet connection?",
+            "a": "Yes. AI speech recognition and translation are cloud-based and require a stable internet connection."
+          }
+        ]
+      }
+    },
+    "conversation": {
+      "meta": {
+        "title": "Conversation Mode — Push-to-talk Two-way AI Interpretation",
+        "description": "Walkie-talkie-style two-way AI interpretation. Press to speak, release to listen. Perfect for negotiations, consultations and casual conversations. 1 token/min."
+      },
+      "hero": {
+        "eyebrow": "Conversation Mode",
+        "title": "Press to Speak, Release to Listen",
+        "subtitle": "Natural two-way conversation with push-to-talk. Perfect for negotiations, consultations, travel and daily conversations."
+      },
+      "definition": {
+        "title": "What is conversation interpretation?",
+        "body": "Conversation interpretation is an interpretation method where two people take turns speaking in their own languages. InterLive's conversation mode works like a walkie-talkie: hold the button to speak, release to listen. It is the most token-efficient two-way mode at 1 token per minute."
+      },
+      "features": [
+        {
+          "title": "Push-to-talk",
+          "desc": "Voice is only recognized while the button is held. Clean, no accidental capture."
+        },
+        {
+          "title": "Asymmetric language pairs",
+          "desc": "Set your language and your partner's language independently."
+        },
+        {
+          "title": "AI voice output",
+          "desc": "Translation is automatically spoken by an AI voice so the other person hears it naturally."
+        },
+        {
+          "title": "Conversation history",
+          "desc": "Both sides' original speech and translation are saved in a paired format when done."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What is the difference between conversation and live interpretation?",
+            "a": "Live interpretation is one-directional (presenter to audience), while conversation mode is two-way (two people taking turns). Conversation mode suits negotiations and consultations where dialogue flows back and forth."
+          },
+          {
+            "q": "What happens if both people speak at the same time?",
+            "a": "The push-to-talk design ensures only one person speaks at a time. Simultaneous speech is intentionally prevented."
+          },
+          {
+            "q": "When is conversation mode the best choice?",
+            "a": "Ideal for 1:1 negotiations with foreign partners, customer consultations, conversations with locals while travelling, and multilingual interviews."
+          },
+          {
+            "q": "How is it different from face-to-face mode?",
+            "a": "Conversation mode uses a button to take turns on one device, while face-to-face mode lets two people speak simultaneously. Face-to-face mode consumes 2 tokens per minute."
+          }
+        ]
+      }
+    },
+    "faceoff": {
+      "meta": {
+        "title": "Face-to-face Mode — Simultaneous Two-way AI Interpretation",
+        "description": "Two people speak simultaneously in their own languages with one device between them. Ideal for negotiations, contracts and interviews. 2 tokens per minute."
+      },
+      "hero": {
+        "eyebrow": "Face-to-face Mode",
+        "title": "Two People, One Device, Each Speaks Their Own Language",
+        "subtitle": "Place one device between two people and both speak simultaneously. Two sessions run in parallel for zero-delay two-way interpretation."
+      },
+      "definition": {
+        "title": "What is face-to-face mode?",
+        "body": "Face-to-face mode is an AI interpretation method where one device is placed between two people who each speak their own language simultaneously. InterLive recognizes and translates both directions at the same time, instantly showing each speaker a subtitle of what the other said. Two sessions run in parallel, consuming 2 tokens per minute."
+      },
+      "features": [
+        {
+          "title": "Simultaneous two-way recognition",
+          "desc": "Both voices are recognized and translated at the same time — the conversation never stops."
+        },
+        {
+          "title": "Single device",
+          "desc": "No extra device needed. Place it on the table and both people read the screen in front of them."
+        },
+        {
+          "title": "Built for in-person negotiations",
+          "desc": "Perfect for contract meetings, interviews and on-site negotiations."
+        },
+        {
+          "title": "Split-screen subtitles",
+          "desc": "The screen is split top and bottom so each speaker sees their translation right in front of them."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What is face-to-face mode?",
+            "a": "Face-to-face mode is an AI interpretation mode where one device is placed between two people who each speak their own language. Two sessions run simultaneously for real-time two-way interpretation."
+          },
+          {
+            "q": "Why does it consume 2 tokens per minute?",
+            "a": "Face-to-face mode runs two parallel sessions processing both directions of speech at the same time, requiring twice the processing of other modes."
+          },
+          {
+            "q": "When should I use face-to-face mode?",
+            "a": "Ideal for in-person contract meetings, hiring interviews, medical consultations, and in-person negotiations where immediate two-way communication is essential."
+          },
+          {
+            "q": "Do I need two devices?",
+            "a": "No, one device is sufficient. Place it on the table and both people face it to see their respective subtitles."
+          }
+        ]
+      }
+    },
+    "meeting": {
+      "meta": {
+        "title": "Meeting Interpretation — AI Bot for Zoom, Teams & More",
+        "description": "Add an AI interpretation bot to Zoom, Teams, Google Meet and Webex. Paste the meeting URL — automatic captions for all participants. 1.5 tokens per minute."
+      },
+      "hero": {
+        "eyebrow": "Meeting Interpretation",
+        "title": "Paste a Meeting URL — Bot Interprets Automatically",
+        "subtitle": "An AI bot joins Zoom, Teams, Meet or Webex and shares a subtitle link in chat. Any participant can open it — no login required."
+      },
+      "definition": {
+        "title": "What is a meeting interpretation bot?",
+        "body": "A meeting interpretation bot is an AI service that automatically joins a video conference and translates conversation in real time. With InterLive, enter the meeting URL — the bot joins automatically and shares a subtitle link in the chat. Participants open the link without logging in to see real-time captions in their language."
+      },
+      "features": [
+        {
+          "title": "One URL paste",
+          "desc": "Enter a Zoom, Teams, Meet or Webex URL and the bot joins automatically. No installation."
+        },
+        {
+          "title": "Auto-shared subtitle link",
+          "desc": "The bot posts the subtitle link in the meeting chat. Participants just click."
+        },
+        {
+          "title": "Per-language subtitle viewer",
+          "desc": "Each participant selects their language. Perfect for multilingual meetings."
+        },
+        {
+          "title": "Auto meeting minutes",
+          "desc": "After the meeting, AI automatically generates a summary with key points and action items."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "How do I add real-time interpretation to a Zoom meeting?",
+            "a": "In InterLive's Meeting mode, paste your Zoom meeting link and the bot joins automatically. The bot shares a subtitle link in the chat, and participants can open it without logging in."
+          },
+          {
+            "q": "Do participants need to install anything?",
+            "a": "No. Participants just click the link the bot shares in chat. No login or installation required."
+          },
+          {
+            "q": "Which video conferencing platforms are supported?",
+            "a": "Zoom, Microsoft Teams, Google Meet and Webex are supported. The platform is automatically detected from the meeting URL."
+          },
+          {
+            "q": "Can participants change language during the meeting?",
+            "a": "Yes. Each participant can change their language in real time from the subtitle viewer."
+          }
+        ]
+      }
+    },
+    "viewer": {
+      "meta": {
+        "title": "Caption Viewer — Real-time Multilingual Subtitles Without Login",
+        "description": "Meeting participants see real-time captions with one link. No login required, choose your language, AI voice output supported."
+      },
+      "hero": {
+        "eyebrow": "Caption Viewer",
+        "title": "Real-time Captions for Anyone With a Link",
+        "subtitle": "Open the link the bot shared and captions start immediately. No login — in any language you choose."
+      },
+      "definition": {
+        "title": "What is the caption viewer?",
+        "body": "The caption viewer is a public link page provided by the InterLive meeting bot that lets any meeting participant see real-time interpretation subtitles without logging in. Language is selected manually or set automatically based on the browser language settings."
+      },
+      "features": [
+        {
+          "title": "No login required",
+          "desc": "Just open the link to see captions. No sign-up required from participants."
+        },
+        {
+          "title": "Live language switching",
+          "desc": "Select a language in the caption viewer and captions instantly switch."
+        },
+        {
+          "title": "AI voice output",
+          "desc": "Captions can also be heard as AI speech — useful when not looking at the screen."
+        },
+        {
+          "title": "Auto language detection",
+          "desc": "Browser language settings are detected automatically to set the default caption language."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "Does the caption viewer require login?",
+            "a": "No. Just click the link shared by the bot. You can see captions without an InterLive account."
+          },
+          {
+            "q": "What languages can I view captions in?",
+            "a": "You can choose any of the 15 languages InterLive supports."
+          },
+          {
+            "q": "Can I save the caption content?",
+            "a": "Yes. The save transcript button in the caption viewer lets you save the captions as text."
+          },
+          {
+            "q": "Can only the meeting host end the caption viewer?",
+            "a": "Yes. Only the meeting host (logged in to InterLive) sees the end button."
+          }
+        ]
+      }
+    }
+  },
+  "featureC2": {
+    "hub": {
+      "meta": {
+        "title": "AI Translation — PDF, DOCX, HWP & Text in 15 Languages",
+        "description": "AI translates PDF, DOCX, HWPX files and text while preserving layout. Three inference levels, 15 languages supported."
+      },
+      "hero": {
+        "eyebrow": "AI Translation",
+        "title": "PDF, DOCX, HWP and Text in 15 Languages",
+        "subtitle": "Format-optimised AI translation engines that keep your layout intact while translating content."
+      },
+      "definition": {
+        "title": "What is AI document translation?",
+        "body": "AI document translation converts the text of a document into another language while preserving the original layout and formatting. InterLive supports PDF, DOCX, and HWPX files as well as direct text input, with three inference levels (fast, standard, precise) to balance speed and quality. Translation works independently of interpretation — you can use either or both."
+      },
+      "types": {
+        "title": "Translation types",
+        "textTranslation": {
+          "name": "Text translation",
+          "badge": "Direct input",
+          "desc": "Paste text and get instant translation. Up to 5,000 characters, 15 languages.",
+          "bestFor": "Sentences, paragraphs, messages"
+        },
+        "fileTranslation": {
+          "name": "File translation",
+          "badge": "PDF · DOCX · HWP",
+          "desc": "Upload a file and receive a layout-preserved translation. PDF, DOCX, HWPX supported.",
+          "bestFor": "Contracts, reports, documents"
+        },
+        "pdfTranslation": {
+          "name": "PDF translation",
+          "badge": "PDF",
+          "desc": "Extract and translate PDF text, then reconstruct close to the original layout.",
+          "bestFor": "Research papers, reports, manuals"
+        },
+        "docxTranslation": {
+          "name": "Word translation",
+          "badge": "DOCX",
+          "desc": "Translate Word documents while preserving paragraphs, tables, headers and footers.",
+          "bestFor": "Contracts, proposals, resumes"
+        },
+        "hwpxTranslation": {
+          "name": "HWP translation",
+          "badge": "HWP/HWPX",
+          "desc": "Translate Hangul Office files including tables, footnotes and multi-column layouts.",
+          "bestFor": "Official docs, court filings"
+        }
+      },
+      "common": {
+        "learnMore": "Learn more",
+        "startFree": "Start free"
+      },
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What is AI document translation?",
+            "a": "AI document translation converts the text of a document into another language while preserving the layout and formatting. InterLive supports PDF, DOCX, and HWPX files plus direct text input across 15 languages."
+          },
+          {
+            "q": "How do I improve translation quality?",
+            "a": "Set the inference level to \"precise\" for higher quality output. Processing takes longer at this level. Choose \"fast\" when you need a quick draft."
+          },
+          {
+            "q": "Can I use translation and interpretation at the same time?",
+            "a": "Yes. Translation and interpretation are independent features that can be used together or separately."
+          },
+          {
+            "q": "Is there a file size limit?",
+            "a": "There is a maximum size limit per file. For very large files, splitting is recommended. Text translation supports up to 5,000 characters at a time."
+          }
+        ]
+      }
+    },
+    "textTranslation": {
+      "meta": {
+        "title": "Text Translation — Instant AI Translation in 15 Languages",
+        "description": "Paste text and AI translates it instantly. Up to 5,000 characters, 15 languages, three inference levels."
+      },
+      "hero": {
+        "eyebrow": "Text Translation",
+        "title": "Paste and AI Translates Instantly",
+        "subtitle": "Up to 5,000 characters in 15 languages. Choose an inference level to balance speed and quality."
+      },
+      "definition": {
+        "title": "What is text translation?",
+        "body": "Text translation is the process of entering or pasting text and having AI instantly translate it into another language. InterLive text translation supports bidirectional translation across 15 languages, with three inference levels (fast, standard, precise) to balance processing speed and translation quality. It is the fastest way to translate when you do not need to handle a file."
+      },
+      "features": [
+        {
+          "title": "Up to 5,000 characters",
+          "desc": "Translate long paragraphs in one go, from short messages to report excerpts."
+        },
+        {
+          "title": "Three inference levels",
+          "desc": "Fast (draft), Standard (default), or Precise (high quality) — choose what fits your need."
+        },
+        {
+          "title": "15 languages",
+          "desc": "Bidirectional translation across Korean, English, Japanese, Chinese and 11 more."
+        },
+        {
+          "title": "One-click copy",
+          "desc": "Copy the translation result to the clipboard with a single click."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "How does AI text translation work?",
+            "a": "Paste the text into the input field, select a target language, and press Translate. AI returns the translation immediately."
+          },
+          {
+            "q": "How many characters can I translate at once?",
+            "a": "Up to 5,000 characters per request. For longer documents, use the file translation feature or translate in sections."
+          },
+          {
+            "q": "What is inference level?",
+            "a": "Inference level controls how much processing the AI applies to the translation. \"Fast\" prioritises speed; \"Precise\" prioritises quality. \"Standard\" is suitable for most cases."
+          },
+          {
+            "q": "Can I save translation results?",
+            "a": "Click the copy button to save the result to your clipboard. You can also review past translations in My Page."
+          }
+        ]
+      }
+    },
+    "fileTranslation": {
+      "meta": {
+        "title": "File Translation — AI Translates PDF, DOCX & HWP with Layout",
+        "description": "Upload a file and AI translates it while preserving layout. PDF, DOCX, HWPX supported, 15 languages."
+      },
+      "hero": {
+        "eyebrow": "File Translation",
+        "title": "Upload a File — AI Translates with Layout Intact",
+        "subtitle": "Just upload your PDF, DOCX, or HWPX file. Tables, headers and footers are preserved."
+      },
+      "definition": {
+        "title": "What is file translation?",
+        "body": "File translation is the process of uploading a document file and having AI translate its text while preserving the original layout as closely as possible. InterLive supports PDF, DOCX, and HWPX formats, retaining tables, headers, footers, and footnotes. The translated file is available for download in the original format."
+      },
+      "features": [
+        {
+          "title": "PDF, DOCX, HWPX support",
+          "desc": "All major document formats supported, each with a format-optimised translation engine."
+        },
+        {
+          "title": "Layout and formatting preserved",
+          "desc": "Tables, headers, footers, footnotes, and multi-column structures are retained after translation."
+        },
+        {
+          "title": "15 languages",
+          "desc": "Translate between Korean, English, Japanese, Chinese and 11 more languages."
+        },
+        {
+          "title": "Download translated file",
+          "desc": "Download the translated document in the original format when complete."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What file formats does file translation support?",
+            "a": "PDF (.pdf), Microsoft Word (.docx), and Hangul Office (.hwpx) formats are supported."
+          },
+          {
+            "q": "Is the original layout preserved after translation?",
+            "a": "InterLive is designed to preserve layout as closely as possible. Complex multi-column layouts or text embedded in images may not be perfectly reproduced."
+          },
+          {
+            "q": "Is there a file size limit?",
+            "a": "There is a maximum size limit per file. For very large files, splitting before upload is recommended."
+          },
+          {
+            "q": "How do I receive the translated file?",
+            "a": "A download button appears when translation is complete. Previously translated files can also be re-downloaded from My Page."
+          }
+        ]
+      }
+    },
+    "pdfTranslation": {
+      "meta": {
+        "title": "PDF Translation — AI Translates with Layout Preserved",
+        "description": "Upload a PDF and AI extracts the text, translates it, and reconstructs the layout. 15 languages."
+      },
+      "hero": {
+        "eyebrow": "PDF Translation",
+        "title": "Upload a PDF — Translated with Formatting Intact",
+        "subtitle": "AI translates research papers, reports and manuals while preserving the original PDF layout."
+      },
+      "definition": {
+        "title": "What is PDF translation?",
+        "body": "PDF translation extracts text from a PDF file, translates it with AI, and reconstructs the document close to the original layout. InterLive analyses the table and paragraph structure to ensure the translated document flows naturally. Scanned PDFs (image-based) receive additional OCR processing."
+      },
+      "features": [
+        {
+          "title": "Text layer extraction",
+          "desc": "Accurately extracts content from text-based PDFs, preserving font and size information."
+        },
+        {
+          "title": "Table and paragraph detection",
+          "desc": "Recognises tables, lists and paragraph boundaries to maintain structure after translation."
+        },
+        {
+          "title": "Download in original format",
+          "desc": "Receive the translated PDF for download. Text can also be copied for further editing."
+        },
+        {
+          "title": "15 languages",
+          "desc": "Translate PDF content between Korean, English, Japanese, Chinese and 11 more."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "What is PDF translation?",
+            "a": "A service that uploads a PDF, has AI extract and translate the text, and provides a translated file reconstructed close to the original layout."
+          },
+          {
+            "q": "Can scanned PDFs be translated?",
+            "a": "Scanned PDFs require OCR processing. InterLive supports OCR, but accuracy depends on scan quality."
+          },
+          {
+            "q": "Is the PDF layout perfectly preserved after translation?",
+            "a": "Text-based PDFs retain layout as closely as possible. Highly complex multi-column or image-heavy documents may not be perfectly reproduced."
+          },
+          {
+            "q": "What languages can I translate a PDF into?",
+            "a": "Any PDF written in one of the 15 supported languages can be translated into any other supported language."
+          }
+        ]
+      }
+    },
+    "docxTranslation": {
+      "meta": {
+        "title": "Word Document Translation — DOCX AI Translation with Formatting",
+        "description": "Upload a Word (.docx) file and AI translates paragraphs, tables, headers and footers while keeping structure intact. 15 languages."
+      },
+      "hero": {
+        "eyebrow": "Word Document Translation",
+        "title": "Word File Structure Stays Intact During Translation",
+        "subtitle": "Contracts, proposals, and resumes translated with paragraphs, tables and formatting preserved."
+      },
+      "definition": {
+        "title": "What is DOCX translation?",
+        "body": "DOCX translation preserves the paragraph, table, header, footer, and footnote structure of a Microsoft Word document while translating the text. The result downloads as a DOCX file, ready for further editing. It is especially well-suited for formatting-critical documents such as contracts, proposals and resumes."
+      },
+      "features": [
+        {
+          "title": "Paragraphs and tables preserved",
+          "desc": "Paragraph, table and list structures in the original Word document are retained after translation."
+        },
+        {
+          "title": "Headers and footers included",
+          "desc": "Repeating text in headers and footers (page numbers, company names, etc.) is also translated."
+        },
+        {
+          "title": "Footnotes and endnotes",
+          "desc": "Body text and footnote or endnote text are both translated — ideal for academic documents."
+        },
+        {
+          "title": "Download as DOCX",
+          "desc": "Download as a Word file when done and edit right away."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "How does Word document translation work?",
+            "a": "Upload a DOCX file, choose the target language, and AI translates while preserving formatting. Download the translated DOCX when complete."
+          },
+          {
+            "q": "Is text inside tables also translated?",
+            "a": "Yes. Text inside table cells is translated and the table structure is preserved."
+          },
+          {
+            "q": "Does translation change fonts or formatting?",
+            "a": "Formatting such as font, size and bold is preserved as closely as possible. Some specialised fonts may be substituted with system defaults."
+          },
+          {
+            "q": "Can password-protected Word files be translated?",
+            "a": "Password-protected files cannot be translated. Remove the file protection before uploading."
+          }
+        ]
+      }
+    },
+    "hwpxTranslation": {
+      "meta": {
+        "title": "HWP Translation — Hangul Office Files in 15 Languages",
+        "description": "AI translates Hangul Office HWP and HWPX files including tables, footnotes and multi-column layouts. Ideal for official documents and court filings."
+      },
+      "hero": {
+        "eyebrow": "HWP File Translation",
+        "title": "Translate HWP and HWPX Files into 15 Languages",
+        "subtitle": "Official documents, court filings and reports translated with tables and footnotes preserved."
+      },
+      "definition": {
+        "title": "What is HWPX translation?",
+        "body": "HWPX translation converts Hangul Office HWP and HWPX files into other languages. InterLive supports the Hangul file format widely used in Korean public administration, courts and government reports, preserving tables, footnotes and multi-column layouts as closely as possible during translation."
+      },
+      "features": [
+        {
+          "title": "HWP and HWPX supported",
+          "desc": "Both the legacy HWP and the newer HWPX formats from Hangul Office are supported."
+        },
+        {
+          "title": "Tables, footnotes and columns",
+          "desc": "The multi-column, footnote and table structures unique to Hangul files are retained after translation."
+        },
+        {
+          "title": "Optimised for official documents",
+          "desc": "Ideal for formatting-critical documents such as official letters, contracts and court submissions."
+        },
+        {
+          "title": "15 languages",
+          "desc": "Korean documents can be translated into English, Japanese, Chinese and 11 more languages."
+        }
+      ],
+      "faq": {
+        "title": "Frequently Asked Questions",
+        "items": [
+          {
+            "q": "Can a Hangul (HWP) file be translated into English?",
+            "a": "Yes. HWP and HWPX files can be translated into English and 14 other languages. Just upload the file and select the target language."
+          },
+          {
+            "q": "Is the legacy HWP format supported?",
+            "a": "Yes. Both the legacy HWP format and the newer HWPX format are supported."
+          },
+          {
+            "q": "Can I receive the translation as a Hangul file?",
+            "a": "The translated document can be downloaded as an HWPX or DOCX file."
+          },
+          {
+            "q": "Is it suitable for court documents or official correspondence?",
+            "a": "Yes. InterLive supports the Hangul format commonly used in Korean public institutions and courts, and is optimised for formatting preservation. Always review the translated content before official submission."
+          }
+        ]
+      }
+    }
+  },
+  "technology": {
+    "meta": {
+      "title": "AI Interpretation Technology — How InterLive Works",
+      "description": "OpenAI Whisper speech recognition, GPT-4o translation engine, WebSocket real-time streaming. The technology behind InterLive AI interpretation."
+    },
+    "hero": {
+      "eyebrow": "Technology",
+      "title": "How InterLive AI Interpretation Works",
+      "subtitle": "Whisper speech recognition → GPT translation → WebSocket streaming. Three steps completed in under one second."
+    },
+    "definition": {
+      "title": "What is real-time AI interpretation technology?",
+      "body": "Real-time AI interpretation connects speech recognition (ASR), neural machine translation (NMT), and text-to-speech (TTS) in a pipeline that converts spoken words into another language instantly. InterLive combines OpenAI Whisper (ASR), GPT-4o (translation), and WebSocket streaming to deliver real-time interpretation with an average latency under one second."
+    },
+    "stack": {
+      "title": "Technology stack",
+      "items": [
+        {
+          "name": "Speech recognition (ASR)",
+          "tech": "OpenAI Whisper",
+          "desc": "Converts speech in 15 languages to text with high accuracy, robust even in noisy environments."
+        },
+        {
+          "name": "Translation engine",
+          "tech": "GPT-4o / GPT-4o-mini",
+          "desc": "Context-aware high-quality translation. Balance speed and quality with the inference level setting."
+        },
+        {
+          "name": "Real-time streaming",
+          "tech": "WebSocket",
+          "desc": "Results are sent instantly per utterance. Low-latency subtitle output without HTTP polling."
+        },
+        {
+          "name": "Speech synthesis (TTS)",
+          "tech": "OpenAI TTS",
+          "desc": "Translated text is output as natural AI speech. Choose from voices in 5 languages."
+        },
+        {
+          "name": "Meeting bot",
+          "tech": "Cloud Run + Playwright",
+          "desc": "A serverless bot that automatically joins Zoom, Teams, Meet and Webex. Works from just a URL."
+        },
+        {
+          "name": "File processing",
+          "tech": "PDF.js / mammoth / python-docx",
+          "desc": "Extracts text and structure from PDF, DOCX, and HWPX files for layout-preserving translation."
+        }
+      ]
+    },
+    "pipeline": {
+      "title": "Interpretation processing pipeline",
+      "steps": [
+        {
+          "step": "1",
+          "title": "Audio capture",
+          "desc": "The browser Web Audio API captures the microphone stream in chunks."
+        },
+        {
+          "step": "2",
+          "title": "Speech recognition",
+          "desc": "The Whisper API receives audio chunks and converts them to text, including automatic language detection."
+        },
+        {
+          "step": "3",
+          "title": "AI translation",
+          "desc": "GPT-4o translates into the target language while maintaining context from previous utterances."
+        },
+        {
+          "step": "4",
+          "title": "Real-time delivery",
+          "desc": "WebSocket delivers translation results to the client instantly for simultaneous subtitle and TTS output."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Technology FAQ",
+      "items": [
+        {
+          "q": "Which AI models does InterLive use?",
+          "a": "OpenAI Whisper for speech recognition, and GPT-4o (precise) or GPT-4o-mini (fast/standard) for translation. The model is selected automatically based on the inference level setting."
+        },
+        {
+          "q": "How much latency does interpretation have?",
+          "a": "Under one second on average. This varies based on network conditions, utterance length, and inference level."
+        },
+        {
+          "q": "How is voice data handled?",
+          "a": "Audio streams are not stored on the server after processing. Only the translated text record is saved to the user account."
+        },
+        {
+          "q": "How does the Zoom/Teams bot work?",
+          "a": "When you enter a meeting URL, a bot is automatically created in a Cloud Run serverless environment and joins the meeting. The bot receives audio and processes real-time interpretation."
+        }
+      ]
+    }
+  },
+  "useCases": {
+    "meta": {
+      "title": "AI Interpretation Use Cases — Business, Education, Medical, Legal",
+      "description": "Overseas partner meetings, global video conferences, academic conferences, medical consultations, legal document translation. InterLive AI use cases."
+    },
+    "hero": {
+      "eyebrow": "Use Cases",
+      "title": "Breaking Language Barriers with InterLive",
+      "subtitle": "AI interpretation and translation in action across business, education, healthcare, law, and travel."
+    },
+    "cases": [
+      {
+        "category": "Business",
+        "icon": "briefcase",
+        "title": "Overseas Partner Meetings & Negotiations",
+        "desc": "Negotiate directly with overseas buyers without an interpreter. Place one device between you for real-time face-to-face interpretation.",
+        "mode": "faceoff",
+        "modeLabel": "Face-to-face mode"
+      },
+      {
+        "category": "Video conferencing",
+        "icon": "video",
+        "title": "Global Multilingual Zoom & Teams Meetings",
+        "desc": "Just paste the meeting URL and an interpretation bot joins automatically. All participants see real-time captions in their own language.",
+        "mode": "meeting",
+        "modeLabel": "Meeting interpretation"
+      },
+      {
+        "category": "Education",
+        "icon": "graduation-cap",
+        "title": "Academic Lectures & Conferences",
+        "desc": "Run InterLive on the presenter device. The audience follows in their native language. 15 languages supported simultaneously.",
+        "mode": "live",
+        "modeLabel": "Live interpretation"
+      },
+      {
+        "category": "Healthcare",
+        "icon": "stethoscope",
+        "title": "Medical Consultations with Foreign Patients",
+        "desc": "Real-time interpretation between doctor and foreign patient. Face-to-face or conversation mode for accurate communication.",
+        "mode": "faceoff",
+        "modeLabel": "Face-to-face mode"
+      },
+      {
+        "category": "Legal",
+        "icon": "scale",
+        "title": "Contract & Legal Document Translation",
+        "desc": "Translate DOCX, PDF, and HWPX contracts with layout intact. Korean HWP court documents also supported.",
+        "mode": "docx-translation",
+        "modeLabel": "Word & HWP translation"
+      },
+      {
+        "category": "Travel & daily life",
+        "icon": "plane",
+        "title": "Communicating Abroad",
+        "desc": "Talk with locals while travelling. Push-to-talk two-way interpretation that starts with one button.",
+        "mode": "conversation",
+        "modeLabel": "Conversation mode"
+      }
+    ],
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "q": "Can small startups use AI interpretation?",
+          "a": "Yes. InterLive uses a token-based pay-as-you-go model with no monthly subscription, making it accessible for small teams. 20 free minutes are provided every month."
+        },
+        {
+          "q": "Is it suitable for accuracy-critical fields like healthcare and law?",
+          "a": "AI translation provides very high accuracy, but for medical or legal documents we recommend having a qualified professional review the final output."
+        },
+        {
+          "q": "Can it be used for large international conferences?",
+          "a": "The meeting interpretation bot can provide interpretation for Zoom and Teams meetings regardless of participant count. Participants just click a link."
+        },
+        {
+          "q": "Does it work for in-person events?",
+          "a": "Yes. Live, conversation, and face-to-face modes work on a smartphone or tablet right at the venue. An internet connection is all that is required."
+        }
+      ]
+    }
+  },
+  "guide": {
+    "meta": {
+      "title": "InterLive User Guide — From Setup to Advanced Settings",
+      "description": "Getting started with AI interpretation, connecting the meeting bot, translating files, language settings, and token top-up. The official InterLive guide."
+    },
+    "hero": {
+      "eyebrow": "User Guide",
+      "title": "From Setup to Full Use of InterLive",
+      "subtitle": "You can start your first interpretation in 5 minutes. Follow the step-by-step guides below."
+    },
+    "guides": [
+      {
+        "slug": "getting-started",
+        "title": "Quick Start — First Interpretation in 5 Minutes",
+        "desc": "Try it without signing in. How to start live interpretation with one microphone button."
+      },
+      {
+        "slug": "meeting-bot",
+        "title": "Meeting Bot Guide (Zoom, Teams, Meet)",
+        "desc": "The full process of connecting an interpretation bot by pasting a meeting URL."
+      },
+      {
+        "slug": "file-translation",
+        "title": "File Translation Guide (PDF, DOCX, HWPX)",
+        "desc": "Step-by-step walkthrough from file upload to downloading the translated document."
+      },
+      {
+        "slug": "language-settings",
+        "title": "Language Settings Guide",
+        "desc": "Setting language pairs, using automatic detection, and selecting a TTS voice."
+      },
+      {
+        "slug": "token-topup",
+        "title": "Token Top-up and Pricing Guide",
+        "desc": "Buying tokens, checking usage, and setting overage limits."
+      },
+      {
+        "slug": "faceoff-mode",
+        "title": "Face-to-face Mode Guide",
+        "desc": "How to use face-to-face mode for two people interpreting in real time with one device."
+      }
+    ],
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "items": [
+        {
+          "q": "What do I need to get started with InterLive?",
+          "a": "An internet-connected device (smartphone, tablet, or PC) and a microphone are all you need. No app installation required — it runs in the browser."
+        },
+        {
+          "q": "Can I try it for free?",
+          "a": "You can try 500 characters of translation free without logging in. After signing up, 20 minutes of interpretation per month are provided free."
+        },
+        {
+          "q": "Can I use interpretation and translation at the same time?",
+          "a": "Yes. You can use the text translation tab separately even while an interpretation session is running."
+        },
+        {
+          "q": "Are more languages planned?",
+          "a": "15 languages are currently supported and additional languages are planned. Check the announcements section for the latest updates."
+        }
+      ]
+    }
+  },
+  "faqHub": {
+    "meta": {
+      "title": "InterLive FAQ — Frequently Asked Questions",
+      "description": "Frequently asked questions about InterLive AI interpretation and translation. Sign-up, pricing, technology, languages, and file translation — organised by topic."
+    },
+    "hero": {
+      "eyebrow": "FAQ",
+      "title": "Frequently Asked Questions",
+      "subtitle": "Questions about sign-up, billing, technology, languages, and file translation organised by topic."
+    },
+    "categories": [
+      {
+        "title": "Getting started",
+        "items": [
+          {
+            "q": "What is InterLive?",
+            "a": "InterLive is an AI-powered real-time interpretation and translation service offering in-person, video and meeting interpretation plus PDF, DOCX, and HWPX file translation in 15 languages."
+          },
+          {
+            "q": "Can I use it without signing up?",
+            "a": "You can try 500 characters of text translation free without logging in. Interpretation features require an account."
+          },
+          {
+            "q": "Which devices are supported?",
+            "a": "It works in the browser on any internet-connected device. No app installation is required."
+          }
+        ]
+      },
+      {
+        "title": "Pricing & tokens",
+        "items": [
+          {
+            "q": "How does pricing work?",
+            "a": "Two options are available: a monthly subscription plan and token top-up (pay-as-you-go). 20 free minutes of interpretation are provided every month after sign-up."
+          },
+          {
+            "q": "What are tokens?",
+            "a": "Tokens are the usage unit for InterLive. Interpretation consumes 1–2 tokens per minute; translation is charged based on character count."
+          },
+          {
+            "q": "What happens when tokens run out?",
+            "a": "Interpretation and translation stop when tokens are exhausted. You can top up tokens at any time from the dashboard."
+          }
+        ]
+      },
+      {
+        "title": "Interpretation",
+        "items": [
+          {
+            "q": "What interpretation modes are available?",
+            "a": "There are 4 modes: Live (presenter to audience), Conversation (push-to-talk two-way), Face-to-face (simultaneous two-way), and Meeting (Zoom/Teams bot)."
+          },
+          {
+            "q": "How many languages are supported simultaneously?",
+            "a": "Interpretation is supported across 15 languages. Automatic language detection identifies the language of each utterance."
+          },
+          {
+            "q": "What if the meeting bot does not join?",
+            "a": "Check that the meeting URL is correct and the meeting has started. Some platforms may require bot admission settings to be enabled."
+          }
+        ]
+      },
+      {
+        "title": "File translation",
+        "items": [
+          {
+            "q": "Which file formats can be translated?",
+            "a": "PDF (.pdf), Word (.docx), and Hangul (.hwpx) formats are supported."
+          },
+          {
+            "q": "Is the original formatting preserved after translation?",
+            "a": "Layout is preserved as closely as possible. Complex multi-column layouts or text embedded in images may not be perfectly reproduced."
+          },
+          {
+            "q": "Where do I receive the translated file?",
+            "a": "A download button appears when translation is complete. Previously translated files can also be re-downloaded from My Page."
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "meta": {
+      "title": "InterLive AI Interpretation & Translation Glossary — 50 Key Terms",
+      "description": "50 key terms related to AI interpretation, translation, and SEO explained in English. ASR, TTS, WebSocket, tokens, layout-preserving translation, and more."
+    },
+    "hero": {
+      "eyebrow": "Glossary",
+      "title": "AI Interpretation & Translation Glossary",
+      "subtitle": "50 key terms related to AI interpretation, translation, and SEO explained in alphabetical order."
+    },
+    "terms": [
+      {
+        "term": "AI Interpretation",
+        "ko": "AI 통역",
+        "def": "Technology where AI recognizes voice in real time and translates it into another language. Enables instant language conversion without a human interpreter."
+      },
+      {
+        "term": "AI Translation",
+        "ko": "AI 번역",
+        "def": "Technology where artificial intelligence automatically converts text or documents into another language. InterLive uses a GPT-4o-based translation engine."
+      },
+      {
+        "term": "ASR (Automatic Speech Recognition)",
+        "ko": "자동 음성 인식",
+        "def": "Converts audio from a microphone into text. InterLive uses OpenAI Whisper for ASR."
+      },
+      {
+        "term": "TTS (Text-to-Speech)",
+        "ko": "TTS",
+        "def": "Technology that synthesizes text into AI voice. Used to output translated results as real-time audio."
+      },
+      {
+        "term": "NMT (Neural Machine Translation)",
+        "ko": "신경망 기계 번역",
+        "def": "Machine translation based on neural networks. GPT-class models are a prime example, providing context-aware, high-quality translation."
+      },
+      {
+        "term": "WebSocket",
+        "ko": "WebSocket",
+        "def": "A bidirectional real-time communication protocol between server and client. Used in InterLive to deliver interpretation subtitles without delay."
+      },
+      {
+        "term": "Live Interpretation",
+        "ko": "대면 통역",
+        "def": "A one-directional interpretation mode where AI translates the speaker's voice in real time and outputs it as subtitles or audio. Suited for lectures and presentations."
+      },
+      {
+        "term": "Conversation Mode",
+        "ko": "대화 통역",
+        "def": "A push-to-talk two-way interpretation mode where two people take turns speaking by holding a button."
+      },
+      {
+        "term": "Face-to-face Mode",
+        "ko": "마주통역",
+        "def": "A two-way real-time interpretation mode where two people place one device between them and each speak their own language simultaneously. Consumes 2 tokens per minute."
+      },
+      {
+        "term": "Meeting Interpretation",
+        "ko": "회의 통역",
+        "def": "A service where an AI bot automatically joins a Zoom, Teams, Meet, or Webex video conference and provides real-time interpretation captions."
+      },
+      {
+        "term": "Caption Viewer",
+        "ko": "자막 뷰어",
+        "def": "A public link page provided by the meeting interpretation bot. Participants see real-time captions without logging in by clicking the link."
+      },
+      {
+        "term": "Inference Level",
+        "ko": "추론 강도",
+        "def": "A setting that controls AI translation quality and processing speed. Three levels: Fast (draft), Standard (default), and Precise (high quality)."
+      },
+      {
+        "term": "Token",
+        "ko": "토큰",
+        "def": "The usage unit for InterLive. Interpretation consumes 1–2 tokens per minute; translation is charged by character count."
+      },
+      {
+        "term": "Whisper",
+        "ko": "Whisper",
+        "def": "An open-source speech recognition model developed by OpenAI. Recognises 15+ languages with high accuracy and supports automatic language detection."
+      },
+      {
+        "term": "GPT-4o",
+        "ko": "GPT-4o",
+        "def": "A multimodal large language model from OpenAI. Used in InterLive for high-quality translation (Precise mode)."
+      },
+      {
+        "term": "GPT-4o-mini",
+        "ko": "GPT-4o-mini",
+        "def": "A lightweight version of GPT-4o. Used in InterLive for Fast and Standard translation modes, offering high speed and cost efficiency."
+      },
+      {
+        "term": "Push-to-talk (PTT)",
+        "ko": "푸시투톡",
+        "def": "A method where voice is transmitted only while a button is held. Adopted in InterLive's Conversation mode."
+      },
+      {
+        "term": "Layout-preserving Translation",
+        "ko": "레이아웃 보존 번역",
+        "def": "A method of translating PDF, DOCX, and HWPX files while retaining formatting such as tables, paragraphs, and headers."
+      },
+      {
+        "term": "PDF Translation",
+        "ko": "PDF 번역",
+        "def": "Technology that extracts text from a PDF file, translates it with AI, and reconstructs the original layout."
+      },
+      {
+        "term": "DOCX Translation",
+        "ko": "DOCX 번역",
+        "def": "A feature that translates Microsoft Word (.docx) files while preserving paragraph, table, and footnote structure."
+      },
+      {
+        "term": "HWPX Translation",
+        "ko": "HWPX 번역",
+        "def": "A feature that translates Hangul Office HWP/HWPX files. Supports the format commonly used in Korean official documents and court filings."
+      },
+      {
+        "term": "OCR (Optical Character Recognition)",
+        "ko": "OCR",
+        "def": "Technology that extracts text from scanned images or image-based PDFs."
+      },
+      {
+        "term": "hreflang",
+        "ko": "hreflang",
+        "def": "An HTML attribute that informs search engines of multilingual versions of the same page. An international SEO standard."
+      },
+      {
+        "term": "SEO (Search Engine Optimization)",
+        "ko": "SEO",
+        "def": "The practice of improving content and structure so a web page ranks higher in search results."
+      },
+      {
+        "term": "GEO (Generative Engine Optimization)",
+        "ko": "GEO",
+        "def": "Optimising content to be cited by generative AI search engines such as ChatGPT and Perplexity."
+      },
+      {
+        "term": "AEO (Answer Engine Optimization)",
+        "ko": "AEO",
+        "def": "Applying FAQPage and HowTo structured data so content is directly cited by AI answer engines such as Google Featured Snippets."
+      },
+      {
+        "term": "Structured Data",
+        "ko": "구조화 데이터",
+        "def": "Data marked up in schema.org JSON-LD format so search engines can understand page content."
+      },
+      {
+        "term": "JSON-LD",
+        "ko": "JSON-LD",
+        "def": "A format for expressing Linked Data as JSON. The recommended format for Google Rich Results structured data."
+      },
+      {
+        "term": "FAQPage Schema",
+        "ko": "FAQPage 스키마",
+        "def": "A schema.org structured data type that marks up FAQ content so rich snippets appear in Google search results."
+      },
+      {
+        "term": "BreadcrumbList",
+        "ko": "BreadcrumbList",
+        "def": "A schema that expresses a page's hierarchy path as structured data so it appears below the URL in search results."
+      },
+      {
+        "term": "Real-time Streaming",
+        "ko": "실시간 스트리밍",
+        "def": "A method of continuously transmitting data without interruption. A core technology for displaying interpretation captions without delay in InterLive."
+      },
+      {
+        "term": "Cloud Run",
+        "ko": "Cloud Run",
+        "def": "Google's serverless container execution environment. InterLive's meeting interpretation bot runs on Cloud Run."
+      },
+      {
+        "term": "Serverless",
+        "ko": "서버리스",
+        "def": "A cloud computing model where code is executed without managing servers. Costs are incurred only for what is used."
+      },
+      {
+        "term": "Session",
+        "ko": "세션",
+        "def": "The unit of an interpretation run in InterLive, from start to end. The session history shows the original and translated transcript."
+      },
+      {
+        "term": "Automatic Language Detection",
+        "ko": "자동 언어 감지",
+        "def": "A feature that automatically identifies the language being spoken. Enables multilingual conversation without manual switching in Face-to-face and Live modes."
+      },
+      {
+        "term": "Pay-as-you-go",
+        "ko": "Pay-as-you-go",
+        "def": "A billing model where you pay only for what you use. In InterLive, this corresponds to topping up and spending tokens."
+      },
+      {
+        "term": "API (Application Programming Interface)",
+        "ko": "API",
+        "def": "An interface for exchanging data and functions between software. InterLive uses the OpenAI API for speech recognition and translation."
+      },
+      {
+        "term": "Web Audio API",
+        "ko": "Web Audio API",
+        "def": "A web standard API for processing audio in the browser. Used by InterLive to capture microphone input."
+      },
+      {
+        "term": "Multilingual Support",
+        "ko": "다국어 지원",
+        "def": "The ability to process or switch between multiple languages. InterLive supports 15 languages."
+      },
+      {
+        "term": "Token Exhaustion",
+        "ko": "토큰 소진",
+        "def": "The state when all topped-up tokens have been used. Interpretation and translation stop and additional top-up is required from the dashboard."
+      },
+      {
+        "term": "Monthly Free Interpretation",
+        "ko": "월 무료 통역",
+        "def": "Free interpretation time automatically granted every month after signing up for InterLive. Currently 20 minutes per month."
+      },
+      {
+        "term": "My Page",
+        "ko": "마이페이지",
+        "def": "The user account page in InterLive. Displays session history, translated files, token usage, and billing records."
+      },
+      {
+        "term": "Interpretation Bot",
+        "ko": "통역 봇",
+        "def": "Software that automatically joins a video conference and performs interpretation. InterLive's meeting bot is a prime example."
+      },
+      {
+        "term": "Chunk",
+        "ko": "청크",
+        "def": "A segment of the audio stream divided into processing units. Audio data cut to a length suitable for Whisper recognition."
+      },
+      {
+        "term": "Context Window",
+        "ko": "컨텍스트 윈도우",
+        "def": "The length of text an LLM can process at once. Used in interpretation to remember previous utterances and improve translation consistency."
+      },
+      {
+        "term": "Transcript",
+        "ko": "스크립트",
+        "def": "A record document pairing original speech with its translation from an interpretation session. Automatically generated after a session ends."
+      },
+      {
+        "term": "Multi-column Layout",
+        "ko": "다단 레이아웃",
+        "def": "A document layout with two or more columns. Common in Hangul files and difficult to perfectly preserve after translation."
+      },
+      {
+        "term": "Footnote",
+        "ko": "각주",
+        "def": "A format that appends additional explanation at the bottom of a document. Footnote text is also translated in InterLive DOCX and HWPX translation."
+      },
+      {
+        "term": "Firebase",
+        "ko": "파이어베이스",
+        "def": "Google's app development platform. Used in InterLive for user authentication and real-time database."
+      },
+      {
+        "term": "Middleware",
+        "ko": "미들웨어",
+        "def": "A software layer that handles common processing between requests and responses. The InterLive Next.js middleware handles authentication and locale processing."
+      }
+    ]
   }
 }

@@ -5,7 +5,7 @@ import { getMessages, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import '../globals.css';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://interlive.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aitr.kr';
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -49,7 +49,7 @@ export async function generateMetadata({
       alternateLocale: locale === 'ko' ? ['en_US'] : ['ko_KR'],
       images: [
         {
-          url: '/logo-interlive.png',
+          url: '/main_logo.png',
           width: 1536,
           height: 1024,
           alt: appName,
@@ -60,7 +60,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title: appName,
       description,
-      images: ['/logo-interlive.png'],
+      images: ['/main_logo.png'],
     },
     robots: {
       index: true,

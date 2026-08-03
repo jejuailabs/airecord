@@ -88,12 +88,10 @@ export function SidebarBody({
         className="flex h-[72px] items-center gap-2.5 px-6 text-[19px] font-bold tracking-tight text-caption-target"
       >
         <img
-          src="/icon-interlive.png"
-          alt=""
-          aria-hidden
-          className="h-8 w-8 rounded-lg object-contain"
+          src="/main_logo_tra.png"
+          alt="InterLive"
+          className="h-8 w-auto max-w-[140px] object-contain"
         />
-        {t('appName')}
       </Link>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">

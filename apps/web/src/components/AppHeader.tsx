@@ -61,12 +61,10 @@ export function AppHeader() {
           className="flex shrink-0 items-center gap-2 whitespace-nowrap font-bold tracking-tight"
         >
           <img
-            src="/icon-interlive.png"
-            alt=""
-            aria-hidden
-            className="h-6 w-6 object-contain"
+            src="/main_logo_tra.png"
+            alt="InterLive"
+            className="h-6 w-auto max-w-[110px] object-contain"
           />
-          {t('appName')}
         </Link>
         <nav className="hidden items-center gap-1 text-sm sm:flex">
           {nav.map((item) => {
