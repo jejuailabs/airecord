@@ -13,7 +13,8 @@
       "pricing": "Pricing",
       "settings": "Settings",
       "help": "Help",
-      "soon": "Soon"
+      "soon": "Soon",
+      "faceoff": "Face-to-face"
     },
     "shell": {
       "manage": "Manage",
@@ -819,7 +820,7 @@
   },
   "featuresHub": {
     "meta": {
-      "title": "Features — 4 AI Interpretation Modes | InterLive",
+      "title": "Features — 4 AI Interpretation Modes",
       "description": "Discover InterLive's AI real-time interpretation features. In-person, conversation, face-to-face and meeting bot — 4 modes to break language barriers in any situation."
     },
     "hero": {

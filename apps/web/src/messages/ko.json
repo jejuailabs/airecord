@@ -13,7 +13,8 @@
       "pricing": "요금제",
       "settings": "설정",
       "help": "도움말",
-      "soon": "준비 중"
+      "soon": "준비 중",
+      "faceoff": "마주통역"
     },
     "shell": {
       "manage": "관리",
@@ -819,7 +820,7 @@
   },
   "featuresHub": {
     "meta": {
-      "title": "기능 소개 — AI 통역의 4가지 모드 | InterLive",
+      "title": "기능 소개 — AI 통역의 4가지 모드",
       "description": "InterLive의 AI 실시간 통역 기능을 알아보세요. 대면 통역, 대화 통역, 마주 통역, 회의 봇 — 4가지 모드로 어떤 상황에서도 언어 장벽을 해결합니다."
     },
     "hero": {
