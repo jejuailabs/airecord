@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { translateTextStream } from '@sotong/shared/translate';
 import { translateTextRequestSchema } from '@sotong/shared/schemas';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { consumeChars, guestKey, remainingChars } from '@/lib/server/guest-quota';
+import { getEntitlement } from '@/lib/server/entitlement';
+import { saveRecord } from '@/lib/server/records';
+import { saveRecordObject } from '@/lib/server/records-storage';
+import { textArtifact } from '@/lib/server/record-artifact';
+
+/** 이보다 짧은 번역은 마이페이지에 남기지 않는다 — 한두 단어 조회까지 쌓이면 목록이 지저분해진다 */
+const RECORD_MIN_CHARS = 20;
 
 export const runtime = 'nodejs';
 /** 추론형 모델이라 응답이 길어질 수 있다 */
@@ -48,10 +56,12 @@ export async function POST(req: Request) {
   }
 
   const encoder = new TextEncoder();
+  let full = '';
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         await translateTextStream({ text, sourceLang, targetLang, tone }, (delta) => {
+          full += delta;
           controller.enqueue(encoder.encode(delta));
         });
         controller.close();
@@ -61,6 +71,38 @@ export async function POST(req: Request) {
       }
     },
   });
+
+  /**
+   * 로그인 사용자면 결과를 마이페이지에 남긴다 (스트림이 끝난 뒤 after에서, 응답을 늦추지 않게).
+   * 비회원·너무 짧은 번역은 저장하지 않는다.
+   */
+  if (user && text.length >= RECORD_MIN_CHARS) {
+    after(async () => {
+      if (!full.trim()) return;
+      try {
+        const ent = await getEntitlement(user.uid, user.email);
+        const art = textArtifact(text, full);
+        const id = crypto.randomUUID();
+        const path = await saveRecordObject(user.uid, id, art.body, art.contentType, art.ext);
+        await saveRecord({
+          uid: user.uid,
+          workspaceId: ent.workspaceId,
+          plan: ent.plan,
+          kind: 'text',
+          title: text.slice(0, 60),
+          sourceLang,
+          targetLang,
+          preview: full.slice(0, 300),
+          storagePath: path,
+          downloadName: art.downloadName,
+          contentType: art.contentType,
+          charCount: text.length,
+        });
+      } catch (e) {
+        console.error('[translate/text] save record failed', e instanceof Error ? e.message : e);
+      }
+    });
+  }
 
   return new Response(stream, {
     headers: {

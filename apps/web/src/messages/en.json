@@ -9,6 +9,7 @@
       "translate": "Text",
       "translateFile": "Files",
       "sessions": "Sessions",
+      "mypage": "My Page",
       "pricing": "Pricing",
       "settings": "Settings",
       "help": "Help",
@@ -333,6 +334,10 @@
       "emptyTitle": "No sessions yet",
       "emptyHint": "Start an in-person session and it shows up here. Saved history arrives in Phase 2."
     },
+    "records": {
+      "title": "Translation library",
+      "subtitle": "Re-download your translated files and results from My Page."
+    },
     "startFaceoff": {
       "title": "Face-to-face",
       "subtitle": "Sit across, each in their tongue",
@@ -590,12 +595,17 @@
     "downloadPdf": "Save as PDF",
     "download": "Download",
     "cancel": "Cancel",
+    "saveToMypage": "Save to My Page",
+    "savedToMypage": "Saved",
     "layoutTitle": "Redraw in original layout",
     "layoutExperimental": "Experimental",
     "layoutLead": "Reproduces the original look — tables, cell colors, sections. May take 1–2 minutes for long files. Numbers and values are kept as-is, but the layout won't be a pixel-perfect match.",
     "layoutReplace": "Translated (translation only)",
     "layoutBilingual": "Bilingual (source + translation)",
     "layoutWorking": "Analyzing and redrawing pages… the print window opens when it's done.",
+    "layoutDone": "Reconstruction done — reopen or save it even if you closed the print window.",
+    "layoutReopen": "Reopen print window",
+    "layoutSaveHtml": "Save as HTML",
     "hwpxTitle": "How would you like your Hangul (HWPX) file?",
     "printHint": "Use this window's Print (Ctrl+P) and choose \"Save as PDF\". The print dialog opens shortly.",
     "errors": {
@@ -650,7 +660,34 @@
     "segments": "{count, plural, =0 {No captions} other {# captions}}",
     "emptyTitle": "No saved sessions yet",
     "emptyHint": "Start interpreting and the transcript plus an AI summary are saved automatically.",
-    "emptyCta": "Start in-person"
+    "emptyCta": "Start in-person",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
+  },
+  "mypage": {
+    "title": "My Page",
+    "subtitle": "Your translated files and results are kept here.",
+    "usageTitle": "Usage & tokens",
+    "usageRemaining": "{tokens} tokens left · details on dashboard",
+    "usageUnlimited": "Unlimited use · details on dashboard",
+    "policyLimited": "Retention: {days} days",
+    "policyUnlimited": "Unlimited retention (Business)",
+    "policyNote": "Items are marked expired once retention passes. (They are not auto-deleted yet.)",
+    "untitled": "Untitled",
+    "emptyTitle": "No saved translations yet",
+    "emptyHint": "Translate a file or text and the result is saved here automatically.",
+    "kind": {
+      "layout": "Original-layout",
+      "file": "File translation",
+      "text": "Text translation"
+    },
+    "retentionDays": "Deletes in {days} days",
+    "retentionUnlimited": "Kept indefinitely",
+    "retentionExpired": "Expired",
+    "download": "Download",
+    "delete": "Delete",
+    "prevPage": "Previous page",
+    "nextPage": "Next page"
   },
   "sessionDetail": {
     "back": "Sessions",

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { reproduceLayout } from '@sotong/shared/translate/layout';
 import {
@@ -6,6 +7,10 @@ import {
   type TranslateLayoutResponse,
 } from '@sotong/shared/schemas';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { getEntitlement } from '@/lib/server/entitlement';
+import { saveRecord } from '@/lib/server/records';
+import { saveRecordObject } from '@/lib/server/records-storage';
+import { layoutArtifact } from '@/lib/server/record-artifact';
 
 export const runtime = 'nodejs';
 /** 페이지마다 비전 호출이라 넉넉히 잡는다 */
@@ -46,6 +51,36 @@ export async function POST(req: Request) {
       }
     }
     const body: TranslateLayoutResponse = { fileName, pages };
+
+    /**
+     * 마이페이지 기록으로 남긴다 (사용자 지시 2026-08-03) — 응답을 늦추지 않게 after로.
+     * 저장 실패가 번역 응답을 막지 않는다.
+     */
+    after(async () => {
+      try {
+        const ent = await getEntitlement(user.uid, user.email);
+        const art = layoutArtifact(fileName, pages);
+        const id = crypto.randomUUID();
+        const path = await saveRecordObject(user.uid, id, art.body, art.contentType, art.ext);
+        await saveRecord({
+          uid: user.uid,
+          workspaceId: ent.workspaceId,
+          plan: ent.plan,
+          kind: 'layout',
+          title: fileName,
+          sourceLang,
+          targetLang,
+          preview: `원본형 재구성 · ${pages.length}쪽`,
+          storagePath: path,
+          downloadName: art.downloadName,
+          contentType: art.contentType,
+          pageCount: pages.length,
+        });
+      } catch (e) {
+        console.error('[translate/layout] save record failed', e instanceof Error ? e.message : e);
+      }
+    });
+
     return NextResponse.json(body);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

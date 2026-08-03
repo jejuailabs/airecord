@@ -9,6 +9,7 @@
       "translate": "텍스트 번역",
       "translateFile": "파일 번역",
       "sessions": "세션 기록",
+      "mypage": "마이페이지",
       "pricing": "요금제",
       "settings": "설정",
       "help": "도움말",
@@ -333,6 +334,10 @@
       "emptyTitle": "아직 통역 기록이 없습니다",
       "emptyHint": "대면 통역을 시작하면 세션이 이 자리에 쌓입니다. 기록 저장은 Phase 2에서 켜집니다."
     },
+    "records": {
+      "title": "번역 보관함",
+      "subtitle": "번역한 파일과 결과물을 마이페이지에서 다시 받으세요."
+    },
     "startFaceoff": {
       "title": "마주통역",
       "subtitle": "마주 앉아 서로의 말로",
@@ -590,12 +595,17 @@
     "downloadPdf": "PDF로 저장",
     "download": "내려받기",
     "cancel": "취소",
+    "saveToMypage": "마이페이지에 저장",
+    "savedToMypage": "저장됨",
     "layoutTitle": "원본 형태로 다시 그리기",
     "layoutExperimental": "실험",
     "layoutLead": "표·칸 색·구획을 살려 원본 모양에 가깝게 재현합니다. 페이지가 많으면 1~2분 걸릴 수 있고, 숫자·값은 그대로 두지만 레이아웃은 완전히 똑같지는 않습니다.",
     "layoutReplace": "번역본 (번역만)",
     "layoutBilingual": "대조본 (원문+번역)",
     "layoutWorking": "페이지를 분석해 다시 그리는 중입니다… 완료되면 인쇄 창이 열립니다.",
+    "layoutDone": "재구성 완료 — 인쇄 창을 닫았어도 다시 열거나 저장할 수 있습니다.",
+    "layoutReopen": "인쇄 창 다시 열기",
+    "layoutSaveHtml": "HTML로 저장",
     "hwpxTitle": "한글 문서를 어떻게 받으시겠어요?",
     "printHint": "이 창의 인쇄(Ctrl+P)에서 대상을 \"PDF로 저장\"으로 선택하세요. 잠시 후 인쇄 창이 열립니다.",
     "errors": {
@@ -650,7 +660,34 @@
     "segments": "{count, plural, =0 {자막 없음} other {자막 #개}}",
     "emptyTitle": "아직 저장된 세션이 없습니다",
     "emptyHint": "통역을 시작하면 원문·번역 스크립트와 AI 요약이 자동으로 저장됩니다.",
-    "emptyCta": "대면 통역 시작"
+    "emptyCta": "대면 통역 시작",
+    "prevPage": "이전 페이지",
+    "nextPage": "다음 페이지"
+  },
+  "mypage": {
+    "title": "마이페이지",
+    "subtitle": "번역한 파일과 결과물이 여기 보관됩니다.",
+    "usageTitle": "사용량·잔여 토큰",
+    "usageRemaining": "남은 토큰 {tokens}개 · 대시보드에서 자세히",
+    "usageUnlimited": "무제한 사용 · 대시보드에서 자세히",
+    "policyLimited": "보관 기간: {days}일",
+    "policyUnlimited": "무제한 보관 (Business)",
+    "policyNote": "보관 기간이 지나면 만료로 표시됩니다. (현재는 자동 삭제되지 않습니다)",
+    "untitled": "제목 없음",
+    "emptyTitle": "아직 보관된 번역이 없습니다",
+    "emptyHint": "파일·텍스트를 번역하면 결과물이 이곳에 자동으로 저장됩니다.",
+    "kind": {
+      "layout": "원본형 재구성",
+      "file": "파일 번역",
+      "text": "텍스트 번역"
+    },
+    "retentionDays": "{days}일 후 삭제 예정",
+    "retentionUnlimited": "무제한 보관",
+    "retentionExpired": "만료됨",
+    "download": "내려받기",
+    "delete": "삭제",
+    "prevPage": "이전 페이지",
+    "nextPage": "다음 페이지"
   },
   "sessionDetail": {
     "back": "세션 기록",

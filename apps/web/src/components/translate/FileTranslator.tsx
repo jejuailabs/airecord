@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
+  Download,
   FileDown,
   FileText,
+  FolderOpen,
   Image as ImageIcon,
   Languages,
   Loader2,
@@ -80,12 +82,16 @@ export function FileTranslator() {
   const inputRef = useRef<HTMLInputElement>(null);
   /** 진행 중 작업 취소용 — 워드·PDF·이미지 모두 이걸로 끊는다 */
   const abortRef = useRef<AbortController | null>(null);
+  /** 워드·한글 결과를 마이페이지에 저장하는 상태 ('idle'|'saving'|'saved') */
+  const [docxSave, setDocxSave] = useState<'idle' | 'saving' | 'saved'>('idle');
   /** 원본형 재구성(방법 B)에 쓸 원본 PDF 파일 — 페이지를 이미지로 다시 그려 비전에 보낸다 */
   const pdfFileRef = useRef<File | null>(null);
   /** 방금 결과가 PDF에서 온 것인가 — PDF만 원본형 재구성 버튼을 띄운다 */
   const [isPdfResult, setIsPdfResult] = useState(false);
   /** 원본형 재구성 진행 상태 ('replace'|'bilingual') */
   const [layoutBusy, setLayoutBusy] = useState<'replace' | 'bilingual' | null>(null);
+  /** 만들어 둔 원본형 결과 — 인쇄 창을 취소해도 여기서 다시 열거나 저장한다 (재번역 없이) */
+  const [layoutResult, setLayoutResult] = useState<TranslateLayoutResponse | null>(null);
 
   // 서버 렌더에는 없는 값이라 마운트 후에 읽는다 (하이드레이션 어긋남 방지)
   useEffect(() => {
@@ -101,9 +107,11 @@ export function FileTranslator() {
     setDocxFile(null);
     setDocxBusy(null);
     setDocxDone(null);
+    setDocxSave('idle');
     setDocxRatio(0);
     setIsPdfResult(false);
     setLayoutBusy(null);
+    setLayoutResult(null);
     pdfFileRef.current = null;
   };
 
@@ -122,6 +130,7 @@ export function FileTranslator() {
     const file = pdfFileRef.current;
     if (!file || layoutBusy) return;
     setError(null);
+    setLayoutResult(null); // 새로 만들면 이전 결과는 버린다
     setLayoutBusy(mode);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -151,6 +160,7 @@ export function FileTranslator() {
         return;
       }
       const data = (await res.json()) as TranslateLayoutResponse;
+      setLayoutResult(data); // 취소해도 다시 열 수 있게 들고 있는다
       openLayoutWindow(data, t('printHint'));
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -158,6 +168,61 @@ export function FileTranslator() {
     } finally {
       setLayoutBusy(null);
       abortRef.current = null;
+    }
+  };
+
+  /** 저장한 재구성 결과를 HTML 파일로 내려준다 — 인쇄 창을 놓쳐도 영구 보관 가능 */
+  const downloadLayoutHtml = () => {
+    if (!layoutResult) return;
+    const doc = buildLayoutDoc(layoutResult, t('printHint'), false);
+    const blob = new Blob([`﻿${doc}`], { type: 'text/html;charset=utf-8' });
+    const base = layoutResult.fileName.replace(/\.[^.]+$/, '');
+    downloadBlob(blob, `${base}.html`);
+  };
+
+  /**
+   * 워드·한글 결과를 마이페이지에 저장한다.
+   * 브라우저에서 만든 파일이라 서명 URL로 Storage에 직접 올린 뒤 메타를 커밋한다.
+   */
+  const saveDocxToMypage = async () => {
+    if (!docxDone || docxSave !== 'idle') return;
+    setDocxSave('saving');
+    try {
+      const ext = docKind; // 'docx' | 'hwpx'
+      const contentType = docxDone.blob.type || 'application/octet-stream';
+      const urlRes = await fetch('/api/records/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ext, contentType }),
+      });
+      if (!urlRes.ok) throw new Error('upload_url');
+      const { uploadUrl, storagePath } = (await urlRes.json()) as {
+        uploadUrl: string;
+        storagePath: string;
+      };
+      const put = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body: docxDone.blob,
+      });
+      if (!put.ok) throw new Error('upload');
+      const commit = await fetch('/api/records', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'file',
+          title: docxDone.fileName,
+          sourceLang,
+          targetLang,
+          preview: docxDone.mode === 'bilingual' ? '원문·번역 대조본' : '번역본',
+          storagePath,
+          downloadName: docxDone.fileName,
+          contentType,
+        }),
+      });
+      setDocxSave(commit.ok ? 'saved' : 'idle');
+    } catch {
+      setDocxSave('idle');
     }
   };
 
@@ -181,6 +246,7 @@ export function FileTranslator() {
       if (!file || docxBusy) return;
       setError(null);
       setDocxDone(null);
+      setDocxSave('idle');
       setDocxBusy(mode);
       setDocxRatio(0);
       const controller = new AbortController();
@@ -550,6 +616,19 @@ export function FileTranslator() {
                   </p>
                 ) : null}
               </div>
+              {/* 마이페이지 저장 — 기기를 옮겨도 다시 받을 수 있게 */}
+              <button
+                onClick={() => void saveDocxToMypage()}
+                disabled={docxSave !== 'idle'}
+                className="flex h-10 shrink-0 items-center gap-2 rounded-xl border border-border px-4 text-[14px] font-semibold text-text-muted hover:text-text disabled:opacity-60"
+              >
+                {docxSave === 'saving' ? (
+                  <Loader2 size={15} aria-hidden className="animate-spin" />
+                ) : (
+                  <FolderOpen size={15} aria-hidden />
+                )}
+                {docxSave === 'saved' ? t('savedToMypage') : t('saveToMypage')}
+              </button>
               {/* 완료 후에도 남는 버튼 — 팝업이 막혔거나 놓쳐도 재번역 없이 다시 받는다 */}
               <button
                 onClick={() => downloadBlob(docxDone.blob, docxDone.fileName)}
@@ -766,6 +845,29 @@ export function FileTranslator() {
               {layoutBusy ? (
                 <p className="text-[12.5px] text-text-faint">{t('layoutWorking')}</p>
               ) : null}
+
+              {/* 완료 후에도 남는 줄 — 인쇄 창을 취소했어도 재번역 없이 다시 열거나 저장한다 */}
+              {layoutResult && !layoutBusy ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-bg-sunken px-4 py-3">
+                  <span className="flex-1 text-[13px] font-medium text-text-muted">
+                    {t('layoutDone')}
+                  </span>
+                  <button
+                    onClick={() => openLayoutWindow(layoutResult, t('printHint'))}
+                    className="btn-gradient flex h-9 items-center gap-1.5 rounded-lg px-4 text-[13px] font-bold"
+                  >
+                    <FileDown size={14} aria-hidden />
+                    {t('layoutReopen')}
+                  </button>
+                  <button
+                    onClick={downloadLayoutHtml}
+                    className="flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-[13px] font-semibold text-text-muted hover:text-text"
+                  >
+                    <Download size={14} aria-hidden />
+                    {t('layoutSaveHtml')}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -838,10 +940,8 @@ export function FileTranslator() {
  * 각 페이지의 HTML 조각(비전 모델이 그린 표·박스)을 A4 페이지로 감싸 나란히 놓고,
  * 브라우저 인쇄로 PDF 저장하게 한다. 조각은 서버에서 이미 살균됐다(layout.ts sanitizeHtml).
  */
-function openLayoutWindow(data: TranslateLayoutResponse, hint: string) {
-  const w = window.open('', '_blank');
-  if (!w) return;
-  w.opener = null; // 새 창이 이 페이지를 건드리지 못하게 끊는다
+/** 재구성 결과를 완성된 HTML 문서 문자열로 만든다 (인쇄 창·HTML 저장 공용) */
+function buildLayoutDoc(data: TranslateLayoutResponse, hint: string, autoPrint: boolean): string {
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const pages = data.pages
     .map((p) =>
@@ -850,7 +950,10 @@ function openLayoutWindow(data: TranslateLayoutResponse, hint: string) {
         : `<section class="page"><p class="miss">${esc(`${p.page}쪽 재구성 실패`)}</p></section>`,
     )
     .join('');
-  const doc = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(data.fileName)}</title>
+  const printScript = autoPrint
+    ? `<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},600);});</script>`
+    : '';
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(data.fileName)}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 @page { size: A4; margin: 12mm; }
@@ -865,9 +968,16 @@ body { font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif; color:
 </style></head><body>
 <div class="hint">${esc(hint)}</div>
 ${pages}
-<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},600);});</script>
+${printScript}
 </body></html>`;
-  w.document.write(doc);
+}
+
+/** 재구성 결과를 새 창에 띄우고 인쇄 대화상자를 연다 */
+function openLayoutWindow(data: TranslateLayoutResponse, hint: string) {
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.opener = null; // 새 창이 이 페이지를 건드리지 못하게 끊는다
+  w.document.write(buildLayoutDoc(data, hint, true));
   w.document.close();
 }
 

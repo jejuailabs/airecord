@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { after } from 'next/server';
 import { cookies } from 'next/headers';
 import { translateDocument } from '@sotong/shared/translate/document';
 import { ocrImage, translateImage } from '@sotong/shared/translate/vision';
@@ -7,6 +8,10 @@ import {
   type TranslateFileResponse,
 } from '@sotong/shared/schemas';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
+import { getEntitlement } from '@/lib/server/entitlement';
+import { saveRecord } from '@/lib/server/records';
+import { saveRecordObject } from '@/lib/server/records-storage';
+import { fileArtifact } from '@/lib/server/record-artifact';
 
 export const runtime = 'nodejs';
 /** 여러 페이지를 순차로 번역하므로 넉넉히 잡는다 */
@@ -31,16 +36,45 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'auth_required' }, { status: 401 });
   }
 
+  /** 결과를 마이페이지 기록으로 남기고 응답한다 (저장 실패가 응답을 막지 않게 after) */
+  const respond = (body: TranslateFileResponse) => {
+    after(async () => {
+      try {
+        const ent = await getEntitlement(user.uid, user.email);
+        const art = fileArtifact(body.fileName, body.pages);
+        const id = crypto.randomUUID();
+        const path = await saveRecordObject(user.uid, id, art.body, art.contentType, art.ext);
+        await saveRecord({
+          uid: user.uid,
+          workspaceId: ent.workspaceId,
+          plan: ent.plan,
+          kind: 'file',
+          title: body.fileName,
+          sourceLang,
+          targetLang,
+          preview: body.pages[0]?.translated?.slice(0, 300) ?? '',
+          storagePath: path,
+          downloadName: art.downloadName,
+          contentType: art.contentType,
+          pageCount: body.pages.length,
+          charCount: body.totalChars,
+        });
+      } catch (e) {
+        console.error('[translate/file] save record failed', e instanceof Error ? e.message : e);
+      }
+    });
+    return NextResponse.json(body);
+  };
+
   try {
     if (kind === 'image') {
       if (!dataUrl) return NextResponse.json({ error: 'bad_request' }, { status: 400 });
       const r = await translateImage({ dataUrl, sourceLang, targetLang });
-      const body: TranslateFileResponse = {
+      return respond({
         fileName,
         pages: [{ page: 1, source: r.source, translated: r.translated, notes: r.notes }],
         totalChars: r.source.length,
-      };
-      return NextResponse.json(body);
+      });
     }
 
     /**
@@ -66,15 +100,14 @@ export async function POST(req: Request) {
       }
 
       const scanned = await translateDocument({ pages: read, sourceLang, targetLang });
-      const body: TranslateFileResponse = {
+      return respond({
         fileName,
         pages: scanned.map((p) => ({
           ...p,
           notes: [...(ocrNotes.get(p.page) ?? []), ...(p.notes ?? [])],
         })),
         totalChars: read.reduce((sum, p) => sum + p.text.length, 0),
-      };
-      return NextResponse.json(body);
+      });
     }
 
     const usable = (pages ?? []).filter((p) => p.text.trim().length > 0);
@@ -83,12 +116,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'no_text_layer' }, { status: 422 });
     }
     const result = await translateDocument({ pages: usable, sourceLang, targetLang });
-    const body: TranslateFileResponse = {
+    return respond({
       fileName,
       pages: result,
       totalChars: usable.reduce((sum, p) => sum + p.text.length, 0),
-    };
-    return NextResponse.json(body);
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     console.error('[translate/file]', message);

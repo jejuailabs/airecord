@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Mic, Link2, Inbox, Clock, ChevronRight, Type, FileText, Radio, UsersRound } from 'lucide-react';
+import { Mic, Link2, Inbox, Clock, ChevronRight, Type, FileText, Radio, UsersRound, FolderOpen } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement } from '@/lib/server/entitlement';
@@ -324,6 +324,21 @@ export default async function DashboardPage({
           </ul>
         )}
       </section>
+
+      {/* ── 번역 보관함 바로가기 (대시보드=현황, 마이페이지=결과물 보관) ── */}
+      <Link
+        href="/mypage"
+        className="flex items-center gap-4 rounded-xl border border-border bg-bg-raised px-5 py-4 transition-colors duration-150 hover:border-accent"
+      >
+        <span className="icon-chip icon-chip-accent shrink-0" aria-hidden>
+          <FolderOpen size={20} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="text-[16px] font-semibold">{t('records.title')}</div>
+          <div className="mt-0.5 text-[13.5px] text-text-muted">{t('records.subtitle')}</div>
+        </div>
+        <ChevronRight size={18} aria-hidden className="shrink-0 text-text-faint" />
+      </Link>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Type,
   FileText,
+  FolderOpen,
   Radio,
   UsersRound,
 } from 'lucide-react';
@@ -63,6 +64,7 @@ export function SidebarBody({
     { href: '/translate', icon: Type, label: t('nav.translate'), ready: true },
     { href: '/translate/file', icon: FileText, label: t('nav.translateFile'), ready: true },
     { href: '/sessions', icon: ScrollText, label: t('nav.sessions'), ready: true },
+    { href: '/mypage', icon: FolderOpen, label: t('nav.mypage'), ready: true },
     { href: '/pricing', icon: CreditCard, label: t('nav.pricing'), ready: true },
     { href: '/settings', icon: Settings, label: t('nav.settings'), ready: true },
     { href: '/help', icon: HelpCircle, label: t('nav.help'), ready: false },
