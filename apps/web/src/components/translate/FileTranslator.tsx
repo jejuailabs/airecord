@@ -17,22 +17,25 @@ import {
 } from 'lucide-react';
 import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
-import type { TranslateFileResponse } from '@sotong/shared/schemas';
+import type { TranslateFileResponse, TranslateLayoutResponse } from '@sotong/shared/schemas';
 import { FieldSelect } from '@/components/ui/SettingRow';
 import { extractPdfPages, fileToDataUrl, renderPdfPagesToImages } from '@/lib/pdf/extract';
 import { listDrafts, removeDraft, saveDraft, type FileDraft } from '@/lib/translate/drafts';
 import { translateDocx } from '@/lib/docx/translate';
 import type { DocxMode } from '@/lib/docx/transform';
+import { translateHwpx } from '@/lib/hwpx/translate';
 
 /**
- * 'docxReady' — 워드 문서는 결과가 화면 글이 아니라 **파일**이다.
+ * 'docxReady' — 워드·한글 문서는 결과가 화면 글이 아니라 **파일**이다.
  * 그래서 고르자마자 번역하지 않고, 어떤 모양으로 받을지 먼저 묻는다.
  */
 type Phase = 'idle' | 'reading' | 'scanning' | 'translating' | 'done' | 'error' | 'docxReady';
 type ErrorKey = 'unsupported' | 'tooLarge' | 'noTextLayer' | 'authRequired' | 'keyMissing' | 'failed';
+/** 서식을 살려 파일로 되돌려주는 오피스 문서 종류 */
+type DocKind = 'docx' | 'hwpx';
 
 const MAX_MB = 10;
-const ACCEPT = '.pdf,.docx,image/png,image/jpeg,image/webp';
+const ACCEPT = '.pdf,.docx,.hwpx,image/png,image/jpeg,image/webp';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 export function FileTranslator() {
@@ -59,13 +62,30 @@ export function FileTranslator() {
   const [drafts, setDrafts] = useState<FileDraft[]>([]);
   /** 이번 결과가 OCR로 읽은 것인지 — 원문이 원본이 아님을 화면에 밝혀야 한다 */
   const [fromOcr, setFromOcr] = useState(false);
-  /** 고른 워드 파일 — 어떤 모양으로 받을지 고를 때까지 들고 있는다 */
+  /** 고른 워드·한글 파일 — 어떤 모양으로 받을지 고를 때까지 들고 있는다 */
   const [docxFile, setDocxFile] = useState<File | null>(null);
+  /** 그 파일이 워드인지 한글인지 — 되쓰기 방식이 다르다 */
+  const [docKind, setDocKind] = useState<DocKind>('docx');
   /** 지금 굽고 있는 모양 (버튼별 진행 표시) */
   const [docxBusy, setDocxBusy] = useState<DocxMode | null>(null);
   const [docxRatio, setDocxRatio] = useState(0);
-  const [docxDone, setDocxDone] = useState<{ mode: DocxMode; translated: number; missing: number } | null>(null);
+  /** 다 구운 결과 — blob을 들고 있어야 "다시 내려받기"가 재번역 없이 된다 */
+  const [docxDone, setDocxDone] = useState<{
+    mode: DocxMode;
+    translated: number;
+    missing: number;
+    blob: Blob;
+    fileName: string;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  /** 진행 중 작업 취소용 — 워드·PDF·이미지 모두 이걸로 끊는다 */
+  const abortRef = useRef<AbortController | null>(null);
+  /** 원본형 재구성(방법 B)에 쓸 원본 PDF 파일 — 페이지를 이미지로 다시 그려 비전에 보낸다 */
+  const pdfFileRef = useRef<File | null>(null);
+  /** 방금 결과가 PDF에서 온 것인가 — PDF만 원본형 재구성 버튼을 띄운다 */
+  const [isPdfResult, setIsPdfResult] = useState(false);
+  /** 원본형 재구성 진행 상태 ('replace'|'bilingual') */
+  const [layoutBusy, setLayoutBusy] = useState<'replace' | 'bilingual' | null>(null);
 
   // 서버 렌더에는 없는 값이라 마운트 후에 읽는다 (하이드레이션 어긋남 방지)
   useEffect(() => {
@@ -82,6 +102,73 @@ export function FileTranslator() {
     setDocxBusy(null);
     setDocxDone(null);
     setDocxRatio(0);
+    setIsPdfResult(false);
+    setLayoutBusy(null);
+    pdfFileRef.current = null;
+  };
+
+  /** 진행 중 번역을 끊는다 — fetch·문단 루프가 AbortSignal에서 멈춘다 */
+  const cancel = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  };
+
+  /**
+   * 원본형 재구성 (방법 B) — 원본 PDF 페이지를 이미지로 다시 그려 비전 모델에 보내고,
+   * 표·셀 색·구획을 재현한 HTML을 받아 인쇄 창에 띄운다. 거기서 "PDF로 저장"하면 된다.
+   * 'bilingual' 대조본(원문+번역) · 'replace' 번역본(번역만).
+   */
+  const runLayout = async (mode: 'replace' | 'bilingual') => {
+    const file = pdfFileRef.current;
+    if (!file || layoutBusy) return;
+    setError(null);
+    setLayoutBusy(mode);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const pageImages = await renderPdfPagesToImages(file);
+      const res = await fetch('/api/translate/layout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          sourceLang,
+          targetLang,
+          mode,
+          pageImages,
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(
+          body.error === 'auth_required'
+            ? 'authRequired'
+            : body.error === 'key_missing'
+              ? 'keyMissing'
+              : 'failed',
+        );
+        return;
+      }
+      const data = (await res.json()) as TranslateLayoutResponse;
+      openLayoutWindow(data, t('printHint'));
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      setError('failed');
+    } finally {
+      setLayoutBusy(null);
+      abortRef.current = null;
+    }
+  };
+
+  /** blob을 파일로 내려준다 (완료 후 다시 눌러도 재번역 없이 즉시) */
+  const downloadBlob = (blob: Blob, name: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   /**
@@ -96,38 +183,47 @@ export function FileTranslator() {
       setDocxDone(null);
       setDocxBusy(mode);
       setDocxRatio(0);
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
-        const r = await translateDocx({
+        // 워드·한글은 되쓰기 방식이 달라 갈라 부른다 — 둘 다 같은 번역 API를 쓴다
+        const run = docKind === 'hwpx' ? translateHwpx : translateDocx;
+        const r = await run({
           file,
           mode,
           sourceLang,
           targetLang,
           onProgress: setDocxRatio,
+          signal: controller.signal,
         });
-        // 내려받기 — 브라우저가 파일을 받는 순간 메모리에서 놓아준다
-        const url = URL.createObjectURL(r.blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = r.fileName;
-        a.click();
-        URL.revokeObjectURL(url);
-        setDocxDone({ mode, translated: r.translated, missing: r.missing });
+        // 완료 즉시 한 번 내려주고, blob을 들고 있어 버튼으로 다시 받을 수 있게 한다
+        downloadBlob(r.blob, r.fileName);
+        setDocxDone({
+          mode,
+          translated: r.translated,
+          missing: r.missing,
+          blob: r.blob,
+          fileName: r.fileName,
+        });
       } catch (e) {
+        // 사용자가 취소한 경우는 오류가 아니다 — 조용히 원래 화면으로 돌아간다
+        if (e instanceof DOMException && e.name === 'AbortError') return;
         const msg = e instanceof Error ? e.message : '';
         setError(
           msg === 'auth_required'
             ? 'authRequired'
             : msg === 'key_missing'
               ? 'keyMissing'
-              : msg === 'no_text' || msg === 'not_a_docx'
+              : msg === 'no_text' || msg === 'not_a_docx' || msg === 'not_a_hwpx'
                 ? 'noTextLayer'
                 : 'failed',
         );
       } finally {
         setDocxBusy(null);
+        abortRef.current = null;
       }
     },
-    [docxFile, docxBusy, sourceLang, targetLang],
+    [docxFile, docxBusy, docKind, sourceLang, targetLang],
   );
 
   const handleFile = useCallback(
@@ -141,16 +237,21 @@ export function FileTranslator() {
         setPhase('error');
         return;
       }
-      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      const name = file.name.toLowerCase();
+      const isPdf = file.type === 'application/pdf' || name.endsWith('.pdf');
       const isImage = file.type.startsWith('image/');
-      const isDocx = file.type === DOCX_MIME || file.name.toLowerCase().endsWith('.docx');
+      const isDocx = file.type === DOCX_MIME || name.endsWith('.docx');
+      const isHwpx = name.endsWith('.hwpx');
+      // 원본형 재구성(방법 B)은 PDF만 — 원본 파일을 들고 있다가 페이지를 이미지로 다시 그린다
+      pdfFileRef.current = isPdf ? file : null;
 
       /**
-       * 워드는 여기서 멈춘다.
-       * PDF·이미지는 화면에 글로 보여주는 게 결과지만, 워드는 **원본 서식을 살린 파일**이 결과다.
+       * 워드·한글은 여기서 멈춘다.
+       * PDF·이미지는 화면에 글로 보여주는 게 결과지만, 이들은 **원본 서식을 살린 파일**이 결과다.
        * 번역본과 대조본은 되쓰는 방식이 다르므로 어느 쪽인지 먼저 정해야 한다.
        */
-      if (isDocx) {
+      if (isDocx || isHwpx) {
+        setDocKind(isHwpx ? 'hwpx' : 'docx');
         setDocxFile(file);
         setDocxDone(null);
         setDocxRatio(0);
@@ -163,6 +264,8 @@ export function FileTranslator() {
         return;
       }
 
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
         let payload: Record<string, unknown>;
         if (isPdf) {
@@ -201,6 +304,7 @@ export function FileTranslator() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         });
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string };
@@ -218,13 +322,21 @@ export function FileTranslator() {
         }
         const data = (await res.json()) as TranslateFileResponse;
         setResult(data);
+        setIsPdfResult(isPdf); // PDF 결과에만 원본형 재구성 버튼을 띄운다
         // 유저가 따로 누르지 않아도 남긴다 — 놓치면 시간과 비용이 통째로 날아간다
         saveDraft(data, targetLang);
         setDrafts(listDrafts());
         setPhase('done');
-      } catch {
+      } catch (e) {
+        // 취소는 오류가 아니다 — 업로드 화면으로 되돌린다
+        if (e instanceof DOMException && e.name === 'AbortError') {
+          reset();
+          return;
+        }
         setError('failed');
         setPhase('error');
+      } finally {
+        abortRef.current = null;
       }
     },
     [sourceLang, targetLang],
@@ -363,7 +475,9 @@ export function FileTranslator() {
               <FileText size={18} />
             </span>
             <div className="min-w-0">
-              <p className="text-[17px] font-semibold">{t('docxTitle')}</p>
+              <p className="text-[17px] font-semibold">
+                {docKind === 'hwpx' ? t('hwpxTitle') : t('docxTitle')}
+              </p>
               <p className="mt-0.5 truncate text-[14px] text-text-muted">{docxFile.name}</p>
               <p className="mt-1.5 text-[13.5px] text-text-faint">{t('docxLead')}</p>
             </div>
@@ -401,9 +515,18 @@ export function FileTranslator() {
 
           {docxBusy ? (
             <div className="flex flex-col gap-2">
-              <p className="tabular text-[13.5px] text-text-muted">
-                {t('docxWorking', { percent: Math.round(docxRatio * 100) })}
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="tabular flex-1 text-[13.5px] text-text-muted">
+                  {t('docxWorking', { percent: Math.round(docxRatio * 100) })}
+                </p>
+                <button
+                  onClick={cancel}
+                  className="flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-3 text-[13px] font-semibold text-text-muted hover:border-danger hover:text-danger"
+                >
+                  <X size={14} aria-hidden />
+                  {t('cancel')}
+                </button>
+              </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-bg-sunken">
                 <div
                   className="h-full rounded-full bg-accent transition-[width] duration-300"
@@ -414,17 +537,27 @@ export function FileTranslator() {
           ) : null}
 
           {docxDone ? (
-            <div className="rounded-xl bg-bg-sunken px-4 py-3 text-[13.5px]">
-              <p className="font-semibold">
-                {docxDone.mode === 'bilingual'
-                  ? t('docxDoneBilingual', { translated: docxDone.translated })
-                  : t('docxDoneReplace', { translated: docxDone.translated })}
-              </p>
-              {docxDone.missing > 0 ? (
-                <p className="mt-1 text-text-muted">
-                  {t('docxMissing', { missing: docxDone.missing })}
+            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-bg-sunken px-4 py-3 text-[13.5px]">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  {docxDone.mode === 'bilingual'
+                    ? t('docxDoneBilingual', { translated: docxDone.translated })
+                    : t('docxDoneReplace', { translated: docxDone.translated })}
                 </p>
-              ) : null}
+                {docxDone.missing > 0 ? (
+                  <p className="mt-1 text-text-muted">
+                    {t('docxMissing', { missing: docxDone.missing })}
+                  </p>
+                ) : null}
+              </div>
+              {/* 완료 후에도 남는 버튼 — 팝업이 막혔거나 놓쳐도 재번역 없이 다시 받는다 */}
+              <button
+                onClick={() => downloadBlob(docxDone.blob, docxDone.fileName)}
+                className="btn-gradient flex h-10 shrink-0 items-center gap-2 rounded-xl px-4 text-[14px] font-bold"
+              >
+                <FileDown size={15} aria-hidden />
+                {t('download')}
+              </button>
             </div>
           ) : null}
 
@@ -479,6 +612,13 @@ export function FileTranslator() {
                   <div className="h-full w-1/3 animate-pulse rounded-full bg-accent" />
                 </div>
               ) : null}
+              <button
+                onClick={cancel}
+                className="flex h-10 items-center gap-1.5 rounded-lg border border-border px-4 text-[13.5px] font-semibold text-text-muted hover:border-danger hover:text-danger"
+              >
+                <X size={15} aria-hidden />
+                {t('cancel')}
+              </button>
             </>
           ) : (
             <>
@@ -500,6 +640,10 @@ export function FileTranslator() {
                 <span className="flex items-center gap-1 rounded-md bg-bg-sunken px-2 py-1">
                   <FileText size={12} aria-hidden />
                   PDF
+                </span>
+                <span className="flex items-center gap-1 rounded-md bg-bg-sunken px-2 py-1">
+                  <FileText size={12} aria-hidden />
+                  DOCX · HWPX
                 </span>
                 <span className="flex items-center gap-1 rounded-md bg-bg-sunken px-2 py-1">
                   <ImageIcon size={12} aria-hidden />
@@ -575,6 +719,56 @@ export function FileTranslator() {
             </a>
           </div>
 
+          {/*
+            원본형 재구성 (방법 B) — 표·셀 색·구획을 살려 원본 모양에 가깝게 다시 그린다.
+            PDF에만 띄운다. 비전 모델이 페이지를 보고 HTML로 재현하므로 1~2분 걸릴 수 있고,
+            숫자·값은 그대로 두되 레이아웃은 "똑같이"가 아니라 "비슷하고 깔끔하게"가 목표다.
+          */}
+          {isPdfResult ? (
+            <div className="flex flex-col gap-2.5 rounded-xl border border-accent/40 bg-accent-weak/20 px-5 py-4">
+              <div className="flex items-center gap-2">
+                <p className="text-[14px] font-semibold">{t('layoutTitle')}</p>
+                <span className="rounded-sm bg-warn/15 px-1.5 py-0.5 text-[10px] font-semibold text-warn">
+                  {t('layoutExperimental')}
+                </span>
+              </div>
+              <p className="text-[13px] text-text-muted">{t('layoutLead')}</p>
+              <div className="flex flex-wrap gap-2">
+                {(['replace', 'bilingual'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => void runLayout(m)}
+                    disabled={layoutBusy !== null}
+                    className={`flex h-11 items-center gap-2 rounded-xl border px-4 text-[14px] font-semibold transition-colors disabled:opacity-60 ${
+                      m === 'bilingual'
+                        ? 'border-accent bg-accent text-accent-text'
+                        : 'border-border hover:border-border-strong'
+                    }`}
+                  >
+                    {layoutBusy === m ? (
+                      <Loader2 size={15} className="animate-spin" aria-hidden />
+                    ) : (
+                      <Rows3 size={15} aria-hidden />
+                    )}
+                    {m === 'bilingual' ? t('layoutBilingual') : t('layoutReplace')}
+                  </button>
+                ))}
+                {layoutBusy ? (
+                  <button
+                    onClick={cancel}
+                    className="flex h-11 items-center gap-1.5 rounded-xl border border-border px-4 text-[13.5px] font-semibold text-text-muted hover:border-danger hover:text-danger"
+                  >
+                    <X size={15} aria-hidden />
+                    {t('cancel')}
+                  </button>
+                ) : null}
+              </div>
+              {layoutBusy ? (
+                <p className="text-[12.5px] text-text-faint">{t('layoutWorking')}</p>
+              ) : null}
+            </div>
+          ) : null}
+
           {fromOcr ? (
             <p className="flex items-start gap-2.5 rounded-xl border border-warn/40 bg-warn-weak px-4 py-3 text-[13.5px] text-warn">
               <AlertTriangle size={15} aria-hidden className="mt-0.5 shrink-0" />
@@ -637,6 +831,44 @@ export function FileTranslator() {
       ) : null}
     </div>
   );
+}
+
+/**
+ * 원본형 재구성 결과를 인쇄 창에 띄운다 (방법 B).
+ * 각 페이지의 HTML 조각(비전 모델이 그린 표·박스)을 A4 페이지로 감싸 나란히 놓고,
+ * 브라우저 인쇄로 PDF 저장하게 한다. 조각은 서버에서 이미 살균됐다(layout.ts sanitizeHtml).
+ */
+function openLayoutWindow(data: TranslateLayoutResponse, hint: string) {
+  const w = window.open('', '_blank');
+  if (!w) return;
+  w.opener = null; // 새 창이 이 페이지를 건드리지 못하게 끊는다
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const pages = data.pages
+    .map((p) =>
+      p.html.trim()
+        ? `<section class="page">${p.html}</section>`
+        : `<section class="page"><p class="miss">${esc(`${p.page}쪽 재구성 실패`)}</p></section>`,
+    )
+    .join('');
+  const doc = `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(data.fileName)}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+@page { size: A4; margin: 12mm; }
+body { font-family:'Pretendard Variable',Pretendard,system-ui,sans-serif; color:#14172B; font-size:10.5pt; line-height:1.5; margin:0; }
+.hint { background:#EDEAFD; color:#4B3FB5; padding:10px 14px; border-radius:8px; margin:14px; font-size:10pt; }
+.page { padding:0 14px 24px; break-after:page; }
+.page:last-child { break-after:auto; }
+.page table { border-collapse:collapse; width:100%; }
+.page td, .page th { border:1px solid #cfd3e0; padding:5px 7px; vertical-align:top; }
+.miss { color:#b4472e; }
+@media print { .hint { display:none; } }
+</style></head><body>
+<div class="hint">${esc(hint)}</div>
+${pages}
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},600);});</script>
+</body></html>`;
+  w.document.write(doc);
+  w.document.close();
 }
 
 /** 인쇄용 HTML — 서버에서 PDF를 굽지 않고 브라우저 인쇄로 저장한다 (한글 폰트 문제 회피) */

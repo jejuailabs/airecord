@@ -588,6 +588,15 @@
     "original": "원문",
     "translated": "번역",
     "downloadPdf": "PDF로 저장",
+    "download": "내려받기",
+    "cancel": "취소",
+    "layoutTitle": "원본 형태로 다시 그리기",
+    "layoutExperimental": "실험",
+    "layoutLead": "표·칸 색·구획을 살려 원본 모양에 가깝게 재현합니다. 페이지가 많으면 1~2분 걸릴 수 있고, 숫자·값은 그대로 두지만 레이아웃은 완전히 똑같지는 않습니다.",
+    "layoutReplace": "번역본 (번역만)",
+    "layoutBilingual": "대조본 (원문+번역)",
+    "layoutWorking": "페이지를 분석해 다시 그리는 중입니다… 완료되면 인쇄 창이 열립니다.",
+    "hwpxTitle": "한글 문서를 어떻게 받으시겠어요?",
     "printHint": "이 창의 인쇄(Ctrl+P)에서 대상을 \"PDF로 저장\"으로 선택하세요. 잠시 후 인쇄 창이 열립니다.",
     "errors": {
       "unsupported": {

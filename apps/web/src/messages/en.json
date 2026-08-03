@@ -588,6 +588,15 @@
     "original": "Original",
     "translated": "Translation",
     "downloadPdf": "Save as PDF",
+    "download": "Download",
+    "cancel": "Cancel",
+    "layoutTitle": "Redraw in original layout",
+    "layoutExperimental": "Experimental",
+    "layoutLead": "Reproduces the original look — tables, cell colors, sections. May take 1–2 minutes for long files. Numbers and values are kept as-is, but the layout won't be a pixel-perfect match.",
+    "layoutReplace": "Translated (translation only)",
+    "layoutBilingual": "Bilingual (source + translation)",
+    "layoutWorking": "Analyzing and redrawing pages… the print window opens when it's done.",
+    "hwpxTitle": "How would you like your Hangul (HWPX) file?",
     "printHint": "Use this window's Print (Ctrl+P) and choose \"Save as PDF\". The print dialog opens shortly.",
     "errors": {
       "unsupported": {

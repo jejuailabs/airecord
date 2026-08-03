@@ -12,6 +12,7 @@
     "./translate/document": "./src/translate/document.ts",
     "./translate/vision": "./src/translate/vision.ts",
     "./translate/align": "./src/translate/align.ts",
+    "./translate/layout": "./src/translate/layout.ts",
     "./engine/browser": "./src/engine/browser-webrtc.ts",
     "./pricing": "./src/pricing/cost.ts",
     "./meeting/relay-auth": "./src/meeting/relay-auth.ts",

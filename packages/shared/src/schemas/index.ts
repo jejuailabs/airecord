@@ -180,6 +180,35 @@ export const translateFileResponseSchema = z.object({
 });
 export type TranslateFileResponse = z.infer<typeof translateFileResponseSchema>;
 
+// ── POST /api/translate/layout ──────────────────────
+/**
+ * 레이아웃 재구성 — 페이지 이미지를 비전 모델에 보여주고 원본형 HTML로 다시 그린다.
+ * 디지털·스캔 구분 없이 이미지로 처리하므로 pageImages 하나만 받는다 (translate/layout.ts).
+ */
+export const translateLayoutRequestSchema = z.object({
+  fileName: z.string().max(200),
+  sourceLang: sourceLangSchema,
+  targetLang: langCodeSchema,
+  /** 'replace' 번역본(번역만) · 'bilingual' 대조본(원문+번역) */
+  mode: z.enum(['replace', 'bilingual']).default('bilingual'),
+  /** 페이지별 렌더 이미지 (data URL) — 한 번에 20쪽까지 */
+  pageImages: z.array(translateFilePageImageSchema).min(1).max(20),
+});
+export type TranslateLayoutRequest = z.infer<typeof translateLayoutRequestSchema>;
+
+export const translateLayoutResponseSchema = z.object({
+  fileName: z.string(),
+  pages: z.array(
+    z.object({
+      page: z.number(),
+      /** 페이지 하나를 재현한 자족 HTML 조각 */
+      html: z.string(),
+      notes: z.array(z.string()).optional(),
+    }),
+  ),
+});
+export type TranslateLayoutResponse = z.infer<typeof translateLayoutResponseSchema>;
+
 // ── POST /api/translate/docx ───────────────────────
 /**
  * 워드 문서 번역.
