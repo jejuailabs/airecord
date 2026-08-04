@@ -67,6 +67,12 @@ export async function generateMetadata({
       follow: true,
       googleBot: { index: true, follow: true },
     },
+    // 네이버 서치어드바이저 소유확인. 구글은 DNS TXT로 인증했으므로 태그가 필요 없다.
+    verification: {
+      other: {
+        'naver-site-verification': 'd45cbb7b1b985268429b6a9f14b58b68f1d50141',
+      },
+    },
   };
 }
 
