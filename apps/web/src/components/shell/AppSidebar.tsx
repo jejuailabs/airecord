@@ -85,14 +85,15 @@ export function SidebarBody({
       <Link
         href="/"
         onClick={onNavigate}
-        className="flex h-[72px] items-center px-5"
+        className="flex h-[88px] items-center px-5"
       >
         {/* 사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비 → 밝은 글자 버전 고정.
-            가로가 좁아 세로 압축 락업을 쓴다(가로 락업이면 글자가 20px까지 줄어든다) */}
+            아이콘 폭을 워드마크 폭에 맞춘 세로 락업이라 세로가 길다. 행 높이를 88px로 잡아야
+            로고가 위아래로 눌리지 않는다 */}
         <img
           src="/logo-interlive-v-dark.png"
           alt="InterLive"
-          className="h-14 w-auto max-w-full object-contain"
+          className="h-[68px] w-auto max-w-full object-contain"
         />
       </Link>
 

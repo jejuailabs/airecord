@@ -93,12 +93,12 @@ print("가로 락업 (헤더·랜딩 히어로)")
 save(lockup(icon, word), os.path.join(PUB, "logo-interlive-h-light.png"))
 save(lockup(for_dark_bg(icon), for_dark_bg(word)), os.path.join(PUB, "logo-interlive-h-dark.png"))
 
-def stacked(ic, wd, icon_ratio=0.42, gap_ratio=0.12):
-    """세로 압축 락업 — 아이콘을 글자 위 가운데. 사이드바처럼 가로가 좁을 때.
+def stacked(ic, wd, icon_ratio=1.0, gap_ratio=0.10):
+    """세로 락업 — 아이콘을 글자 위 가운데. 사이드바처럼 가로가 좁을 때.
 
-    원본은 아이콘과 글자 사이가 61px나 벌어져 있고 아이콘이 글자폭의 69%를 차지해,
-    가로 락업으로 만들면 사이드바(가용폭 210px)에서 글자가 20px까지 줄어든다.
-    아이콘을 42%로 줄이고 간격을 좁히면 같은 자리에서 글자가 28px 나온다.
+    icon_ratio=1.0 이면 아이콘 폭이 워드마크 폭과 같아져 좌우 끝선이 맞는다.
+    원본은 아이콘과 글자 사이가 61px나 벌어져 있어 그대로 두면 세로만 길어지므로
+    간격은 글자 높이의 10%로 좁힌다.
     """
     ww, wh = wd.shape[1], wd.shape[0]
     iw = round(ww * icon_ratio)
@@ -112,9 +112,10 @@ def stacked(ic, wd, icon_ratio=0.42, gap_ratio=0.12):
     return cv
 
 
-# 사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비라 라이트 변형은 만들지 않는다
-print("\n세로 압축 락업 (사이드바 — 항상 딥 네이비)")
-save(stacked(for_dark_bg(icon), for_dark_bg(word)), os.path.join(PUB, "logo-interlive-v-dark.png"))
+# 사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비라 라이트 변형은 만들지 않는다.
+# 실제 렌더 폭이 123px라 500px면 4배 — 원본 839px는 과해서 용량만 먹는다.
+print("\n세로 락업 (사이드바 — 항상 딥 네이비)")
+save(fit(stacked(for_dark_bg(icon), for_dark_bg(word)), w=500), os.path.join(PUB, "logo-interlive-v-dark.png"))
 
 print("\n파비콘 (말풍선 1개 — 16px에서도 읽힌다)")
 fav = Image.new("RGBA", (512, 512), BRAND_NAVY)
