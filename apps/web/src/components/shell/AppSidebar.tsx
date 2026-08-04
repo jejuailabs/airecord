@@ -85,15 +85,15 @@ export function SidebarBody({
       <Link
         href="/"
         onClick={onNavigate}
-        className="flex h-[88px] items-center px-5"
+        className="flex h-[72px] items-center px-6"
       >
         {/* 사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비 → 밝은 글자 버전 고정.
-            아이콘 폭을 워드마크 폭에 맞춘 세로 락업이라 세로가 길다. 행 높이를 88px로 잡아야
-            로고가 위아래로 눌리지 않는다 */}
+            폭 90px = 메뉴 항목의 아이콘(19) + gap-3(11.25) + '대시보드'(60). px-6은 메뉴
+            아이콘 왼쪽 끝(nav px-3 + 항목 px-3.5 = 24.4px)에 맞춘 값이라 세로줄이 정렬된다 */}
         <img
           src="/logo-interlive-v-dark.png"
           alt="InterLive"
-          className="h-[68px] w-auto max-w-full object-contain"
+          className="w-[90px] max-w-full"
         />
       </Link>
 
