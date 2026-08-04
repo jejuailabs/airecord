@@ -85,12 +85,17 @@ export function SidebarBody({
       <Link
         href="/"
         onClick={onNavigate}
-        className="flex h-[72px] items-center gap-2.5 px-6 text-[19px] font-bold tracking-tight text-caption-target"
+        className="flex h-[72px] items-center px-5"
       >
+        {/*
+          사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비 → 밝은 글자 버전 고정.
+          가용폭이 200px뿐이라 아이콘을 붙이면 글자가 19px까지 줄어든다. 워드마크만 쓰면 34px.
+          말풍선 마크는 파비콘·OG가 담당한다.
+        */}
         <img
-          src="/main_logo_tra.png"
+          src="/wordmark-interlive-dark.png"
           alt="InterLive"
-          className="h-12 w-auto max-w-[180px] object-contain"
+          className="w-full max-w-[200px] object-contain"
         />
       </Link>
 

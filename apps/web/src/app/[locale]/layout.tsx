@@ -49,9 +49,9 @@ export async function generateMetadata({
       alternateLocale: locale === 'ko' ? ['en_US'] : ['ko_KR'],
       images: [
         {
-          url: '/main_logo.png',
-          width: 1536,
-          height: 1024,
+          url: '/og-interlive.png',
+          width: 1200,
+          height: 630,
           alt: appName,
         },
       ],
@@ -60,7 +60,7 @@ export async function generateMetadata({
       card: 'summary_large_image',
       title: appName,
       description,
-      images: ['/main_logo.png'],
+      images: ['/og-interlive.png'],
     },
     robots: {
       index: true,

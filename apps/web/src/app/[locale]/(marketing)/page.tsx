@@ -33,8 +33,9 @@ export default async function LandingPage({
       {/* ── 히어로: InterLive 시안 — 그라데이션 패널 + 원형 CTA + 대시보드 목업 ── */}
       <section className="brand-panel grid items-center gap-8 overflow-hidden rounded-lg p-6 py-10 md:p-10 lg:grid-cols-[5fr_6fr]">
         <div className="flex flex-col gap-6 text-white">
+          {/* brand-panel은 항상 어두운 그라데이션 — 밝은 글자 버전 고정 */}
           <img
-            src="/main_logo_tra.png"
+            src="/logo-interlive-h-dark.png"
             alt="InterLive"
             className="h-10 w-auto self-start object-contain sm:h-12"
           />

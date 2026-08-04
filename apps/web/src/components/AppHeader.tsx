@@ -58,12 +58,19 @@ export function AppHeader() {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 whitespace-nowrap font-bold tracking-tight"
+          className="flex shrink-0 items-center"
         >
+          {/* 헤더 배경은 테마를 따라간다 — 'Inter'가 남색이라 다크에선 밝은 버전으로 바꾼다 */}
           <img
-            src="/main_logo_tra.png"
+            src="/logo-interlive-h-light.png"
             alt="InterLive"
-            className="h-9 w-auto max-w-[160px] object-contain"
+            className="h-8 w-auto object-contain dark:hidden"
+          />
+          <img
+            src="/logo-interlive-h-dark.png"
+            alt=""
+            aria-hidden
+            className="hidden h-8 w-auto object-contain dark:block"
           />
         </Link>
         <nav className="hidden items-center gap-1 text-sm sm:flex">
