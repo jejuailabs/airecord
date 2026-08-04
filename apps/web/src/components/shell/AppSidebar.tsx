@@ -87,15 +87,12 @@ export function SidebarBody({
         onClick={onNavigate}
         className="flex h-[72px] items-center px-5"
       >
-        {/*
-          사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비 → 밝은 글자 버전 고정.
-          가용폭이 200px뿐이라 아이콘을 붙이면 글자가 19px까지 줄어든다. 워드마크만 쓰면 34px.
-          말풍선 마크는 파비콘·OG가 담당한다.
-        */}
+        {/* 사이드바 배경(--caption-bg)은 테마와 무관하게 항상 딥 네이비 → 밝은 글자 버전 고정.
+            가로가 좁아 세로 압축 락업을 쓴다(가로 락업이면 글자가 20px까지 줄어든다) */}
         <img
-          src="/wordmark-interlive-dark.png"
+          src="/logo-interlive-v-dark.png"
           alt="InterLive"
-          className="w-full max-w-[200px] object-contain"
+          className="h-14 w-auto max-w-full object-contain"
         />
       </Link>
 
