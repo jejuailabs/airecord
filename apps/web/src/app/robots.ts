@@ -24,12 +24,18 @@ export default function robots(): MetadataRoute.Robots {
           '/en/glossary',
           '/ko/faq',
           '/en/faq',
-          '/ko/pricing',
-          '/en/pricing',
           '/ko/try',
           '/en/try',
         ],
+        // 로그인으로 리다이렉트되는 경로는 크롤링시켜도 로그인 페이지만 보게 된다.
+        // /pricing도 현재 인증이 걸려 있어 제외한다 — 공개로 바꾸면 allow로 옮길 것.
         disallow: [
+          '/ko/login',
+          '/en/login',
+          '/ko/pricing',
+          '/en/pricing',
+          '/ko/translate',
+          '/en/translate',
           '/ko/dashboard',
           '/en/dashboard',
           '/ko/live',

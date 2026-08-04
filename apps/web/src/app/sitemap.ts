@@ -23,6 +23,13 @@ function multiLocale(
   }));
 }
 
+/**
+ * ⚠ 실제로 존재하는 페이지만 넣는다.
+ *   없는 URL을 넣으면 Search Console에 그대로 크롤링 오류로 쌓이고,
+ *   오류가 많은 사이트맵은 색인 자체가 밀린다.
+ *   페이지를 새로 만들 때 여기에 같이 추가할 것.
+ *   /pricing은 로그인으로 리다이렉트되므로 뺀다(공개되면 다시 넣는다).
+ */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     // ── Landing & core marketing ──
@@ -46,42 +53,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...multiLocale('/features/docx-translation', { changeFrequency: 'monthly', priority: 0.7 }),
     ...multiLocale('/features/hwpx-translation', { changeFrequency: 'monthly', priority: 0.7 }),
 
-    // ── C3: Technology ──
+    // ── C3~C5: 허브 페이지 (하위 상세 페이지는 아직 없다) ──
     ...multiLocale('/technology', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/technology/speech-recognition', { changeFrequency: 'monthly', priority: 0.6 }),
-    ...multiLocale('/technology/realtime-translation', { changeFrequency: 'monthly', priority: 0.6 }),
-    ...multiLocale('/technology/ai-voice', { changeFrequency: 'monthly', priority: 0.6 }),
-    ...multiLocale('/technology/supported-languages', { changeFrequency: 'monthly', priority: 0.6 }),
-
-    // ── C4: Use cases ──
     ...multiLocale('/use-cases', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/use-cases/business-meeting', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/use-cases/conference', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/use-cases/education', { changeFrequency: 'monthly', priority: 0.6 }),
-    ...multiLocale('/use-cases/travel', { changeFrequency: 'monthly', priority: 0.6 }),
-    ...multiLocale('/use-cases/customer-service', { changeFrequency: 'monthly', priority: 0.6 }),
-
-    // ── C5: Guide ──
     ...multiLocale('/guide', { changeFrequency: 'monthly', priority: 0.8 }),
-    ...multiLocale('/guide/getting-started', { changeFrequency: 'monthly', priority: 0.8 }),
-    ...multiLocale('/guide/interpretation', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/guide/meeting-bot', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/guide/file-translation', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/guide/tokens', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/guide/session-records', { changeFrequency: 'monthly', priority: 0.6 }),
-
-    // ── C6: Pricing ──
-    ...multiLocale('/pricing', { changeFrequency: 'weekly', priority: 0.8 }),
-    ...multiLocale('/pricing/tokens', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/pricing/enterprise', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/pricing/compare', { changeFrequency: 'monthly', priority: 0.7 }),
 
     // ── C7: Glossary ──
     ...multiLocale('/glossary', { changeFrequency: 'weekly', priority: 0.8 }),
 
     // ── C8: FAQ ──
     ...multiLocale('/faq', { changeFrequency: 'monthly', priority: 0.8 }),
-    ...multiLocale('/faq/interpretation', { changeFrequency: 'monthly', priority: 0.7 }),
-    ...multiLocale('/faq/billing', { changeFrequency: 'monthly', priority: 0.7 }),
   ];
 }
