@@ -71,6 +71,22 @@ type ErrorKey =
 const SIZE_SCALE: Record<CaptionSize, number> = { md: 1.0, lg: 1.3, xl: 1.7 };
 const LAST_PAIR_KEY = 'sotong-last-pair';
 const TALK_PAIR_KEY = 'sotong-talk-pair';
+
+/**
+ * 대면 통역 언어쌍 바로가기.
+ *
+ * 원문 기본값이 '자동 감지'라 그냥 두면 대부분 자동 감지로 시작하는데,
+ * 자동 감지는 짧은 발화에서 원문 자막을 자주 틀린다
+ * (실측 2026-07-28: 한국어 26개 중 4개를 중국어·태국어로 받아적음, ko 지정 시 0개).
+ * 한 번 누르면 원문이 확정되므로 자막 정확도까지 같이 올라간다.
+ * 모두 TRANSLATE_TARGET_LANGS 안의 코드라 출력 언어로도 유효하다.
+ */
+const LANG_PRESETS: readonly { source: LangCode; target: LangCode }[] = [
+  { source: 'en', target: 'ko' },
+  { source: 'ko', target: 'en' },
+  { source: 'ja', target: 'ko' },
+  { source: 'zh', target: 'ko' },
+] as const;
 const CAP_WARNING_SEC = 30; // 예고 없이 끊지 않는다 (docs/07 §5.2)
 /**
  * 0.05초짜리 무음 WAV.
@@ -1338,53 +1354,103 @@ export function LiveInterpreter({
                   </div>
                 </div>
               ) : (
-                <div className="flex items-end gap-2">
-                  <div className="min-w-0 flex-1">
-                    <label
-                      htmlFor="source-lang"
-                      className="mb-1 block text-[13px] font-semibold text-text-muted"
-                    >
-                      {t('setup.sourceLang')}
-                    </label>
-                    {/* 자동 감지가 기본 — 고르면 원문 자막이 그 언어로 고정된다 */}
-                    <FieldSelect
-                      id="source-lang"
-                      value={sourceLang}
-                      onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
-                    >
-                      <option value="auto">{t('setup.autoDetect')}</option>
-                      {targetOptions.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </FieldSelect>
+                <div className="flex flex-col gap-3">
+                  {/* 자주 쓰는 조합 — 한 번에 두 칸을 채운다 */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-0.5 text-[13px] font-semibold text-text-muted">
+                      {t('setup.presetLabel')}
+                    </span>
+                    {LANG_PRESETS.map((p) => {
+                      const on = sourceLang === p.source && targetLang === p.target;
+                      return (
+                        <button
+                          key={`${p.source}-${p.target}`}
+                          type="button"
+                          aria-pressed={on}
+                          onClick={() => {
+                            setSourceLang(p.source);
+                            setTargetLang(p.target);
+                          }}
+                          className={`rounded-full border px-3 py-1 text-[12.5px] font-semibold ${
+                            on
+                              ? 'border-accent bg-accent/10 text-accent'
+                              : 'border-border text-text-muted hover:border-accent/40 hover:text-accent'
+                          }`}
+                        >
+                          {languageLabel(p.source)} → {languageLabel(p.target)}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <span
-                    aria-hidden
-                    className="flex h-12 w-6 shrink-0 items-center justify-center text-text-faint"
-                  >
-                    <ArrowRight size={18} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <label
-                      htmlFor="target-lang"
-                      className="mb-1 block text-[13px] font-semibold text-text-muted"
+
+                  <div className="flex items-end gap-2">
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor="source-lang"
+                        className="mb-1 block text-[13px] font-semibold text-text-muted"
+                      >
+                        {t('setup.sourceLang')}
+                      </label>
+                      {/* 자동 감지가 기본 — 고르면 원문 자막이 그 언어로 고정된다 */}
+                      <FieldSelect
+                        id="source-lang"
+                        value={sourceLang}
+                        onChange={(e) => setSourceLang(e.target.value as SourceLangSetting)}
+                      >
+                        <option value="auto">{t('setup.autoDetect')}</option>
+                        {targetOptions.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </FieldSelect>
+                    </div>
+                    {/*
+                      원문이 자동 감지면 뒤집을 값이 없어 비활성화한다.
+                      표시 언어를 원문에 넣어봐야 '한국어 → 한국어'가 되어 의미가 없다.
+                      프리셋을 누르거나 원문을 고르면 바로 켜진다.
+                    */}
+                    <button
+                      type="button"
+                      disabled={sourceLang === 'auto'}
+                      onClick={() => {
+                        if (sourceLang === 'auto') return;
+                        const prevSource = sourceLang;
+                        setSourceLang(targetLang);
+                        setTargetLang(prevSource);
+                      }}
+                      aria-label={t('setup.swapLangs')}
+                      title={
+                        sourceLang === 'auto' ? t('setup.swapDisabled') : t('setup.swapLangs')
+                      }
+                      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted enabled:hover:border-accent/40 enabled:hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      {t('setup.targetLang')}
-                    </label>
-                    {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
-                    <FieldSelect
-                      id="target-lang"
-                      value={targetLang}
-                      onChange={(e) => setTargetLang(e.target.value as LangCode)}
-                    >
-                      {targetOptions.map((l) => (
-                        <option key={l.code} value={l.code}>
-                          {l.label}
-                        </option>
-                      ))}
-                    </FieldSelect>
+                      {sourceLang === 'auto' ? (
+                        <ArrowRight size={18} aria-hidden />
+                      ) : (
+                        <ArrowLeftRight size={18} aria-hidden />
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <label
+                        htmlFor="target-lang"
+                        className="mb-1 block text-[13px] font-semibold text-text-muted"
+                      >
+                        {t('setup.targetLang')}
+                      </label>
+                      {/* 출력 언어는 엔진 지원 목록만 노출 (docs/04 §2) */}
+                      <FieldSelect
+                        id="target-lang"
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value as LangCode)}
+                      >
+                        {targetOptions.map((l) => (
+                          <option key={l.code} value={l.code}>
+                            {l.label}
+                          </option>
+                        ))}
+                      </FieldSelect>
+                    </div>
                   </div>
                 </div>
               )}

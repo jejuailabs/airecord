@@ -393,7 +393,9 @@
       "start": "Start interpreting",
       "langs": "Languages",
       "langsHint": "Source is auto-detected by default. Choosing it makes the original captions more accurate.",
-      "sourceFixed": "Listening in {source} and interpreting into {target}. The original captions stay in {source}."
+      "sourceFixed": "Listening in {source} and interpreting into {target}. The original captions stay in {source}.",
+      "presetLabel": "Common pairs",
+      "swapDisabled": "Choose a source language first to swap"
     },
     "running": {
       "live": "LIVE",
