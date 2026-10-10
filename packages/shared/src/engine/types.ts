@@ -65,6 +65,14 @@ export interface OpenOpts {
   targetLang: LangCode;
   audioOut: boolean;
   sessionId: string;
+  /**
+   * 통역 세션에 딸린 원문 전사(gpt-realtime-whisper)를 켤 것인가. 기본 true.
+   *
+   * ⚠ 이건 **분당 $0.017이 따로 청구된다** (통역 $0.034의 절반).
+   * 원문 자막 전용 레그(openai-transcribe.ts)가 붙으면 이 전사 결과는 화면에 안 쓰고 버리므로
+   * 그때는 false로 끈다 — 안 끄면 원가의 약 30%를 버리는 데 쓴다 (실측 2026-09-29: 50분 $3.08).
+   */
+  builtinTranscription?: boolean;
 }
 
 /** 언어 코드 → 문자 종류. 원문이 표시 언어와 같은 문자인지 판단할 때 쓴다. */

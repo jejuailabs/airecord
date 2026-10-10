@@ -6,6 +6,7 @@ import { createBot } from '@sotong/shared/meeting/recall';
 import { attachBotId, createSession, maxDurationSecFromEnv } from '@/lib/server/session-store';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement, sessionCapSeconds } from '@/lib/server/entitlement';
+import { sweepAbandonedSessionsLater } from '@/lib/server/sweep';
 import { getEngine } from '@sotong/shared/engine';
 
 export const runtime = 'nodejs';
@@ -59,11 +60,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'auth_required' }, { status: 401 });
   }
 
+  // 종료 요청 없이 버려진 세션을 마감·청구한다 (응답 뒤에 — 시작을 늦추지 않는다)
+  sweepAbandonedSessionsLater();
+
   // 남은 분을 실제로 검사한다 — 표시만 하고 막지 않으면 화면이 거짓말이 된다
   const ent = await getEntitlement(user.uid, user.email);
   if (!ent.canStart) {
     return NextResponse.json(
-      { error: 'quota_exhausted', usedMinutes: ent.usedMinutes, includedMinutes: ent.includedMinutes },
+      { error: ent.debtKrw > 0 ? 'debt_unpaid' : 'quota_exhausted', usedMinutes: ent.usedMinutes, includedMinutes: ent.includedMinutes },
       { status: 402 },
     );
   }

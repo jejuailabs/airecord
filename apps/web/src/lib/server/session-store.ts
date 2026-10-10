@@ -19,6 +19,7 @@ import {
   tokensForBilledSeconds,
   getPlan,
   postpaidEligible,
+  cycleKey,
 } from '@sotong/shared/constants';
 import type { SessionMode, SessionStatus, SourceLangSetting, LangCode } from '@sotong/shared/types';
 import { adminDb } from '@/lib/firebase/admin';
@@ -304,9 +305,34 @@ export async function endSession(
   return { billedSeconds: next.billedSeconds, segmentCount: next.segmentCount, record: next };
 }
 
-/** 종료 시 세션 문서 마감 + 워크스페이스 사용 분 누적 */
-export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<void> {
-  if (!record.uid) return;
+/**
+ * 이 세션의 청구를 내가 맡는다고 못 박는다. 이미 누가 맡았으면 false.
+ *
+ * 마감 경로가 여럿이다 — 종료 버튼(/end), 페이지 이탈 비콘(/end), 버려진 세션 청소(sweep),
+ * 회의 나가기. 둘이 겹치면 같은 세션을 두 번 청구하므로 트랜잭션으로 한 번만 통과시킨다.
+ */
+async function claimFinalize(id: string): Promise<boolean> {
+  const ref = liveRef(id);
+  return adminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.get('finalizedAtMs')) return false;
+    tx.set(ref, { finalizedAtMs: Date.now() }, { merge: true });
+    return true;
+  });
+}
+
+/**
+ * 종료 시 세션 문서 마감 + 워크스페이스 사용 분 누적.
+ * 이번 호출이 실제로 청구했으면 true (이미 마감된 세션이면 false — 요약 재생성 판단에 쓴다).
+ */
+export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<boolean> {
+  if (!record.uid) return false;
+  try {
+    if (!(await claimFinalize(record.id))) return false;
+  } catch (e) {
+    console.error('[session-store] finalize claim failed', e);
+    return false;
+  }
   try {
     const db = adminDb();
     /**
@@ -369,6 +395,12 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
           topupTokens?: number;
           unlimited?: boolean;
         };
+        /**
+         * 지난 주기에 쓴 세션(버려졌다가 뒤늦게 청소된 것)은 이번 달 포함분에서 빼지 않는다.
+         * 빼면 유저가 이번 달에 쓰지도 않은 시간이 차감된다. 사용 원장(recordUsage)에는 그날로 남긴다.
+         */
+        const cycle = plan?.cycle ?? 'monthly';
+        if (cycleKey(cycle, new Date(record.startedAtMs)) !== cycleKey(cycle)) return null;
         const included = plan?.includedMinutes ?? b.includedMinutes ?? 0;
         const used = b.usedMinutes ?? 0;
         const topup = Math.max(0, b.topupTokens ?? 0);
@@ -416,6 +448,49 @@ export async function finalizeSessionDoc(record: LiveSessionRecord): Promise<voi
   } catch (e) {
     console.error('[session-store] finalize failed', e);
   }
+  return true;
+}
+
+/**
+ * 버려진 세션 마감 — 종료 요청 없이 끊긴 세션을 찾아 청구·원장 기록까지 끝낸다.
+ *
+ * 왜 필요한가 (실사용 확인 2026-10-03):
+ *   탭 닫기·새로고침·메뉴 이동·화면 꺼짐으로 /end가 안 오면 세션이 liveSessions에 'live'로 영원히 남았다.
+ *   orphaned 판정은 '읽는 시점'에만 하고 아무도 마감하지 않아서, 그날 세션 15개 중 12개(약 1시간)가
+ *   사용 원장·운영콘솔에서 빠지고 토큰도 차감되지 않았다. OpenAI 요금은 그대로 나갔다.
+ *
+ * 하트비트가 끊긴 시점까지만 청구한다(applyOrphan) — 서버가 확인한 시간만 센다.
+ * 워커가 끝낸 회의(pendingFinalize)도 여기서 청구한다. 중복 청구는 claimFinalize가 막는다.
+ */
+export async function sweepStaleSessions(limit = 100): Promise<LiveSessionRecord[]> {
+  const db = adminDb();
+  const now = Date.now();
+  const [live, pending] = await Promise.all([
+    db.collection(LIVE_COL).where('status', '==', 'live').limit(limit).get(),
+    db.collection(LIVE_COL).where('pendingFinalize', '==', true).limit(limit).get(),
+  ]);
+  const billed: LiveSessionRecord[] = [];
+  const one = async (raw: LiveSessionRecord & { pendingFinalize?: boolean }) => {
+    const rec = applyOrphan(raw, now);
+    if (rec.status === 'live') return; // 아직 살아 있다
+    try {
+      if (raw.status === 'live') await persist(rec); // orphaned로 확정 — 다음 청소에 다시 안 걸린다
+      if (await finalizeSessionDoc(rec)) billed.push(rec);
+      if (raw.pendingFinalize) {
+        await liveRef(rec.id).set({ pendingFinalize: FieldValue.delete() }, { merge: true });
+      }
+    } catch (e) {
+      console.error('[session-store] sweep failed', rec.id, e);
+    }
+  };
+  // 밀린 세션이 많을 때(첫 청소) 한 건씩 돌면 수십 초가 걸린다 — 몇 건씩 나란히 처리한다
+  const docs = [...live.docs, ...pending.docs].map(
+    (d) => d.data() as LiveSessionRecord & { pendingFinalize?: boolean },
+  );
+  for (let i = 0; i < docs.length; i += 8) {
+    await Promise.all(docs.slice(i, i + 8).map(one));
+  }
+  return billed;
 }
 
 /**

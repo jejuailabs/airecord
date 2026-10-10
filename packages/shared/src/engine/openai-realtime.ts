@@ -79,11 +79,14 @@ export function buildTranslateSessionConfig(opts: OpenOpts) {
     model: modelName(),
     audio: {
       output: { language: opts.targetLang },
-      input: {
-        // 원문 자막용 입력 전사 — 실청구에 별도 가산되는지 실측 시 확인 (docs/07 §6)
-        // 전사 모델도 옛 값(gpt-4o-*-transcribe)이 남아 있으면 이 엔드포인트에서 거부된다.
-        transcription: { model: transcriptionModel() },
-      },
+      /**
+       * 부가 원문 전사 — gpt-realtime-whisper, **분당 $0.017 별도 청구**(OpenAI 모델 페이지).
+       * 원문 자막 전용 레그가 있으면 끈다(builtinTranscription=false). 회의 워커처럼 전용 레그가
+       * 없는 경로만 켠다. 전사 모델도 옛 값(gpt-4o-*-transcribe)이 남아 있으면 이 엔드포인트에서 거부된다.
+       */
+      ...(opts.builtinTranscription === false
+        ? {}
+        : { input: { transcription: { model: transcriptionModel() } } }),
     },
   };
 }

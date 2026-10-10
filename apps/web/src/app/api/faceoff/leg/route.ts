@@ -62,10 +62,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const [grant, transcribe] = await Promise.all([
-      engine.mintEphemeralKey({ sourceLang, targetLang, audioOut: true, sessionId }),
+    const opts = { sourceLang, targetLang, audioOut: true, sessionId };
+    // 전용 전사 레그가 원문을 맡으므로 통역 세션의 부가 전사($0.017/분)는 끈다
+    const [lean, transcribe] = await Promise.all([
+      engine.mintEphemeralKey({ ...opts, builtinTranscription: false }),
       mintTranscriptionKey({ sourceLang }).catch(() => null),
     ]);
+    const grant = transcribe
+      ? lean
+      : await engine.mintEphemeralKey({ ...opts, builtinTranscription: true });
     return NextResponse.json({
       ephemeralKey: grant.key,
       model: grant.model,

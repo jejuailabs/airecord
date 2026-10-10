@@ -6,6 +6,7 @@ import { langCodeSchema } from '@sotong/shared/schemas';
 import { createSession, maxDurationSecFromEnv } from '@/lib/server/session-store';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getEntitlement, sessionCapSeconds } from '@/lib/server/entitlement';
+import { sweepAbandonedSessionsLater } from '@/lib/server/sweep';
 
 export const runtime = 'nodejs';
 
@@ -57,10 +58,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'auth_required' }, { status: 401 });
   }
 
+  // 종료 요청 없이 버려진 세션을 마감·청구한다 (응답 뒤에 — 시작을 늦추지 않는다)
+  sweepAbandonedSessionsLater();
+
   const ent = await getEntitlement(user.uid, user.email);
   if (!ent.canStart) {
     return NextResponse.json(
-      { error: 'quota_exhausted', usedMinutes: ent.usedMinutes, includedMinutes: ent.includedMinutes },
+      { error: ent.debtKrw > 0 ? 'debt_unpaid' : 'quota_exhausted', usedMinutes: ent.usedMinutes, includedMinutes: ent.includedMinutes },
       { status: 402 },
     );
   }
@@ -102,11 +106,19 @@ export async function POST(req: Request) {
      *   toA: langB 발화를 langA로 (전사 힌트 = langB)
      * 전사는 실패해도 통역을 막지 않는다 — null이면 부가 전사로 돈다.
      */
-    const [grantToB, grantToA, transcribeA, transcribeB] = await Promise.all([
-      engine.mintEphemeralKey({ sourceLang: langA, targetLang: langB, audioOut, sessionId: record.id }),
-      engine.mintEphemeralKey({ sourceLang: langB, targetLang: langA, audioOut, sessionId: record.id }),
+    const optsToB = { sourceLang: langA, targetLang: langB, audioOut, sessionId: record.id };
+    const optsToA = { sourceLang: langB, targetLang: langA, audioOut, sessionId: record.id };
+    // 전용 전사 레그가 원문을 맡으므로 통역 세션의 부가 전사($0.017/분)는 끈다
+    const [leanToB, leanToA, transcribeA, transcribeB] = await Promise.all([
+      engine.mintEphemeralKey({ ...optsToB, builtinTranscription: false }),
+      engine.mintEphemeralKey({ ...optsToA, builtinTranscription: false }),
       mintTranscriptionKey({ sourceLang: langA }).catch(() => null),
       mintTranscriptionKey({ sourceLang: langB }).catch(() => null),
+    ]);
+    // 전용 전사 키를 못 받은 방향만 부가 전사를 켠 키로 다시 받는다
+    const [grantToB, grantToA] = await Promise.all([
+      transcribeA ? leanToB : engine.mintEphemeralKey({ ...optsToB, builtinTranscription: true }),
+      transcribeB ? leanToA : engine.mintEphemeralKey({ ...optsToA, builtinTranscription: true }),
     ]);
 
     return NextResponse.json({

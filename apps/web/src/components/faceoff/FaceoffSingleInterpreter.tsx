@@ -6,6 +6,7 @@ import { connectBrowserSession, type BrowserTranslationSession } from '@sotong/s
 import { scriptOfLang, type EngineSegment } from '@sotong/shared/engine';
 import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS, guessScript } from '@sotong/shared/constants';
 import type { LangCode } from '@sotong/shared/types';
+import { HEARTBEAT_STALE_MS, sendEndBeacon } from '@/lib/session-exit';
 
 /**
  * 마주통역 1세션 (턴 방식) — 실험 모드 (어드민 테스트 플래그로 켜진다).
@@ -169,6 +170,8 @@ function Panel({
 
 export function FaceoffSingleInterpreter() {
   const [phase, setPhase] = useState<Phase>('setup');
+  const phaseRef = useRef<Phase>('setup');
+  phaseRef.current = phase;
   const [error, setError] = useState<string | null>(null);
   const [langA, setLangA] = useState<LangCode>('ko');
   const [langB, setLangB] = useState<LangCode>('en');
@@ -196,6 +199,10 @@ export function FaceoffSingleInterpreter() {
   >(new Map());
   const sentKeysRef = useRef<Set<string>>(new Set());
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** 하트비트가 마지막으로 성공한 시각 — 오래 끊기면 OpenAI 연결을 스스로 닫는다 */
+  const lastHeartbeatOkRef = useRef(0);
+  /** 타이머·하트비트 응답에서 최신 종료 함수를 부르기 위한 ref */
+  const exitRef = useRef<(() => Promise<void>) | null>(null);
 
   const langARef = useRef<LangCode>('ko');
   const langBRef = useRef<LangCode>('en');
@@ -230,6 +237,15 @@ export function FaceoffSingleInterpreter() {
         body: JSON.stringify(final ? { sessionId, reason: 'user', segments } : { sessionId, segments }),
       });
       if (res.ok) {
+        if (!final) {
+          lastHeartbeatOkRef.current = Date.now();
+          /**
+           * 서버가 시간 한도로 끝냈거나 끊긴 세션으로 봤다. 예전엔 이 응답을 무시해서,
+           * 서버는 청구를 멈췄는데 OpenAI 연결은 계속 돌며 요금만 나갔다.
+           */
+          const json = (await res.json().catch(() => null)) as { terminate?: boolean } | null;
+          if (json?.terminate) void exitRef.current?.();
+        }
         for (const [key] of rows) {
           pendingRef.current.delete(key);
           sentKeysRef.current.add(key);
@@ -408,7 +424,15 @@ export function FaceoffSingleInterpreter() {
       saveSeqRef.current = 0;
       pendingRef.current.clear();
       sentKeysRef.current.clear();
-      heartbeatRef.current = setInterval(() => void flush(false), 5_000);
+      lastHeartbeatOkRef.current = Date.now();
+      heartbeatRef.current = setInterval(() => {
+        // 하트비트가 오래 실패했다 — 서버는 청구를 멈췄는데 OpenAI 연결은 계속 돈다. 스스로 끊는다.
+        if (Date.now() - lastHeartbeatOkRef.current > HEARTBEAT_STALE_MS) {
+          void exitRef.current?.();
+          return;
+        }
+        void flush(false);
+      }, 5_000);
 
       setPhase('live');
     } catch {
@@ -429,7 +453,39 @@ export function FaceoffSingleInterpreter() {
     setPhase('ended');
   }, [cleanup, flush, closeLeg]);
 
-  useEffect(() => () => cleanup(), [cleanup]);
+  exitRef.current = exit;
+
+  /**
+   * 종료 버튼 없이 화면을 떠날 때(탭 닫기·새로고침·메뉴 이동) — 연결을 닫고 서버에 종료를 알린다.
+   * 예전엔 연결만 닫고 서버엔 알리지 않아 세션이 기록·청구에서 통째로 빠졌다 (lib/session-exit.ts).
+   */
+  const abandon = useCallback(() => {
+    const sessionId = sessionIdRef.current;
+    if (endingRef.current || !sessionId || phaseRef.current !== 'live') return;
+    endingRef.current = true;
+    cleanup();
+    const segments = [...pendingRef.current.values()]
+      .sort((a, b) => a.seq - b.seq)
+      .map((r) => ({
+        seq: r.seq,
+        startMs: r.atMs,
+        endMs: r.atMs,
+        sourceText: r.source,
+        targetText: r.target,
+        kind: 'paired' as const,
+        speaker: r.speaker,
+      }));
+    sendEndBeacon(sessionId, segments);
+  }, [cleanup]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', abandon);
+    return () => {
+      window.removeEventListener('pagehide', abandon);
+      abandon(); // 언마운트(메뉴 이동)도 같은 마감
+      cleanup();
+    };
+  }, [abandon, cleanup]);
 
   const audioEl = <audio ref={audioRef} autoPlay playsInline className="hidden" />;
 

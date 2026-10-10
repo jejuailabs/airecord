@@ -21,10 +21,11 @@ export async function POST(req: Request) {
   const record = result.record;
   if (record.uid) {
     await saveSegments(sessionId, segments ?? []);
-    await finalizeSessionDoc(record);
+    // 이미 다른 경로(청소·중복 종료)가 마감했으면 요약도 이미 만들어졌다 — 다시 부르지 않는다
+    const billed = await finalizeSessionDoc(record);
     // 요약은 응답을 붙잡지 않되 반드시 끝까지 실행돼야 한다.
     // 서버리스에서 그냥 void로 띄우면 응답 직후 함수가 종료돼 요약이 영원히 'running'에 멈춘다.
-    after(() => generateAndStoreSummary(sessionId, record.targetLang));
+    if (billed) after(() => generateAndStoreSummary(sessionId, record.targetLang));
   }
 
   const body: SessionEndResponse = {

@@ -53,6 +53,7 @@ import { Link } from '@/i18n/navigation';
 import { useMicLevel } from '@/hooks/useMicLevel';
 import { CaptionPanel } from '@/components/caption/CaptionPanel';
 import { startSessionRecorder, uploadRecording, type SessionRecorder } from '@/lib/audio/recorder';
+import { HEARTBEAT_STALE_MS, sendEndBeacon } from '@/lib/session-exit';
 
 /** 'wrapping' — 입력은 끊었지만 남은 번역이 도착하길 기다리는 구간 */
 type Phase = 'setup' | 'starting' | 'live' | 'wrapping' | 'ended';
@@ -227,6 +228,8 @@ export function LiveInterpreter({
   const audioUnlockedRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const endingRef = useRef(false);
+  /** 하트비트가 마지막으로 성공한 시각 — 오래 끊기면 OpenAI 연결을 스스로 닫는다 */
+  const lastHeartbeatOkRef = useRef(0);
   /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
   const lastSegmentAtRef = useRef(0);
   /**
@@ -604,6 +607,7 @@ export function LiveInterpreter({
     if (!trial) recorderRef.current = startSessionRecorder(micStream);
 
     startedAtRef.current = Date.now();
+    lastHeartbeatOkRef.current = Date.now();
     setElapsedSec(0);
     setRemainingSec(grant.maxDurationSec);
     setSegments([]);
@@ -630,6 +634,12 @@ export function LiveInterpreter({
         setInPostpaid(true);
       }
       if (remain <= 0) void doEnd('cap');
+      /**
+       * 하트비트가 오래 실패했다 = 서버는 이미 이 세션을 끊긴 것으로 보고 청구를 멈췄다.
+       * 그런데 OpenAI 연결은 브라우저 직결이라 계속 돌며 요금이 나간다 — 여기서 스스로 끊는다.
+       * (화면 꺼짐·백그라운드로 타이머가 멈췄다가 돌아온 경우도 첫 틱에서 걸린다)
+       */
+      else if (Date.now() - lastHeartbeatOkRef.current > HEARTBEAT_STALE_MS) void doEnd('error');
     }, 1000);
 
     heartbeatTimerRef.current = setInterval(async () => {
@@ -648,6 +658,7 @@ export function LiveInterpreter({
           body: JSON.stringify({ sessionId, segments: rows.map(toWireSegment), trial }),
         });
         if (res.ok) {
+          lastHeartbeatOkRef.current = Date.now();
           for (const r of rows) {
             pendingFinalsRef.current.delete(r.seq);
             sentSeqsRef.current.add(r.seq);
@@ -781,9 +792,35 @@ export function LiveInterpreter({
    * 애초에 빈 칸이 생기던 이유(원문 주도 조립)는 조립기를 번역 주도로 바꿔 해결했다.
    */
 
+  /**
+   * 종료 버튼 없이 화면을 떠날 때(탭 닫기·새로고침·메뉴 이동) — 연결을 닫고 서버에 종료를 알린다.
+   * 예전엔 연결만 닫고 서버엔 알리지 않아 세션이 기록·청구에서 통째로 빠졌다 (lib/session-exit.ts).
+   */
+  const abandon = useCallback(() => {
+    const sessionId = sessionIdRef.current;
+    if (endingRef.current || !sessionId || phaseRef.current !== 'live') return;
+    endingRef.current = true;
+    stopTimers();
+    sessionRef.current?.close();
+    sessionRef.current = null;
+    for (const s of unsavedRows(segmentsRef.current, sentSeqsRef.current)) {
+      pendingFinalsRef.current.set(s.seq, s);
+    }
+    const rows = [...pendingFinalsRef.current.values()].sort((a, b) => a.seq - b.seq);
+    sendEndBeacon(sessionId, rows.map(toWireSegment));
+  }, [stopTimers]);
+
+  useEffect(() => {
+    window.addEventListener('pagehide', abandon);
+    return () => window.removeEventListener('pagehide', abandon);
+  }, [abandon]);
+
   // 언마운트 시 정리 — 분(minute)은 곧 돈이다 (core.md §3-6)
+  const abandonRef = useRef(abandon);
+  abandonRef.current = abandon;
   useEffect(() => {
     return () => {
+      abandonRef.current();
       stopTimers();
       sessionRef.current?.close();
       micStream?.getTracks().forEach((tr) => tr.stop());

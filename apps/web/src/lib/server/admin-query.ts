@@ -87,18 +87,48 @@ const num = (v: unknown, d = 0) => (typeof v === 'number' && Number.isFinite(v) 
  * mode별 분당 원가(원) — docs/07 §2. 환경변수가 없으면 0(화면에서 "미설정").
  *
  * 모드마다 실제 구성이 다르다:
- *   inperson — 번역 1세션
- *   meeting  — 번역 1세션 + 회의 봇
- *   faceoff  — 번역 **2세션** (양방향 동시, gpt-realtime-translate가 출력 언어를 하나만 내므로)
- * 예전 함수는 전부 번역+봇으로 계산해 대면 원가를 과대평가했다.
+ *   inperson — 번역 1세션 + 원문 전사 레그 1개
+ *   meeting  — 번역 1세션(부가 전사 켬) + 회의 봇
+ *   faceoff  — 번역 **2세션** + 전사 레그 2개 (양방향 동시, 출력 언어가 세션당 하나라서)
+ *              ⚠ 마주 1세션(턴 방식)도 원장에선 faceoff로 쌓여 2배로 잡힌다 — 보수적인 쪽으로 틀린다.
+ *
+ * ⚠ 예전엔 통역 단가($0.034)만 넣어 실제의 약 절반으로 나왔다.
+ *   실측 2026-09-29: 대면 49.7분 → 화면 ₩2,367, OpenAI 청구 $3.08.
+ *   전사 비용은 통역과 **별도로** 청구된다 — 빼면 원가가 거짓말이 된다.
  */
-export function costKrwPerMinByMode(mode: 'inperson' | 'meeting' | 'faceoff'): number {
+/**
+ * 대면·마주에서 부가 전사를 끈 날 (UTC 'YYYY-MM-DD'). 이전 날짜는 부가 전사 요금이 실제로 나갔으므로
+ * 과거 원가를 다시 계산할 때 그만큼 더한다 — 안 그러면 지난 로그가 실제보다 싸게 보인다.
+ */
+const BUILTIN_TRANSCRIBE_OFF_SINCE = '2026-10-11';
+
+export function costKrwPerMinByMode(
+  mode: 'inperson' | 'meeting' | 'faceoff',
+  /** 사용한 날 (UTC 'YYYY-MM-DD'). 없으면 현재 구성으로 계산한다 */
+  day?: string,
+): number {
   const translate = Number(process.env.COST_TRANSLATE_USD_PER_MIN ?? 0);
+  // 원문 자막 전용 레그 (gpt-4o-mini-transcribe, 분당 약 $0.003)
+  const transcribe = Number(process.env.COST_TRANSCRIBE_USD_PER_MIN ?? 0.003);
+  // 통역 세션 부가 전사 (gpt-realtime-whisper, 분당 $0.017) — 전용 레그가 없는 회의만 쓴다
+  const builtinTranscribe = Number(process.env.COST_BUILTIN_TRANSCRIBE_USD_PER_MIN ?? 0.017);
   const bot = Number(process.env.COST_BOT_USD_PER_MIN ?? 0);
-  const overhead = 1 + Number(process.env.COST_INFRA_OVERHEAD_PCT ?? 0) / 100;
+  /**
+   * 비율은 분수(0.10 = 10%)다 — .env.example·pricing/cost.ts와 같은 규칙.
+   * 예전엔 여기서만 100으로 한 번 더 나눠 0.1%로 적용됐다. 1보다 크면 퍼센트로 적은 것으로 본다.
+   */
+  const rawOverhead = Number(process.env.COST_INFRA_OVERHEAD_PCT ?? 0);
+  const overhead = 1 + (rawOverhead > 1 ? rawOverhead / 100 : rawOverhead);
   const krw = Number(process.env.USD_KRW_RATE ?? 0);
+  if (translate <= 0 || krw <= 0) return 0; // 미설정 — 화면이 "미설정"으로 보여준다
+  // 부가 전사를 끄기 전에는 대면·마주도 세션마다 부가 전사가 함께 청구됐다
+  const legacy = day !== undefined && day < BUILTIN_TRANSCRIBE_OFF_SINCE ? builtinTranscribe : 0;
   const usd =
-    mode === 'meeting' ? translate + bot : mode === 'faceoff' ? translate * 2 : translate;
+    mode === 'meeting'
+      ? translate + builtinTranscribe + bot
+      : mode === 'faceoff'
+        ? (translate + transcribe + legacy) * 2
+        : translate + transcribe + legacy;
   return usd * overhead * krw;
 }
 
@@ -159,8 +189,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     const sec = num(doc.get('billedSeconds'));
     const mode = (doc.get('mode') as 'inperson' | 'meeting' | 'faceoff') ?? 'inperson';
     billed30sec += sec; // 30일 합계 (읽어온 범위 자체가 30일이다)
-    cost30 += (sec / 60) * costKrwPerMinByMode(mode);
-    const key = dayKey(started.toMillis()); // 버킷은 14일만 있으므로 그 밖은 자동으로 무시된다
+    const key = dayKey(started.toMillis());
+    cost30 += (sec / 60) * costKrwPerMinByMode(mode, key); // 버킷은 14일만 있으므로 그 밖은 자동으로 무시된다
     if (bucket.has(key)) bucket.set(key, bucket.get(key)! + sec / 60);
   }
 
@@ -287,10 +317,11 @@ export async function getUsageLog(days = 30, limit = 500): Promise<UsageLogRow[]
     const inSec = num(d.get('sec_inperson'));
     const meSec = num(d.get('sec_meeting'));
     const faSec = num(d.get('sec_faceoff'));
+    const day = (d.get('day') as string | undefined) ?? undefined;
     const cost =
-      (inSec / 60) * costKrwPerMinByMode('inperson') +
-      (meSec / 60) * costKrwPerMinByMode('meeting') +
-      (faSec / 60) * costKrwPerMinByMode('faceoff');
+      (inSec / 60) * costKrwPerMinByMode('inperson', day) +
+      (meSec / 60) * costKrwPerMinByMode('meeting', day) +
+      (faSec / 60) * costKrwPerMinByMode('faceoff', day);
     return {
       day: (d.get('day') as string | undefined) ?? '',
       workspaceId: wsId,

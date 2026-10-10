@@ -6,6 +6,7 @@ import { createSession, maxDurationSecFromEnv } from '@/lib/server/session-store
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { grantCharBudget, guestKey } from '@/lib/server/guest-quota';
 import { getEntitlement, sessionCapSeconds } from '@/lib/server/entitlement';
+import { sweepAbandonedSessionsLater } from '@/lib/server/sweep';
 import { secondsForTokens } from '@sotong/shared/constants';
 
 export const runtime = 'nodejs';
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
     }
     uid = user.uid;
 
+    // 종료 요청 없이 버려진 세션을 마감·청구한다 (응답 뒤에 — 시작을 늦추지 않는다)
+    sweepAbandonedSessionsLater();
+
     // 남은 분을 실제로 검사한다. 표시만 하고 막지 않으면 화면이 거짓말이 된다.
     const ent = await getEntitlement(user.uid, user.email);
     if (!ent.canStart) {
@@ -93,11 +97,17 @@ export async function POST(req: Request) {
      * 통역 키와 원문 전사 키를 나란히 발급한다.
      * 전사는 실패해도 통역을 막지 않는다 — null이면 클라이언트가 부가 전사로 돌아간다.
      */
-    const [grant, transcribe] = await Promise.all([
-      engine.mintEphemeralKey({ sourceLang, targetLang, audioOut, sessionId: record.id }),
+    const opts = { sourceLang, targetLang, audioOut, sessionId: record.id };
+    const [lean, transcribe] = await Promise.all([
+      // 전용 전사 레그가 원문을 맡으므로 통역 세션의 부가 전사($0.017/분)는 끈다
+      engine.mintEphemeralKey({ ...opts, builtinTranscription: false }),
       // 원문 언어를 알면 넘긴다 — 짧은 발화에서 전사가 언어를 오판하는 것을 막는다
       mintTranscriptionKey({ sourceLang }).catch(() => null),
     ]);
+    // 전용 전사 키를 못 받았을 때만 부가 전사를 켠 키로 다시 받는다 — 안 그러면 원문 자막이 통째로 빈다
+    const grant = transcribe
+      ? lean
+      : await engine.mintEphemeralKey({ ...opts, builtinTranscription: true });
     const body: SessionStartResponse = {
       sessionId: record.id,
       ephemeralKey: grant.key,

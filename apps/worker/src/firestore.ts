@@ -264,7 +264,12 @@ export async function finishSession(
       .collection(LIVE_COL)
       .doc(sessionId)
       .set(
-        { status: 'ended', endedReason: reason, billedSeconds: elapsedSec, segmentCount },
+        /**
+         * pendingFinalize — 청구·사용 원장은 웹이 맡는다(워커는 요금제를 모른다).
+         * 유저가 '나가기'를 안 누르고 회의가 끝나면 웹의 /meeting/leave가 안 와서 청구가 빠졌다.
+         * 이 표시를 보고 웹의 버려진 세션 청소(sweepStaleSessions)가 마감한다.
+         */
+        { status: 'ended', endedReason: reason, billedSeconds: elapsedSec, segmentCount, pendingFinalize: true },
         { merge: true },
       );
     await db()

@@ -7,6 +7,7 @@ import {
   getTranslationLog,
 } from '@/lib/server/admin-query';
 import { getAppFlags } from '@/lib/server/app-flags';
+import { sweepAbandonedSessions } from '@/lib/server/sweep';
 
 export const runtime = 'nodejs';
 
@@ -21,6 +22,8 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: 'not_found' }, { status: 404 });
 
   try {
+    // 버려진 세션을 먼저 마감해 사용 로그에 빠지는 세션이 없게 한다
+    await sweepAbandonedSessions();
     const [overview, users, usageLog, translationLog, flags] = await Promise.all([
       getAdminOverview(),
       listAdminUsers(),

@@ -59,9 +59,9 @@ export async function POST(
 
   const result = await endSession(grant.sessionId, 'user');
   if (result) {
-    await finalizeSessionDoc(result.record);
+    const billed = await finalizeSessionDoc(result.record);
     // 회의도 대면처럼 제목·요약을 만든다 — 없으면 기록이 "요약 대기 중"으로 영영 남는다
-    after(() => generateAndStoreSummary(grant.sessionId, result.record.targetLang));
+    if (billed) after(() => generateAndStoreSummary(grant.sessionId, result.record.targetLang));
   }
   await revokeViewerToken(grant.sessionId).catch(() => null);
 
