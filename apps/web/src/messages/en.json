@@ -2104,5 +2104,45 @@
         "def": "A software layer that handles common processing between requests and responses. The InterLive Next.js middleware handles authentication and locale processing."
       }
     ]
+  },
+  "marketing": {
+    "meta": {
+      "description": "AI real-time interpretation & translation. In-person, video & meeting interpretation plus PDF, DOCX, HWPX file translation in 15 languages. Start free.",
+      "appDescription": "AI real-time interpretation and translation. In-person, video call and meeting interpretation plus PDF, DOCX and HWPX file translation in 15 languages."
+    },
+    "cta": {
+      "startNow": "Start now",
+      "getStartedNow": "Get started now",
+      "startInterpretingNow": "Start interpreting now",
+      "startInterpretingHub": "Start interpreting now",
+      "translateDocNow": "Translate your document now",
+      "stillHaveQuestions": "Still have questions?",
+      "tryYourself": "Try it for yourself.",
+      "experienceIt": "Experience it yourself",
+      "freeTrialShort": "Try 500 characters free without login.",
+      "freeTrialLong": "Try 500 characters free without login. 20 free minutes per month after sign-up.",
+      "tryFree": "Try free",
+      "seeFeatures": "See features",
+      "viewPricing": "View pricing",
+      "signUp": "Sign up"
+    },
+    "feature": {
+      "keyFeatures": "Key features",
+      "allModes": "All modes",
+      "otherModes": "Other interpretation modes",
+      "allTranslationTypes": "All translation types",
+      "otherTranslationTypes": "Other translation types",
+      "aiTranslation": "AI Translation",
+      "table": {
+        "type": "Type",
+        "description": "Description",
+        "bestFor": "Best for"
+      }
+    },
+    "glossary": {
+      "setName": "InterLive AI Interpretation & Translation Glossary",
+      "termCount": "{count} terms",
+      "indexLabel": "Alphabetical index"
+    }
   }
 }

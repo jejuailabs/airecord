@@ -2104,5 +2104,45 @@
         "def": "요청과 응답 사이에서 공통 처리를 담당하는 소프트웨어 계층. InterLive Next.js 미들웨어가 인증·로케일 처리를 담당한다."
       }
     ]
+  },
+  "marketing": {
+    "meta": {
+      "description": "AI 실시간 통역·번역 서비스. 대면·화상·회의 통역과 PDF·DOCX·한글 파일 번역을 15개 언어로. 무료로 시작하세요.",
+      "appDescription": "AI 실시간 통역·번역 서비스. 대면·화상·회의 통역과 PDF·DOCX·HWPX 파일 번역을 15개 언어로 제공합니다."
+    },
+    "cta": {
+      "startNow": "지금 바로 시작하세요",
+      "getStartedNow": "지금 바로 시작하세요",
+      "startInterpretingNow": "지금 바로 시작하세요",
+      "startInterpretingHub": "지금 통역을 시작하세요",
+      "translateDocNow": "지금 문서를 번역해보세요",
+      "stillHaveQuestions": "더 궁금한 점이 있으신가요?",
+      "tryYourself": "직접 체험해보세요.",
+      "experienceIt": "직접 경험해보세요",
+      "freeTrialShort": "로그인 없이 500자 무료 체험.",
+      "freeTrialLong": "로그인 없이 500자 무료 체험, 가입 후 월 20분 무료.",
+      "tryFree": "무료 체험",
+      "seeFeatures": "기능 보기",
+      "viewPricing": "요금제 보기",
+      "signUp": "가입하기"
+    },
+    "feature": {
+      "keyFeatures": "주요 기능",
+      "allModes": "모든 모드 보기",
+      "otherModes": "다른 통역 모드",
+      "allTranslationTypes": "번역 유형 전체 보기",
+      "otherTranslationTypes": "다른 번역 유형",
+      "aiTranslation": "AI 번역",
+      "table": {
+        "type": "유형",
+        "description": "설명",
+        "bestFor": "적합한 용도"
+      }
+    },
+    "glossary": {
+      "setName": "InterLive AI 통역·번역 용어사전",
+      "termCount": "총 {count}개 용어",
+      "indexLabel": "가나다 색인"
+    }
   }
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import {
   jsonLdSoftwareApplication,
@@ -29,10 +30,7 @@ export async function generateMetadata({
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: {
-      canonical: `/${locale}/about`,
-      languages: { ko: '/ko/about', en: '/en/about', 'x-default': '/ko/about' },
-    },
+    alternates: localeAlternates(locale, `/about`),
   };
 }
 
@@ -65,6 +63,7 @@ export default async function AboutPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'about' });
 
   const faqItems = (t.raw('faq.items') as { q: string; a: string }[]).map((item) => ({
@@ -74,7 +73,7 @@ export default async function AboutPage({
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdOrganization()} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd
@@ -158,25 +157,23 @@ export default async function AboutPage({
         {/* ── CTA ── */}
         <section className="brand-panel rounded-xl p-8 text-center text-white">
           <h2 className="text-[24px] font-bold">
-            {locale === 'ko' ? '지금 바로 시작하세요' : 'Get started now'}
+            {tm('cta.getStartedNow')}
           </h2>
           <p className="mt-2 text-white/70">
-            {locale === 'ko'
-              ? '로그인 없이 500자 무료 체험, 가입 후 월 20분 무료.'
-              : 'Try 500 characters free without login. 20 free minutes per month after sign-up.'}
+            {tm('cta.freeTrialLong')}
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
               href="/try"
               className="rounded-lg bg-white px-6 py-2.5 text-[14px] font-semibold text-accent"
             >
-              {locale === 'ko' ? '무료 체험' : 'Try free'}
+              {tm('cta.tryFree')}
             </Link>
             <Link
               href="/login"
               className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60"
             >
-              {locale === 'ko' ? '가입하기' : 'Sign up'}
+              {tm('cta.signUp')}
             </Link>
           </div>
         </section>

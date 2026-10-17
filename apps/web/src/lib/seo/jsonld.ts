@@ -16,7 +16,8 @@ export interface BreadcrumbItem {
   href: string;
 }
 
-export function jsonLdSoftwareApplication(locale: string) {
+/** description은 호출하는 페이지가 marketing.meta.appDescription으로 넘긴다 */
+export function jsonLdSoftwareApplication(locale: string, description: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -31,11 +32,8 @@ export function jsonLdSoftwareApplication(locale: string) {
       highPrice: '126900',
       offerCount: '4',
     },
-    description:
-      locale === 'ko'
-        ? 'AI 실시간 통역·번역 서비스. 대면·화상·회의 통역과 PDF·DOCX·HWPX 파일 번역을 15개 언어로 제공합니다.'
-        : 'AI real-time interpretation and translation. In-person, video call and meeting interpretation plus PDF, DOCX and HWPX file translation in 15 languages.',
-    inLanguage: locale === 'ko' ? 'ko' : 'en',
+    description,
+    inLanguage: locale,
   };
 }
 
@@ -120,7 +118,7 @@ export function jsonLdArticle(
     headline,
     description,
     url: `${BASE_URL}${url}`,
-    inLanguage: locale === 'ko' ? 'ko' : 'en',
+    inLanguage: locale,
     publisher: {
       '@type': 'Organization',
       name: 'InterLive',

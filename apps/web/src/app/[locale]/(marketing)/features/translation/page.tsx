@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdSoftwareApplication, jsonLdFaqPage, jsonLdBreadcrumbList } from '@/lib/seo/jsonld';
 import { Type, FileText, FileCode2, FileType, FileType2 } from 'lucide-react';
@@ -39,14 +40,7 @@ export async function generateMetadata({
   return {
     title: t('hub.meta.title'),
     description: t('hub.meta.description'),
-    alternates: {
-      canonical: `/${locale}/features/translation`,
-      languages: {
-        ko: '/ko/features/translation',
-        en: '/en/features/translation',
-        'x-default': '/ko/features/translation',
-      },
-    },
+    alternates: localeAlternates(locale, `/features/translation`),
   };
 }
 
@@ -57,6 +51,7 @@ export default async function TranslationHubPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'featureC2' });
 
   const faqItems = (t.raw('hub.faq.items') as { q: string; a: string }[]).map((item) => ({
@@ -68,7 +63,7 @@ export default async function TranslationHubPage({
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd
         data={jsonLdBreadcrumbList([
@@ -109,13 +104,13 @@ export default async function TranslationHubPage({
               <thead className="bg-bg-sunken">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-text-muted">
-                    {locale === 'ko' ? '유형' : 'Type'}
+                    {tm('feature.table.type')}
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-text-muted">
-                    {locale === 'ko' ? '설명' : 'Description'}
+                    {tm('feature.table.description')}
                   </th>
                   <th className="px-4 py-3 text-left font-semibold text-text-muted">
-                    {locale === 'ko' ? '적합한 용도' : 'Best for'}
+                    {tm('feature.table.bestFor')}
                   </th>
                 </tr>
               </thead>
@@ -196,12 +191,10 @@ export default async function TranslationHubPage({
         {/* ── CTA ── */}
         <section className="brand-panel rounded-xl p-8 text-center text-white">
           <h2 className="text-[22px] font-bold">
-            {locale === 'ko' ? '지금 문서를 번역해보세요' : 'Translate your document now'}
+            {tm('cta.translateDocNow')}
           </h2>
           <p className="mt-2 text-white/70">
-            {locale === 'ko'
-              ? '로그인 없이 500자 무료 체험, 가입 후 월 20분 무료.'
-              : 'Try 500 characters free without login. 20 free minutes per month after sign-up.'}
+            {tm('cta.freeTrialLong')}
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
@@ -214,7 +207,7 @@ export default async function TranslationHubPage({
               href="/pricing"
               className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60"
             >
-              {locale === 'ko' ? '요금제 보기' : 'View pricing'}
+              {tm('cta.viewPricing')}
             </Link>
           </div>
         </section>

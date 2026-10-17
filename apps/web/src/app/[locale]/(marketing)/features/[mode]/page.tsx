@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates, localeStaticParams } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdSoftwareApplication, jsonLdFaqPage, jsonLdBreadcrumbList } from '@/lib/seo/jsonld';
 import {
@@ -69,10 +70,7 @@ function isTranslation(m: Mode): boolean {
 }
 
 export function generateStaticParams() {
-  return VALID_MODES.flatMap((mode) => [
-    { locale: 'ko', mode },
-    { locale: 'en', mode },
-  ]);
+  return VALID_MODES.flatMap((mode) => localeStaticParams().map((p) => ({ ...p, mode })));
 }
 
 export async function generateMetadata({
@@ -91,14 +89,7 @@ export async function generateMetadata({
     return {
       title: t(`${key}.meta.title`),
       description: t(`${key}.meta.description`),
-      alternates: {
-        canonical: `/${locale}/features/${mode}`,
-        languages: {
-          ko: `/ko/features/${mode}`,
-          en: `/en/features/${mode}`,
-          'x-default': `/ko/features/${mode}`,
-        },
-      },
+      alternates: localeAlternates(locale, `/features/${mode}`),
     };
   }
 
@@ -106,14 +97,7 @@ export async function generateMetadata({
   return {
     title: t(`${m}.meta.title`),
     description: t(`${m}.meta.description`),
-    alternates: {
-      canonical: `/${locale}/features/${mode}`,
-      languages: {
-        ko: `/ko/features/${mode}`,
-        en: `/en/features/${mode}`,
-        'x-default': `/ko/features/${mode}`,
-      },
-    },
+    alternates: localeAlternates(locale, `/features/${mode}`),
   };
 }
 
@@ -125,6 +109,7 @@ export default async function FeatureModePage({
   const { locale, mode } = await params;
   if (!(VALID_MODES as readonly string[]).includes(mode)) notFound();
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
 
   const m = mode as Mode;
   const Icon = MODE_ICONS[m];
@@ -141,12 +126,12 @@ export default async function FeatureModePage({
     }));
     const features = t.raw(`${key}.features`) as { title: string; desc: string }[];
     const hubHref = `/${locale}/features/translation`;
-    const hubLabel = locale === 'ko' ? 'AI 번역' : 'AI Translation';
+    const hubLabel = tm('feature.aiTranslation');
     const relatedModes = TRANS_MODES.filter((v) => v !== m);
 
     return (
       <>
-        <JsonLd data={jsonLdSoftwareApplication(locale)} />
+        <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
         <JsonLd data={jsonLdFaqPage(faqItems)} />
         <JsonLd
           data={jsonLdBreadcrumbList([
@@ -185,7 +170,7 @@ export default async function FeatureModePage({
                 href="/features/translation"
                 className="rounded-lg border border-border px-5 py-2 text-[14px] font-semibold text-text hover:bg-bg-hover"
               >
-                {locale === 'ko' ? '번역 유형 전체 보기' : 'All translation types'}
+                {tm('feature.allTranslationTypes')}
               </Link>
             </div>
           </section>
@@ -201,7 +186,7 @@ export default async function FeatureModePage({
 
           <section className="space-y-5">
             <h2 className="text-[22px] font-bold text-text">
-              {locale === 'ko' ? '주요 기능' : 'Key features'}
+              {tm('feature.keyFeatures')}
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {features.map((f, i) => (
@@ -235,7 +220,7 @@ export default async function FeatureModePage({
 
           <section className="space-y-4">
             <h2 className="text-[18px] font-bold text-text">
-              {locale === 'ko' ? '다른 번역 유형' : 'Other translation types'}
+              {tm('feature.otherTranslationTypes')}
             </h2>
             <div className="flex flex-wrap gap-2">
               {relatedModes.map((v) => {
@@ -257,12 +242,10 @@ export default async function FeatureModePage({
 
           <section className="brand-panel rounded-xl p-8 text-center text-white">
             <h2 className="text-[22px] font-bold">
-              {locale === 'ko' ? '지금 문서를 번역해보세요' : 'Translate your document now'}
+              {tm('cta.translateDocNow')}
             </h2>
             <p className="mt-2 text-white/70">
-              {locale === 'ko'
-                ? '로그인 없이 500자 무료 체험, 가입 후 월 20분 무료.'
-                : 'Try 500 characters free without login. 20 free minutes per month after sign-up.'}
+              {tm('cta.freeTrialLong')}
             </p>
             <div className="mt-6 flex justify-center gap-3">
               <Link
@@ -275,7 +258,7 @@ export default async function FeatureModePage({
                 href="/pricing"
                 className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60"
               >
-                {locale === 'ko' ? '요금제 보기' : 'View pricing'}
+                {tm('cta.viewPricing')}
               </Link>
             </div>
           </section>
@@ -296,7 +279,7 @@ export default async function FeatureModePage({
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd
         data={jsonLdBreadcrumbList([
@@ -335,7 +318,7 @@ export default async function FeatureModePage({
               href="/features"
               className="rounded-lg border border-border px-5 py-2 text-[14px] font-semibold text-text hover:bg-bg-hover"
             >
-              {locale === 'ko' ? '모든 모드 보기' : 'All modes'}
+              {tm('feature.allModes')}
             </Link>
           </div>
         </section>
@@ -351,7 +334,7 @@ export default async function FeatureModePage({
 
         <section className="space-y-5">
           <h2 className="text-[22px] font-bold text-text">
-            {locale === 'ko' ? '주요 기능' : 'Key features'}
+            {tm('feature.keyFeatures')}
           </h2>
           <div className="grid gap-4 sm:grid-cols-2">
             {features.map((f, i) => (
@@ -385,7 +368,7 @@ export default async function FeatureModePage({
 
         <section className="space-y-4">
           <h2 className="text-[18px] font-bold text-text">
-            {locale === 'ko' ? '다른 통역 모드' : 'Other interpretation modes'}
+            {tm('feature.otherModes')}
           </h2>
           <div className="flex flex-wrap gap-2">
             {INTERP_MODES.filter((v) => v !== m && v !== 'viewer').map((v) => {
@@ -406,12 +389,10 @@ export default async function FeatureModePage({
 
         <section className="brand-panel rounded-xl p-8 text-center text-white">
           <h2 className="text-[22px] font-bold">
-            {locale === 'ko' ? '지금 바로 시작하세요' : 'Start interpreting now'}
+            {tm('cta.startInterpretingNow')}
           </h2>
           <p className="mt-2 text-white/70">
-            {locale === 'ko'
-              ? '로그인 없이 500자 무료 체험, 가입 후 월 20분 무료.'
-              : 'Try 500 characters free without login. 20 free minutes per month after sign-up.'}
+            {tm('cta.freeTrialLong')}
           </p>
           <div className="mt-6 flex justify-center gap-3">
             <Link
@@ -424,7 +405,7 @@ export default async function FeatureModePage({
               href="/pricing"
               className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60"
             >
-              {locale === 'ko' ? '요금제 보기' : 'View pricing'}
+              {tm('cta.viewPricing')}
             </Link>
           </div>
         </section>

@@ -7,6 +7,7 @@ import { ViewerEndButton } from '@/components/viewer/ViewerEndButton';
 import { resolveViewerToken } from '@/lib/server/viewer';
 import { SESSION_COOKIE_NAME, verifySessionCookie } from '@/lib/firebase/admin';
 import { getSession } from '@/lib/server/session-store';
+import { routing } from '@/i18n/routing';
 
 /**
  * 뷰어의 시작 표시 언어 (사용자 지시 2026-08-02 — 상대방은 고를 필요 없이 자동).
@@ -46,7 +47,8 @@ export default async function ViewerPage({
 }) {
   const { token } = await params;
   const acceptLanguage = (await headers()).get('accept-language') ?? '';
-  const locale = acceptLanguage.toLowerCase().startsWith('ko') ? 'ko' : 'en';
+  const primary = acceptLanguage.toLowerCase().slice(0, 2);
+  const locale = (routing.locales as readonly string[]).includes(primary) ? primary : 'en';
   const t = await getTranslations({ locale, namespace: 'viewer' });
   const tc = await getTranslations({ locale, namespace: 'common' });
 

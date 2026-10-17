@@ -1,7 +1,8 @@
 import type { MetadataRoute } from 'next';
+import { routing } from '@/i18n/routing';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aitr.kr';
-const LOCALES = ['ko', 'en'] as const;
+const LOCALES = routing.locales;
 
 type SitemapEntry = MetadataRoute.Sitemap[number];
 

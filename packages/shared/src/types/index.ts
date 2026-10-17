@@ -8,7 +8,7 @@
 export type TimestampMs = number;
 
 /** 화면(UI) 언어 — 통역 언어와 완전히 별개 개념 (core.md §4, docs/06 §4.1) */
-export type UiLocale = 'ko' | 'en' | 'ja' | 'zh-CN';
+export type UiLocale = 'ko' | 'en' | 'es' | 'ja' | 'zh-CN';
 
 /** 통역 대상 언어. 엔진 지원 목록은 engine.supports()로 검사한다 — 하드코딩 금지 (docs/04 §2) */
 export type LangCode =

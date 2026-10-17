@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getTranslations } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
+import { localeAlternates, ogAlternateLocales, ogLocale } from '@/i18n/locale-meta';
 import '../globals.css';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aitr.kr';
@@ -18,12 +19,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'common' });
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const appName = t('appName');
-
-  const description =
-    locale === 'ko'
-      ? 'AI 실시간 통역·번역 서비스. 대면·화상·회의 통역과 PDF·DOCX·한글 파일 번역을 15개 언어로. 무료로 시작하세요.'
-      : 'AI real-time interpretation & translation. In-person, video & meeting interpretation plus PDF, DOCX, HWPX file translation in 15 languages. Start free.';
+  const description = tm('meta.description');
 
   return {
     metadataBase: new URL(BASE_URL),
@@ -32,21 +30,14 @@ export async function generateMetadata({
       template: `%s | ${appName}`,
     },
     description,
-    alternates: {
-      canonical: `/${locale}`,
-      languages: {
-        ko: '/ko',
-        en: '/en',
-        'x-default': '/ko',
-      },
-    },
+    alternates: localeAlternates(locale),
     openGraph: {
       type: 'website',
       siteName: appName,
       title: appName,
       description,
-      locale: locale === 'ko' ? 'ko_KR' : 'en_US',
-      alternateLocale: locale === 'ko' ? ['en_US'] : ['ko_KR'],
+      locale: ogLocale(locale),
+      alternateLocale: ogAlternateLocales(locale),
       images: [
         {
           url: '/og-interlive.png',

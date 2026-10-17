@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdSoftwareApplication, jsonLdFaqPage, jsonLdBreadcrumbList } from '@/lib/seo/jsonld';
 import { Mic, Radio, UsersRound, Video } from 'lucide-react';
@@ -15,10 +16,7 @@ export async function generateMetadata({
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: {
-      canonical: `/${locale}/features`,
-      languages: { ko: '/ko/features', en: '/en/features', 'x-default': '/ko/features' },
-    },
+    alternates: localeAlternates(locale, `/features`),
   };
 }
 
@@ -43,6 +41,7 @@ export default async function FeaturesPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'featuresHub' });
 
   const faqItems = (t.raw('faq.items') as { q: string; a: string }[]).map((item) => ({
@@ -63,7 +62,7 @@ export default async function FeaturesPage({
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd
         data={jsonLdBreadcrumbList([
@@ -191,7 +190,7 @@ export default async function FeaturesPage({
         {/* ── CTA ── */}
         <section className="brand-panel rounded-xl p-8 text-center text-white">
           <h2 className="text-[22px] font-bold">
-            {locale === 'ko' ? '지금 통역을 시작하세요' : 'Start interpreting now'}
+            {tm('cta.startInterpretingHub')}
           </h2>
           <div className="mt-5 flex justify-center gap-3">
             <Link
@@ -204,7 +203,7 @@ export default async function FeaturesPage({
               href="/pricing"
               className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60"
             >
-              {locale === 'ko' ? '요금제 보기' : 'View pricing'}
+              {tm('cta.viewPricing')}
             </Link>
           </div>
         </section>

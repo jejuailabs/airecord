@@ -3,12 +3,9 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { routing } from '@/i18n/routing';
+import { LOCALE_META } from '@/i18n/locale-meta';
 
 /** UI 언어 전환 — 통역 언어와 완전히 별개 (docs/06 §4.1). 언어 이름은 자기 언어로. */
-const LOCALE_LABELS: Record<string, string> = {
-  ko: '한국어',
-  en: 'English',
-};
 
 export function LocaleSwitch() {
   const t = useTranslations('common.language');
@@ -26,7 +23,7 @@ export function LocaleSwitch() {
       >
         {routing.locales.map((l) => (
           <option key={l} value={l}>
-            {LOCALE_LABELS[l] ?? l}
+            {LOCALE_META[l].label}
           </option>
         ))}
       </select>

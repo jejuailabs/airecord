@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates, localeStaticParams } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdSoftwareApplication, jsonLdFaqPage, jsonLdBreadcrumbList } from '@/lib/seo/jsonld';
 import { Briefcase, Video, GraduationCap, Stethoscope, Scale, Plane } from 'lucide-react';
@@ -21,20 +22,18 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: {
-      canonical: `/${locale}/use-cases`,
-      languages: { ko: '/ko/use-cases', en: '/en/use-cases', 'x-default': '/ko/use-cases' },
-    },
+    alternates: localeAlternates(locale, `/use-cases`),
   };
 }
 
 export function generateStaticParams() {
-  return [{ locale: 'ko' }, { locale: 'en' }];
+  return localeStaticParams();
 }
 
 export default async function UseCasesPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'useCases' });
 
   const faqItems = (t.raw('faq.items') as { q: string; a: string }[]).map((i) => ({ question: i.q, answer: i.a }));
@@ -44,7 +43,7 @@ export default async function UseCasesPage({ params }: { params: Promise<{ local
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd data={jsonLdBreadcrumbList([
         { name: 'InterLive', href: `/${locale}` },
@@ -95,14 +94,14 @@ export default async function UseCasesPage({ params }: { params: Promise<{ local
         </section>
 
         <section className="brand-panel rounded-xl p-8 text-center text-white">
-          <h2 className="text-[22px] font-bold">{locale === 'ko' ? '지금 바로 시작하세요' : 'Start now'}</h2>
-          <p className="mt-2 text-white/70">{locale === 'ko' ? '로그인 없이 500자 무료 체험.' : 'Try 500 characters free without login.'}</p>
+          <h2 className="text-[22px] font-bold">{tm('cta.startNow')}</h2>
+          <p className="mt-2 text-white/70">{tm('cta.freeTrialShort')}</p>
           <div className="mt-5 flex justify-center gap-3">
             <Link href="/try" className="rounded-lg bg-white px-6 py-2.5 text-[14px] font-semibold text-accent">
-              {locale === 'ko' ? '무료 체험' : 'Try free'}
+              {tm('cta.tryFree')}
             </Link>
             <Link href="/features" className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60">
-              {locale === 'ko' ? '기능 보기' : 'See features'}
+              {tm('cta.seeFeatures')}
             </Link>
           </div>
         </section>

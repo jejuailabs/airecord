@@ -1,16 +1,17 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates, localeStaticParams } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdBreadcrumbList } from '@/lib/seo/jsonld';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://aitr.kr';
 
-function jsonLdGlossary(terms: { term: string; def: string }[], locale: string) {
+function jsonLdGlossary(name: string, terms: { term: string; def: string }[], locale: string) {
   return {
     '@context': 'https://schema.org',
     '@type': 'DefinedTermSet',
-    name: locale === 'ko' ? 'InterLive AI 통역·번역 용어사전' : 'InterLive AI Interpretation & Translation Glossary',
+    name,
     url: `${BASE_URL}/${locale}/glossary`,
     hasDefinedTerm: terms.map((t) => ({
       '@type': 'DefinedTerm',
@@ -27,20 +28,18 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: {
-      canonical: `/${locale}/glossary`,
-      languages: { ko: '/ko/glossary', en: '/en/glossary', 'x-default': '/ko/glossary' },
-    },
+    alternates: localeAlternates(locale, `/glossary`),
   };
 }
 
 export function generateStaticParams() {
-  return [{ locale: 'ko' }, { locale: 'en' }];
+  return localeStaticParams();
 }
 
 export default async function GlossaryPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'glossary' });
 
   const terms = t.raw('terms') as { term: string; def: string; en?: string; ko?: string }[];
@@ -56,7 +55,7 @@ export default async function GlossaryPage({ params }: { params: Promise<{ local
 
   return (
     <>
-      <JsonLd data={jsonLdGlossary(terms, locale)} />
+      <JsonLd data={jsonLdGlossary(tm('glossary.setName'), terms, locale)} />
       <JsonLd data={jsonLdBreadcrumbList([
         { name: 'InterLive', href: `/${locale}` },
         { name: t('hero.eyebrow'), href: `/${locale}/glossary` },
@@ -67,11 +66,11 @@ export default async function GlossaryPage({ params }: { params: Promise<{ local
           <span className="inline-block rounded-full bg-accent/10 px-3 py-1 text-[12px] font-semibold text-accent">{t('hero.eyebrow')}</span>
           <h1 className="text-[36px] font-bold leading-tight tracking-tight text-text">{t('hero.title')}</h1>
           <p className="max-w-2xl text-[16px] leading-relaxed text-text-muted">{t('hero.subtitle')}</p>
-          <p className="text-[13px] text-text-muted">{locale === 'ko' ? `총 ${terms.length}개 용어` : `${terms.length} terms`}</p>
+          <p className="text-[13px] text-text-muted">{tm('glossary.termCount', { count: terms.length })}</p>
         </section>
 
         {/* A-Z / ㄱ-ㅎ index */}
-        <nav aria-label={locale === 'ko' ? '가나다 색인' : 'Alphabetical index'} className="flex flex-wrap gap-1.5">
+        <nav aria-label={tm('glossary.indexLabel')} className="flex flex-wrap gap-1.5">
           {sortedKeys.map((k) => (
             <a
               key={k}
@@ -93,7 +92,7 @@ export default async function GlossaryPage({ params }: { params: Promise<{ local
                     {term.term}
                     {(term.en || term.ko) && (
                       <span className="ml-2 text-[12px] font-normal text-text-muted">
-                        {locale === 'ko' ? term.en : term.ko}
+                        {locale === 'en' ? term.ko : term.en}
                       </span>
                     )}
                   </dt>
@@ -105,13 +104,13 @@ export default async function GlossaryPage({ params }: { params: Promise<{ local
         ))}
 
         <section className="brand-panel rounded-xl p-8 text-center text-white">
-          <h2 className="text-[22px] font-bold">{locale === 'ko' ? '직접 경험해보세요' : 'Experience it yourself'}</h2>
+          <h2 className="text-[22px] font-bold">{tm('cta.experienceIt')}</h2>
           <div className="mt-5 flex justify-center gap-3">
             <Link href="/try" className="rounded-lg bg-white px-6 py-2.5 text-[14px] font-semibold text-accent">
-              {locale === 'ko' ? '무료 체험' : 'Try free'}
+              {tm('cta.tryFree')}
             </Link>
             <Link href="/features" className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60">
-              {locale === 'ko' ? '기능 보기' : 'See features'}
+              {tm('cta.seeFeatures')}
             </Link>
           </div>
         </section>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
+import { localeAlternates, localeStaticParams } from '@/i18n/locale-meta';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { jsonLdSoftwareApplication, jsonLdFaqPage, jsonLdBreadcrumbList, jsonLdArticle } from '@/lib/seo/jsonld';
 
@@ -12,20 +13,18 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: t('meta.title'),
     description: t('meta.description'),
-    alternates: {
-      canonical: `/${locale}/technology`,
-      languages: { ko: '/ko/technology', en: '/en/technology', 'x-default': '/ko/technology' },
-    },
+    alternates: localeAlternates(locale, `/technology`),
   };
 }
 
 export function generateStaticParams() {
-  return [{ locale: 'ko' }, { locale: 'en' }];
+  return localeStaticParams();
 }
 
 export default async function TechnologyPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
+  const tm = await getTranslations({ locale, namespace: 'marketing' });
   const t = await getTranslations({ locale, namespace: 'technology' });
 
   const faqItems = (t.raw('faq.items') as { q: string; a: string }[]).map((i) => ({ question: i.q, answer: i.a }));
@@ -34,7 +33,7 @@ export default async function TechnologyPage({ params }: { params: Promise<{ loc
 
   return (
     <>
-      <JsonLd data={jsonLdSoftwareApplication(locale)} />
+      <JsonLd data={jsonLdSoftwareApplication(locale, tm('meta.appDescription'))} />
       <JsonLd data={jsonLdFaqPage(faqItems)} />
       <JsonLd data={jsonLdArticle(t('meta.title'), t('meta.description'), `${BASE_URL}/${locale}/technology`, locale)} />
       <JsonLd data={jsonLdBreadcrumbList([
@@ -97,13 +96,13 @@ export default async function TechnologyPage({ params }: { params: Promise<{ loc
         </section>
 
         <section className="brand-panel rounded-xl p-8 text-center text-white">
-          <h2 className="text-[22px] font-bold">{locale === 'ko' ? '지금 바로 시작하세요' : 'Start now'}</h2>
+          <h2 className="text-[22px] font-bold">{tm('cta.startNow')}</h2>
           <div className="mt-5 flex justify-center gap-3">
             <Link href="/try" className="rounded-lg bg-white px-6 py-2.5 text-[14px] font-semibold text-accent">
-              {locale === 'ko' ? '무료 체험' : 'Try free'}
+              {tm('cta.tryFree')}
             </Link>
             <Link href="/features" className="rounded-lg border border-white/30 px-6 py-2.5 text-[14px] font-semibold text-white hover:border-white/60">
-              {locale === 'ko' ? '기능 보기' : 'See features'}
+              {tm('cta.seeFeatures')}
             </Link>
           </div>
         </section>

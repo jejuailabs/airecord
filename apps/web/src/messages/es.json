@@ -1,0 +1,2148 @@
+{
+  "common": {
+    "appName": "InterLive",
+    "nav": {
+      "dashboard": "Panel",
+      "live": "Presencial",
+      "talk": "Conversación",
+      "meeting": "Reunión",
+      "translate": "Texto",
+      "translateFile": "Archivos",
+      "sessions": "Sesiones",
+      "mypage": "Mi página",
+      "pricing": "Precios",
+      "settings": "Ajustes",
+      "help": "Ayuda",
+      "soon": "Pronto",
+      "faceoff": "Cara a cara"
+    },
+    "shell": {
+      "manage": "Gestión",
+      "notifications": "Notificaciones"
+    },
+    "sidebar": {
+      "monthUsage": "Tokens usados este mes",
+      "dayUsage": "Tokens usados hoy",
+      "minute": "tokens",
+      "minuteOf": "de {total} tokens",
+      "remaining": "Quedan {minutes} tokens",
+      "exhausted": "No te quedan tokens este mes",
+      "exhaustedDay": "No te quedan tokens hoy — se recargan mañana",
+      "unlimited": "Administrador · ilimitado"
+    },
+    "actions": {
+      "start": "Empezar",
+      "end": "Terminar",
+      "cancel": "Cancelar",
+      "copy": "Copiar enlace",
+      "copied": "Copiado",
+      "retry": "Reintentar",
+      "back": "Volver"
+    },
+    "theme": {
+      "label": "Tema",
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Automático"
+    },
+    "language": {
+      "label": "Idioma de la interfaz"
+    },
+    "auth": {
+      "login": "Iniciar sesión",
+      "logout": "Cerrar sesión"
+    },
+    "phaseBadge": "Vista previa de la fase 1"
+  },
+  "landing": {
+    "hero": {
+      "badge": "Interpretación con IA en tiempo real",
+      "title": "Interpretación en directo,\nsin complicaciones",
+      "subtitle": "Un enlace de reunión, un botón de micrófono.\nTodo lo demás se hace solo.",
+      "orbInPerson": {
+        "title": "Empezar presencial",
+        "subtitle": "Empieza con tu micrófono"
+      },
+      "orbMeeting": {
+        "title": "Empezar reunión",
+        "subtitle": "Pega un enlace de reunión"
+      },
+      "badgeRecord": "Registro automático",
+      "badgeCaption": "Subtítulos en directo",
+      "badgeSecure": "Almacenamiento seguro",
+      "tryCta": "Pruébalo ahora",
+      "signupCta": "Empieza gratis",
+      "pricingCta": "Ver precios →",
+      "trialNote": "Prueba 500 caracteres traducidos sin iniciar sesión. Regístrate y obtén 30 minutos gratis cada mes."
+    },
+    "captionDemo": {
+      "title": "Varios idiomas de entrada,\nun solo idioma de salida",
+      "body": "El coreano, el inglés y el japonés se detectan en cada intervención y pasan directamente a los subtítulos. Activa la voz del intérprete IA y sonará como un intérprete sentado a tu lado."
+    },
+    "preview": {
+      "title": "Gestión · Panel",
+      "live": "En directo",
+      "chart": "Uso diario",
+      "recent": "Sesiones recientes",
+      "viewAll": "Ver todo",
+      "nav": {
+        "dashboard": "Panel",
+        "sessions": "Sesiones",
+        "users": "Miembros",
+        "inperson": "Presencial",
+        "meeting": "Reunión",
+        "settings": "Ajustes"
+      },
+      "stats": {
+        "remaining": "Minutos restantes",
+        "month": "Este mes",
+        "meeting": "Reunión",
+        "inperson": "Presencial",
+        "minute": "min"
+      },
+      "rows": {
+        "r1": "Reunión de revisión de producto",
+        "r2": "Llamada con proveedor",
+        "r3": "Reunión semanal de marketing"
+      }
+    },
+    "demo": {
+      "langPair": "Detección automática → 한국어 · English",
+      "voiceToggle": "Voz del intérprete IA",
+      "autoDetectNote": "Coreano, inglés y japonés mezclados: cada intervención se detecta automáticamente. Así funciona exactamente el producto."
+    },
+    "zoom": {
+      "title": "En las llamadas de Zoom, el bot intérprete se une por ti",
+      "body": "Pega un enlace de reunión y el bot se une, interpreta la conversación en tiempo real y publica en el chat un enlace de subtítulos que cualquiera puede abrir. Nada que instalar, nada que configurar.",
+      "point1": "Funciona con Zoom · Teams · Meet · Webex",
+      "point2": "Subtítulos y voz en directo en el idioma de cada participante",
+      "point3": "Al terminar la reunión queda una transcripción bilingüe",
+      "windowTitle": "Reunión semanal — videollamada",
+      "botName": "Intérprete InterLive",
+      "chatMessage": "Subtítulos interpretados en directo:",
+      "voiceToggle": "Voz del intérprete IA"
+    },
+    "features": {
+      "autoDetect": {
+        "title": "Detección automática del idioma",
+        "body": "Incluso en reuniones que mezclan tres idiomas, cada intervención se detecta por separado. Tú solo eliges el idioma de visualización."
+      },
+      "voiceOut": {
+        "title": "Subtítulos y voz a la vez",
+        "body": "Los subtítulos aparecen al instante y una voz IA puede leerlos en voz alta como un intérprete en directo."
+      },
+      "records": {
+        "title": "Registros automáticos",
+        "body": "Al terminar queda una transcripción bilingüe. No hay que acordarse de pulsar ningún botón de grabar."
+      }
+    },
+    "finalCta": {
+      "title": "Solo enciende el micrófono",
+      "body": "Pruébalo sin iniciar sesión. Bastan 500 caracteres."
+    }
+  },
+  "login": {
+    "title": "Empezar",
+    "subtitle": "Empieza en 3 segundos con tu cuenta de Google. Sin proceso de registro aparte.",
+    "google": "Continuar con Google",
+    "busy": "Iniciando sesión…",
+    "progress": {
+      "signingIn": "Iniciando sesión con tu cuenta de Google",
+      "finishing": "Terminando de iniciar sesión",
+      "hint": "Espera un momento y no cierres esta ventana."
+    },
+    "freeNote": "20 minutos gratis cada mes. Sin tarjeta.",
+    "failed": {
+      "title": "No se pudo iniciar sesión",
+      "action": "Permite las ventanas emergentes para este sitio o vuelve a intentarlo en un momento."
+    }
+  },
+  "try": {
+    "banner": "Modo de prueba: experimenta la calidad real de interpretación con 500 caracteres traducidos, sin iniciar sesión.",
+    "counter": "Prueba {used}/{max} caracteres",
+    "ended": {
+      "title": "Aquí termina la prueba",
+      "backToMain": "Volver al inicio",
+      "body": "Lo que acabas de ver es el rendimiento real. Regístrate y obtén 30 minutos gratis cada mes.",
+      "signup": "Empieza gratis",
+      "pricing": "Ver precios",
+      "freeNote": "Empieza al instante con tu cuenta de Google, sin tarjeta."
+    }
+  },
+  "faceoffEntry": {
+    "tokenNotice": "El modo cara a cara ejecuta dos sesiones de interpretación a la vez y consume 2 tokens por minuto (10 min = 20 tokens)"
+  },
+  "pricing": {
+    "title": "Precios",
+    "subtitle": "Paga por lo que usas. Se cuenta en tokens, no en tiempo: un solo saldo para todos los modos.",
+    "perMonth": "/mes",
+    "perYear": "/año",
+    "billMonthly": "Mensual",
+    "billYearly": "Anual",
+    "yearlyBadge": "10 % de descuento",
+    "yearlyHint": "Paga anualmente y ahorra un 10 % (más de 2 meses gratis)",
+    "popular": "Más popular",
+    "cta": "Empezar con este plan",
+    "freeNote": "Todos los planes de pago parten de un nivel gratuito de 20 tokens/mes. Precios sin IVA.",
+    "unlimitedTranslation": "Traducción de texto y archivos ilimitada",
+    "perMonthBilled": "/mes con facturación anual",
+    "yearlyTotal": "{amount}/año en total",
+    "includedTokens": "{tokens} tokens / mes incluidos",
+    "retention": "Registros guardados durante {days} días",
+    "meetingMode": "Bot intérprete de reuniones (Zoom · Teams · Meet · Webex)",
+    "unlimitedMembers": "Miembros de equipo ilimitados",
+    "overage": "Exceso ₩{krw}/token (solo si lo activas)",
+    "noOverage": "Sin cobro por exceso: te avisamos cuando se acaben los tokens",
+    "tokenStd": {
+      "title": "Tarifa de tokens",
+      "subtitle": "1 token = 1 minuto en modo general. Cada modo consume a su propio ritmo.",
+      "unit": "tokens/min",
+      "per10": "{tokens} tokens cada 10 min",
+      "general": "General (presencial)",
+      "meeting": "Reunión (bot de vídeo)",
+      "faceoff": "Cara a cara (bidireccional)",
+      "faceoffBadge": "Más tokens"
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "for": "Personas con reuniones internacionales ocasionales"
+      },
+      "pro": {
+        "name": "Pro",
+        "for": "Personas y autónomos que interpretan cada semana"
+      },
+      "business": {
+        "name": "Business",
+        "for": "Empresas en las que participa todo el equipo"
+      }
+    }
+  },
+  "checkout": {
+    "title": "Pago",
+    "submit": "Ir al pago",
+    "busy": "Procesando…",
+    "pgNote": "Los pagos se activarán cuando termine la revisión de nuestro proveedor de pagos. Envía tu solicitud ahora para reservar tu plaza: te escribiremos en cuanto se abran.",
+    "reserved": {
+      "title": "Hemos recibido tu solicitud",
+      "body": "Te escribiremos en cuanto se abran los pagos. Mientras tanto, tus 30 minutos gratis al mes siguen funcionando.",
+      "toDashboard": "Ir al panel →"
+    },
+    "failed": {
+      "title": "No se pudo guardar tu solicitud",
+      "action": "Revisa tu conexión y vuelve a intentarlo."
+    },
+    "company": {
+      "title": "Datos de la empresa (Business)",
+      "name": "Nombre de la empresa",
+      "namePh": "p. ej. Stolzon Bio",
+      "bizNo": "N.º de registro mercantil",
+      "note": "Tus compañeros se unen desde [Ajustes → Unirse a una empresa] buscando el nombre de tu empresa e introduciendo el código que se genera abajo. Los tokens se comparten desde el saldo de la empresa.",
+      "codeTitle": "Código de acceso del equipo",
+      "codeHint": "Comparte este código con tu equipo. Puedes regenerarlo o editarlo cuando quieras en Ajustes."
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Gestiona tu cuenta y el uso de tu empresa (equipo).",
+    "companyJoin": {
+      "title": "Unirse a una empresa",
+      "hint": "Escribe al menos 2 caracteres para buscar, elige tu empresa e introduce el código de acceso. Una vez dentro, el uso se cobra del saldo de la empresa.",
+      "searchPh": "Buscar nombre de empresa",
+      "repick": "Cambiar",
+      "codePh": "Código de acceso",
+      "join": "Unirse",
+      "wrongCode": "Ese código no es válido.",
+      "locked": "Demasiados intentos. Vuelve a intentarlo en unos {min} min.",
+      "done": "Te has unido a {name}. Actualizando…"
+    },
+    "companyManage": {
+      "title": "{name} · Administración de la empresa",
+      "codeLabel": "Código de acceso del equipo",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "regen": "Regenerar",
+      "edit": "Editar",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "badFormat": "Usa de 6 a 20 letras y números.",
+      "failed": "No se pudo actualizar. Vuelve a intentarlo.",
+      "regenHint": "Al regenerarlo, el código anterior deja de funcionar al instante.",
+      "members": "{count} miembros",
+      "owner": "Propietario",
+      "remove": "Quitar"
+    }
+  },
+  "dashboard": {
+    "title": "Empezar a interpretar",
+    "stats": {
+      "remaining": "Tokens restantes",
+      "month": "Tokens usados este mes",
+      "day": "Tokens usados hoy",
+      "unlimited": "Administrador · ilimitado",
+      "meeting": "Reunión",
+      "inperson": "Presencial",
+      "minute": "min",
+      "minuteOf": "min / {total} min",
+      "token": "tokens",
+      "tokenOf": "de {total} tokens"
+    },
+    "tokens": {
+      "remaining": "Tokens restantes",
+      "unlimited": "Administrador · ilimitado",
+      "of": "/ {total} en total",
+      "asMinutes": "General {general} min · Reunión {meeting} min · Cara a cara {faceoff} min",
+      "topupBtn": "Recargar",
+      "topupHeld": "Recarga +{tokens}",
+      "debt": "Saldo pospago pendiente {amount}",
+      "debtHint": "Las nuevas sesiones quedan bloqueadas hasta que se liquide.",
+      "settleBtn": "Liquidar ahora",
+      "pgPending": "Solicitud recibida: la integración de pagos llegará pronto.",
+      "packTokens": "{tokens} tokens",
+      "packNote": "Los tokens de recarga no caducan y se usan después de los tokens incluidos en tu plan."
+    },
+    "chart": {
+      "title": "Uso diario",
+      "legendMeeting": "Reunión",
+      "legendInPerson": "Presencial",
+      "empty": "Empieza a interpretar y el uso diario se irá acumulando aquí."
+    },
+    "startInPerson": {
+      "title": "Presencial",
+      "subtitle": "Solo con tu micrófono",
+      "cta": "Empezar"
+    },
+    "startMeeting": {
+      "title": "Reunión",
+      "subtitle": "Solo pega el enlace",
+      "cta": "Empezar"
+    },
+    "startTalk": {
+      "title": "Conversación",
+      "subtitle": "Mantén pulsado para hablar, como un walkie"
+    },
+    "startText": {
+      "title": "Texto",
+      "subtitle": "Pega y traduce"
+    },
+    "startFile": {
+      "title": "Archivos",
+      "subtitle": "PDF e imágenes"
+    },
+    "recent": {
+      "title": "Sesiones recientes",
+      "viewAll": "Ver todo",
+      "emptyTitle": "Aún no hay sesiones",
+      "emptyHint": "Empieza una sesión presencial y aparecerá aquí. El historial guardado llega en la fase 2."
+    },
+    "records": {
+      "title": "Biblioteca de traducciones",
+      "subtitle": "Vuelve a descargar tus archivos y resultados traducidos desde Mi página."
+    },
+    "startFaceoff": {
+      "title": "Cara a cara",
+      "subtitle": "Frente a frente, cada uno en su idioma",
+      "badge": "Premium"
+    }
+  },
+  "live": {
+    "title": "Interpretación presencial",
+    "talk": {
+      "title": "Conversación",
+      "lead": "Mantén pulsado el botón y saldrá en su idioma.",
+      "listening": "Escuchando",
+      "speaking": "Hablando"
+    },
+    "consentNotice": "Esta conversación se procesa para la interpretación y los registros.",
+    "setup": {
+      "lead": "Dos pasos y empiezas.",
+      "steps": {
+        "mic": "Micrófono",
+        "target": "Idiomas"
+      },
+      "autoDetectFixed": "El idioma hablado se detecta en cada intervención. Si se mezclan idiomas, todo se interpreta al {target}.",
+      "next": "Siguiente",
+      "micAllowed": "Permitido",
+      "titleLabel": "Título (opcional)",
+      "titlePlaceholder": "p. ej. Reunión de revisión de producto",
+      "titleHint": "Si lo dejas en blanco, la IA le pone nombre a la sesión según su contenido.",
+      "readyHint": "Lo que se diga en {source} se interpretará en subtítulos en {target}.",
+      "micTitle": "Micrófono",
+      "micNeed": "Permite el acceso al micrófono para empezar a interpretar.",
+      "targetHint": "Los subtítulos y la voz salen en este idioma.",
+      "micRequest": "Permitir micrófono",
+      "micReady": "Se detecta entrada de micrófono",
+      "micSilent": "No se detecta sonido. Revisa la posición del micrófono.",
+      "sourceLang": "Idioma de origen",
+      "autoDetect": "Detección automática",
+      "autoDetectHint": "Si se mezclan idiomas, cada intervención se detecta e interpreta automáticamente.",
+      "targetLang": "Idioma de visualización",
+      "langPair": "Dos idiomas",
+      "langPairHint": "Elige lo que lees tú y lo que escucha la otra persona.",
+      "iHear": "Yo leo",
+      "theyHear": "La otra persona escucha",
+      "swapLangs": "Intercambiar los dos idiomas",
+      "talkHint": "Cuando la otra persona habla, ves {mine}. Mantén pulsado el botón y habla: saldrá en {theirs}. El idioma de entrada se detecta automáticamente.",
+      "audioOut": "Traducción por voz (voz IA)",
+      "audioOutShort": "Voz IA",
+      "audioOutStacked": "Voz IA",
+      "on": "Activada",
+      "off": "Desactivada",
+      "audioOutHint": "La traducción por voz puede ir algo por detrás de los subtítulos.",
+      "headsetHint": "Si suena por los altavoces, el audio traducido vuelve a entrar por el micrófono. Usa auriculares.",
+      "start": "Empezar a interpretar",
+      "langs": "Idiomas",
+      "langsHint": "El origen se detecta automáticamente por defecto. Si lo eliges, los subtítulos originales serán más precisos.",
+      "sourceFixed": "Escuchando en {source} e interpretando al {target}. Los subtítulos originales se mantienen en {source}.",
+      "presetLabel": "Pares habituales",
+      "swapDisabled": "Elige primero un idioma de origen para poder intercambiar"
+    },
+    "running": {
+      "live": "EN DIRECTO",
+      "paused": "En pausa",
+      "wrapping": "Terminando la traducción pendiente…",
+      "changeTarget": "Cambiar idioma de visualización",
+      "speakLang": "Idioma que escucha la otra persona",
+      "pushToTalk": "Mantén pulsado para hablar → {lang}",
+      "talkingNow": "Enviando en {lang}…",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "connecting": "Conectando",
+      "reconnecting": "Restableciendo la conexión. Los subtítulos se conservan.",
+      "end": "Terminar",
+      "audioOut": "Salida de voz",
+      "captionSize": "Tamaño de los subtítulos",
+      "sizeMd": "Normal",
+      "sizeLg": "Grande",
+      "sizeXl": "Muy grande",
+      "syncToVoice": "Sincronizar subtítulos con la voz",
+      "trace": "Mostrar diagnóstico",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
+      "latest": "Ir a lo más reciente",
+      "enableSound": "Toca aquí para activar la voz del intérprete",
+      "audioDiag": "Estado del audio: {detail}",
+      "audioWaiting": "Preparando la voz traducida. Sonará en cuanto alguien hable.",
+      "capWarning": "La sesión alcanza su límite de tiempo en {sec} s y terminará automáticamente.",
+      "postpaid": "Has agotado los tokens incluidos: ahora usas crédito pospago. Las nuevas sesiones quedarán bloqueadas hasta que se liquide al terminar esta.",
+      "omitted": "{count, plural, one {# subtítulo anterior oculto} other {# subtítulos anteriores ocultos}}",
+      "sameLanguage": "igual que el idioma de visualización",
+      "waitingSpeech": "Empieza a hablar y los subtítulos aparecerán aquí"
+    },
+    "endDialog": {
+      "title": "¿Terminar esta sesión?",
+      "body": "Los subtítulos desaparecen al cerrar esta pantalla. Los registros guardados llegan con las cuentas (fase 2).",
+      "confirm": "Terminar",
+      "cancel": "Seguir interpretando"
+    },
+    "ended": {
+      "title": "Sesión terminada",
+      "backToMain": "Volver al inicio",
+      "downloadTrace": "Descargar diagnóstico",
+      "reasonCap": "La sesión terminó automáticamente porque se agotó el tiempo disponible.",
+      "duration": "Duración",
+      "segments": "{count, plural, =0 {Sin subtítulos} one {# subtítulo} other {# subtítulos}}",
+      "segmentsLabel": "Subtítulos",
+      "langPair": "Idiomas",
+      "savedNote": "La transcripción se ha guardado y la IA está redactando el resumen.",
+      "notSavedNote": "Esta sesión no se ha guardado.",
+      "again": "Empezar de nuevo",
+      "viewRecord": "Ver registro · Resumen IA",
+      "toDashboard": "Ir al panel"
+    },
+    "errors": {
+      "micPermission": {
+        "title": "Se denegó el acceso al micrófono",
+        "action": "Permite el micrófono en los permisos del sitio de tu navegador y vuelve a intentarlo."
+      },
+      "startFailed": {
+        "title": "No se pudo iniciar la sesión",
+        "action": "Revisa tu conexión y vuelve a intentarlo. Si sigue fallando, consulta el mensaje de error en el registro del servidor."
+      },
+      "keyMissing": {
+        "title": "La clave del motor de traducción no está configurada",
+        "action": "Añade OPENAI_API_KEY a apps/web/.env.local y reinicia el servidor de desarrollo."
+      },
+      "connectionLost": {
+        "title": "Se perdió la conexión con el motor de traducción",
+        "action": "La sesión ha terminado. Revisa tu conexión y vuelve a empezar."
+      },
+      "unsupportedPair": {
+        "title": "Este par de idiomas aún no es compatible",
+        "action": "Elige otro idioma de visualización."
+      },
+      "guestQuota": {
+        "title": "Has usado todos tus caracteres de prueba gratuitos de este mes",
+        "action": "Regístrate y obtén 30 minutos gratis cada mes para seguir donde lo dejaste."
+      },
+      "quotaExhausted": {
+        "title": "Has usado todos tus minutos de interpretación",
+        "action": "El plan gratuito se recarga cada mes. Mejora tu plan o recarga tokens para seguir ahora mismo."
+      },
+      "debtUnpaid": {
+        "title": "Tu saldo pospago no se ha liquidado",
+        "action": "Liquida el importe pendiente desde el panel y podrás volver a empezar al instante."
+      },
+      "authRequired": {
+        "title": "Debes iniciar sesión",
+        "action": "Inicia sesión con tu cuenta de Google y vuelve a empezar."
+      }
+    }
+  },
+  "meeting": {
+    "title": "Interpretación de reuniones",
+    "subtitle": "Pega un enlace de reunión y el bot se une a la llamada\ny publica un enlace de subtítulos en el chat.",
+    "paste": "Pegar",
+    "botRow": {
+      "title": "El bot se une y publica el enlace",
+      "body": "En cuanto el bot se une, publica el enlace de subtítulos en directo en el chat de la reunión.",
+      "badge": "Automático"
+    },
+    "urlLabel": "Enlace de la reunión",
+    "urlPlaceholder": "https://zoom.us/j/…",
+    "urlInvalid": "Revisa el enlace de la reunión. Se admiten direcciones de Zoom, Teams, Meet y Webex.",
+    "sourceLang": "Idioma hablado",
+    "autoDetect": "Detección automática",
+    "sourceHint": "Se detecta automáticamente aunque los participantes mezclen idiomas.",
+    "targetLang": "Idioma de visualización",
+    "targetHint": "Los subtítulos aparecen en este idioma.",
+    "send": "Enviar bot",
+    "sending": "Enviando el bot…",
+    "detected": "Reconocida como reunión de {platform}",
+    "consentNotice": "Cuando el bot se une, se publica un aviso de interpretación en el chat de la reunión.",
+    "unavailable": {
+      "title": "El modo reunión se abre en la fase 4",
+      "body": "La estructura (unión del bot → relé del servidor → enlace de subtítulos) ya está lista. Cuando se conecten RECALL_API_KEY y el Realtime Worker, esta pantalla se activará.",
+      "docs": "Ver docs/01 §4.2 · docs/04 §4"
+    },
+    "live": {
+      "title": "El bot se ha unido a la reunión",
+      "hint": "El enlace de subtítulos también se publica en el chat de la reunión. Los participantes lo abren sin iniciar sesión.",
+      "copy": "Copiar enlace",
+      "copied": "Copiado",
+      "open": "Abrir subtítulos",
+      "stop": "Terminar la interpretación (retirar el bot)",
+      "stopping": "Terminando…"
+    },
+    "failed": {
+      "title": "No se pudo enviar el bot",
+      "auth_required": "Debes iniciar sesión.",
+      "quota_exhausted": "No te quedan minutos de interpretación.",
+      "unsupported_platform": "URL de reunión no compatible.",
+      "unsupported_pair": "Par de idiomas no compatible.",
+      "bot_create_failed": "Se rechazó el bot de la reunión. Revisa la URL de la reunión y los ajustes de la sala de espera.",
+      "network": "Error de conexión.",
+      "join_failed": "Error desconocido."
+    }
+  },
+  "translateText": {
+    "title": "Traducción de texto",
+    "lead": "Pega y se traduce. Sin botones que pulsar.",
+    "sourceLang": "Idioma de origen",
+    "targetLang": "Idioma de destino",
+    "autoDetect": "Detectar idioma",
+    "detected": "{lang} detectado",
+    "swap": "Intercambiar idiomas",
+    "placeholder": "Escribe o pega lo que quieras traducir.",
+    "outputEmpty": "La traducción aparece aquí.",
+    "translating": "Traduciendo",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "clear": "Borrar",
+    "tone": "Tono",
+    "tones": {
+      "plain": "Neutro",
+      "formal": "Formal",
+      "casual": "Informal"
+    },
+    "notesTitle": "Conviene revisar",
+    "guestRemaining": "Te quedan {chars} caracteres gratis",
+    "errors": {
+      "signupCta": "Regístrate gratis para continuar →",
+      "keyMissing": {
+        "title": "La clave del motor de traducción no está configurada",
+        "action": "Configura OPENAI_API_KEY y vuelve a intentarlo."
+      },
+      "failed": {
+        "title": "No se pudo traducir",
+        "action": "Vuelve a intentarlo en un momento. Si sigue fallando, divide el texto en partes más pequeñas."
+      },
+      "quota": {
+        "title": "Has usado todos tus caracteres gratuitos de este mes",
+        "action": "Regístrate y tu cupo mensual gratuito se renueva."
+      },
+      "tooLong": {
+        "title": "El texto supera los caracteres gratuitos que te quedan",
+        "action": "Acórtalo o regístrate para continuar."
+      }
+    }
+  },
+  "translateFile": {
+    "title": "Traducción de archivos",
+    "lead": "Suelta un PDF o una imagen y obtén la traducción junto al original.",
+    "sourceLang": "Idioma de origen",
+    "targetLang": "Idioma de destino",
+    "autoDetect": "Detectar idioma",
+    "dropTitle": "Suelta tu archivo aquí",
+    "dropHint": "PDF o imagen, hasta {mb} MB. Los archivos nunca se guardan en nuestro servidor.",
+    "choose": "Elegir archivo",
+    "reading": "Leyendo el archivo",
+    "translating": "Traduciendo",
+    "pageProgress": "{done} / {total} páginas",
+    "newFile": "Nuevo archivo",
+    "page": "Página {page}",
+    "pages": "{count} páginas",
+    "chars": " caracteres",
+    "original": "Original",
+    "translated": "Traducción",
+    "downloadPdf": "Guardar como PDF",
+    "download": "Descargar",
+    "cancel": "Cancelar",
+    "saveToMypage": "Guardar en Mi página",
+    "savedToMypage": "Guardado",
+    "layoutTitle": "Redibujar con el diseño original",
+    "layoutExperimental": "Experimental",
+    "layoutLead": "Reproduce el aspecto original: tablas, colores de celda, secciones. Puede tardar 1–2 minutos en archivos largos. Las cifras y los valores se mantienen tal cual, pero el diseño no será idéntico al píxel.",
+    "layoutReplace": "Traducido (solo traducción)",
+    "layoutBilingual": "Bilingüe (original + traducción)",
+    "layoutWorking": "Analizando y redibujando las páginas… la ventana de impresión se abrirá al terminar.",
+    "layoutDone": "Reconstrucción terminada: puedes volver a abrirla o guardarla aunque hayas cerrado la ventana de impresión.",
+    "layoutReopen": "Volver a abrir la ventana de impresión",
+    "layoutSaveHtml": "Guardar como HTML",
+    "hwpxTitle": "¿Cómo quieres tu archivo de Hangul (HWPX)?",
+    "printHint": "Usa la opción Imprimir de esta ventana (Ctrl+P) y elige \"Guardar como PDF\". El cuadro de impresión se abrirá en breve.",
+    "errors": {
+      "unsupported": {
+        "title": "Tipo de archivo no compatible",
+        "action": "Sube un PDF o una imagen PNG, JPG o WEBP."
+      },
+      "tooLarge": {
+        "title": "El archivo es demasiado grande",
+        "action": "Divídelo en partes de menos de 10 MB."
+      },
+      "noTextLayer": {
+        "title": "Este PDF no tiene capa de texto",
+        "action": "Parece escaneado. Exporta las páginas como imágenes y súbelas: leeremos el texto de la imagen."
+      },
+      "authRequired": {
+        "title": "Debes iniciar sesión",
+        "action": "La traducción de archivos está disponible tras iniciar sesión."
+      },
+      "keyMissing": {
+        "title": "La clave del motor de traducción no está configurada",
+        "action": "Configura OPENAI_API_KEY y vuelve a intentarlo."
+      },
+      "failed": {
+        "title": "No se pudo traducir",
+        "action": "Vuelve a intentarlo en un momento. Si el documento es largo, divídelo en partes."
+      }
+    },
+    "mergeWithSource": "Combinar con el original",
+    "splitBack": "Vista dividida",
+    "recentTitle": "Trabajos recientes",
+    "recentNote": "Solo se guarda en este navegador. Tu archivo nunca se sube.",
+    "removeDraft": "Quitar de la lista",
+    "scanning": "Sin capa de texto: leyendo las páginas como imágenes…",
+    "ocrNote": "Este documento no tenía capa de texto, así que el original se leyó a partir de imágenes. Puede contener errores de OCR.",
+    "docxTitle": "Documento de Word",
+    "docxLead": "El formato no se toca: solo cambia el texto. Se conservan tablas, encabezados, pies de página, viñetas e imágenes.",
+    "docxReplace": "Descargar traducción",
+    "docxReplaceHint": "Sustituye el texto original por la traducción.",
+    "docxBilingual": "Descargar bilingüe",
+    "docxBilingualHint": "Añade la traducción debajo de cada párrafo original.",
+    "docxWorking": "Generando el documento… {percent} %",
+    "docxDoneReplace": "Traducción descargada. {translated} párrafos traducidos.",
+    "docxDoneBilingual": "Versión bilingüe descargada. Se añadieron traducciones a {translated} párrafos.",
+    "docxMissing": "{missing} párrafos conservaron su texto original: no se recibió traducción.",
+    "docxOther": "Elegir otro archivo"
+  },
+  "sessions": {
+    "title": "Sesiones",
+    "subtitle": "Cada conversación interpretada se guarda con su transcripción y su resumen IA.",
+    "untitled": "Sesión sin título",
+    "segments": "{count, plural, =0 {Sin subtítulos} one {# subtítulo} other {# subtítulos}}",
+    "emptyTitle": "Aún no hay sesiones guardadas",
+    "emptyHint": "Empieza a interpretar y la transcripción y un resumen IA se guardarán automáticamente.",
+    "emptyCta": "Empezar presencial",
+    "prevPage": "Página anterior",
+    "nextPage": "Página siguiente"
+  },
+  "mypage": {
+    "title": "Mi página",
+    "subtitle": "Aquí se guardan tus archivos y resultados traducidos.",
+    "usageTitle": "Uso y tokens",
+    "usageRemaining": "Quedan {tokens} tokens · detalles en el panel",
+    "usageUnlimited": "Uso ilimitado · detalles en el panel",
+    "policyLimited": "Conservación: {days} días",
+    "policyUnlimited": "Conservación ilimitada (Business)",
+    "policyNote": "Los elementos se marcan como caducados cuando pasa el periodo de conservación. (Aún no se eliminan automáticamente).",
+    "untitled": "Sin título",
+    "emptyTitle": "Aún no hay traducciones guardadas",
+    "emptyHint": "Traduce un archivo o un texto y el resultado se guardará aquí automáticamente.",
+    "kind": {
+      "layout": "Diseño original",
+      "file": "Traducción de archivo",
+      "text": "Traducción de texto"
+    },
+    "retentionDays": "Se elimina en {days} días",
+    "retentionUnlimited": "Se conserva indefinidamente",
+    "retentionExpired": "Caducado",
+    "download": "Descargar",
+    "delete": "Eliminar",
+    "prevPage": "Página anterior",
+    "nextPage": "Página siguiente"
+  },
+  "sessionDetail": {
+    "back": "Sesiones",
+    "untitled": "Sesión sin título",
+    "minute": "min",
+    "segments": "{count, plural, =0 {Sin subtítulos} one {# subtítulo} other {# subtítulos}}",
+    "downloadPdf": "Descargar PDF",
+    "titleEdit": "Editar título",
+    "titleSave": "Guardar",
+    "titleCancel": "Cancelar",
+    "titleAi": "Sugerido por la IA",
+    "summaryTitle": "Resumen IA",
+    "summaryRunning": "La IA está redactando el resumen de la reunión. Tarda un momento.",
+    "summaryFailed": {
+      "title": "No se pudo generar el resumen",
+      "action": "La transcripción completa de abajo está guardada. Empieza una nueva sesión si necesitas el resumen de nuevo."
+    },
+    "keyPoints": "Puntos clave",
+    "decisions": "Decisiones",
+    "actionItems": "Tareas pendientes",
+    "transcript": "Transcripción completa (original · traducción)",
+    "noTranscript": "No se guardaron subtítulos.",
+    "colSource": "Original",
+    "colTarget": "Traducción"
+  },
+  "viewer": {
+    "consentNotice": "Esta conversación se graba para su interpretación.",
+    "dismiss": "Cerrar",
+    "waiting": "Esperando a que empiece la interpretación…",
+    "notReady": {
+      "title": "El visor se abre con el modo reunión (fase 4)",
+      "hint": "Cuando se conecte la suscripción en directo de Firestore, esta pantalla mostrará los subtítulos."
+    },
+    "ended": "La reunión ha terminado.",
+    "invalidLink": "Este enlace ya no está disponible.",
+    "displayLang": "Idioma de visualización",
+    "endBtn": "Terminar la interpretación",
+    "endConfirm": "¿Terminar ahora?",
+    "ending": "Terminando…",
+    "save": "Guardar transcripción",
+    "saveName": "interlive-subtitulos",
+    "speakOn": "Voz activada",
+    "speakOff": "Escuchar"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "action": "Volver al panel"
+  },
+  "about": {
+    "meta": {
+      "title": "Acerca de InterLive — Interpretación y traducción con IA en tiempo real",
+      "description": "InterLive es un servicio de interpretación y traducción en tiempo real con IA. Interpretación presencial, en videollamadas y reuniones, además de traducción de archivos PDF, DOCX y HWPX en 15 idiomas."
+    },
+    "hero": {
+      "eyebrow": "Interpretación y traducción con IA en tiempo real",
+      "title": "¿Qué es InterLive?",
+      "definition": "InterLive es un servicio SaaS que usa IA para reconocer el habla y traducirla en tiempo real, eliminando las barreras del idioma. Ofrece interpretación presencial, bots para videorreuniones, interpretación de conversaciones bidireccionales y traducción de documentos en una sola plataforma, con 15 idiomas, entre ellos el coreano, el inglés y el japonés."
+    },
+    "clusters": {
+      "title": "Explora todas las funciones",
+      "interpretation": {
+        "title": "Interpretación",
+        "desc": "4 modos de interpretación: presencial, reunión, conversación y cara a cara"
+      },
+      "translation": {
+        "title": "Traducción",
+        "desc": "Traducción de texto y de archivos PDF, DOCX y HWPX"
+      },
+      "technology": {
+        "title": "Tecnología IA",
+        "desc": "Cómo funcionan el reconocimiento de voz, la traducción en tiempo real y el TTS"
+      },
+      "useCases": {
+        "title": "Casos de uso",
+        "desc": "Escenarios de negocios, educación y viajes"
+      },
+      "guide": {
+        "title": "Guía",
+        "desc": "Desde los primeros pasos hasta los ajustes avanzados"
+      },
+      "pricing": {
+        "title": "Precios",
+        "desc": "Compara los planes de Free a Business"
+      },
+      "glossary": {
+        "title": "Glosario",
+        "desc": "Más de 50 términos de interpretación y traducción"
+      },
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "desc": "Las preguntas más habituales"
+      }
+    },
+    "stats": {
+      "languages": {
+        "value": "15",
+        "label": "Idiomas"
+      },
+      "modes": {
+        "value": "4",
+        "label": "Modos de interpretación"
+      },
+      "formats": {
+        "value": "5",
+        "label": "Formatos de archivo"
+      },
+      "token": {
+        "value": "1 token",
+        "label": "= 1 min de interpretación"
+      }
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "items": [
+        {
+          "q": "¿Qué es InterLive?",
+          "a": "InterLive es un servicio web de interpretación y traducción con IA que reconoce y traduce el habla en tiempo real. No hace falta instalar ninguna aplicación: se usa directamente en el navegador. Ofrece interpretación presencial, bots para videorreuniones, interpretación de conversaciones bidireccionales y traducción de documentos en 15 idiomas."
+        },
+        {
+          "q": "¿Puedo usarlo gratis?",
+          "a": "Sí. Puedes probar la traducción con hasta 500 caracteres sin iniciar sesión. Tras registrarte, el plan gratuito te da 20 tokens (unos 20 minutos) al mes sin coste. Los planes de pago empiezan en ₩9.900/mes."
+        },
+        {
+          "q": "¿Qué idiomas se admiten?",
+          "a": "InterLive admite 15 idiomas: coreano, inglés, japonés, chino, español, francés, alemán, portugués, italiano, ruso, vietnamita, tailandés, indonesio, árabe e hindi."
+        }
+      ]
+    }
+  },
+  "featuresHub": {
+    "meta": {
+      "title": "Funciones — 4 modos de interpretación con IA",
+      "description": "Descubre las funciones de interpretación en tiempo real con IA de InterLive. Presencial, conversación, cara a cara y bot de reuniones: 4 modos para superar la barrera del idioma en cualquier situación."
+    },
+    "hero": {
+      "eyebrow": "Interpretación con IA en tiempo real",
+      "title": "4 modos de interpretación para cada situación",
+      "subtitle": "De conferencias a reuniones, de conversaciones a interpretación simultánea: una sola plataforma para cualquier reto lingüístico."
+    },
+    "definition": {
+      "title": "¿Qué es la interpretación con IA en tiempo real?",
+      "body": "La interpretación con IA en tiempo real es la tecnología que reconoce el habla al instante y la traduce a otro idioma, entregando el resultado como subtítulos o voz. InterLive usa esta tecnología para ofrecer 4 modos de interpretación que permiten comunicarse en varios idiomas sin un intérprete profesional."
+    },
+    "modes": {
+      "title": "Comparativa de modos",
+      "live": {
+        "name": "Presencial",
+        "path": "/features/live",
+        "badge": "El más sencillo",
+        "desc": "Empieza a interpretar con un solo botón de micrófono. Ideal para conferencias, presentaciones y reuniones 1:1.",
+        "direction": "Unidireccional",
+        "tokenRate": "1 token/min",
+        "bestFor": "Conferencias, presentaciones, reuniones presenciales"
+      },
+      "conversation": {
+        "name": "Conversación",
+        "path": "/features/conversation",
+        "badge": "Pulsar para hablar",
+        "desc": "Pulsa para hablar y suelta para escuchar: al estilo walkie-talkie, para una conversación bidireccional natural.",
+        "direction": "Bidireccional",
+        "tokenRate": "1 token/min",
+        "bestFor": "Negociaciones, consultas, conversación informal"
+      },
+      "faceoff": {
+        "name": "Cara a cara",
+        "path": "/features/faceoff",
+        "badge": "2 personas",
+        "desc": "Coloca un dispositivo entre dos personas y que cada una hable en su idioma. Se ejecutan dos sesiones a la vez.",
+        "direction": "Bidireccional simultáneo",
+        "tokenRate": "2 tokens/min",
+        "bestFor": "Negociaciones presenciales, entrevistas, firma de contratos"
+      },
+      "meeting": {
+        "name": "Reunión",
+        "path": "/features/meeting",
+        "badge": "Bot automático",
+        "desc": "Pega la URL de una reunión → el bot se une → el enlace de subtítulos se publica en el chat. Compatible con Zoom, Teams, Meet y Webex.",
+        "direction": "Unidireccional (muchos a muchos)",
+        "tokenRate": "1,5 tokens/min",
+        "bestFor": "Videoconferencias, congresos internacionales, webinars"
+      }
+    },
+    "common": {
+      "learnMore": "Más información →",
+      "startFree": "Empieza gratis",
+      "tokenLabel": "Consumo de tokens",
+      "directionLabel": "Dirección",
+      "bestForLabel": "Ideal para"
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "items": [
+        {
+          "q": "¿Qué es la interpretación simultánea con IA?",
+          "a": "La interpretación simultánea con IA es la tecnología que traduce y reproduce el habla en otro idioma casi al mismo tiempo que habla la persona. InterLive usa IA basada en GPT para ofrecer interpretación en tiempo real en 15 idiomas."
+        },
+        {
+          "q": "¿Qué modo consume menos tokens?",
+          "a": "Los modos Presencial y Conversación son los más eficientes, con 1 token por minuto. El bot de reuniones consume 1,5 tokens/min. El modo Cara a cara (bidireccional simultáneo) consume 2 tokens/min."
+        },
+        {
+          "q": "¿Cómo obtengo interpretación en tiempo real en una reunión de Zoom?",
+          "a": "En el modo Reunión de InterLive, introduce la URL de tu reunión de Zoom y un bot se unirá automáticamente. El bot comparte un enlace de subtítulos en el chat de la reunión, que los participantes pueden abrir sin iniciar sesión para ver los subtítulos en tiempo real."
+        },
+        {
+          "q": "¿Se admite la salida de voz (TTS)?",
+          "a": "Sí. En todos los modos de interpretación puedes activar la síntesis de voz con IA (TTS) para escuchar la traducción en voz alta, como si tuvieras un intérprete IA a tu lado."
+        }
+      ]
+    }
+  },
+  "featureC1": {
+    "live": {
+      "meta": {
+        "title": "Interpretación presencial — Interpretación con IA en tiempo real con un solo micrófono",
+        "description": "La IA reconoce y traduce el habla en tiempo real en conferencias, presentaciones y reuniones 1:1. Un botón de micrófono para empezar, 15 idiomas, 1 token por minuto."
+      },
+      "hero": {
+        "eyebrow": "Interpretación presencial",
+        "title": "Interpretación con IA en tiempo real con un solo micrófono",
+        "subtitle": "La IA reconoce y traduce el habla al instante en conferencias, presentaciones y reuniones. Funciona en el navegador, sin instalar nada."
+      },
+      "definition": {
+        "title": "¿Qué es la interpretación presencial?",
+        "body": "La interpretación presencial es un método en el que la IA reconoce en tiempo real la voz de quien habla y la traduce a otro idioma. El modo presencial de InterLive se inicia con un solo botón de micrófono, detecta automáticamente el idioma de cada intervención y muestra al instante subtítulos o voz IA en 15 idiomas."
+      },
+      "features": [
+        {
+          "title": "Detección automática del idioma",
+          "desc": "El idioma se detecta en cada intervención: no hace falta cambiarlo a mano, ni siquiera en presentaciones multilingües."
+        },
+        {
+          "title": "Salida de voz IA (TTS)",
+          "desc": "Una voz IA lee las traducciones en voz alta en tiempo real."
+        },
+        {
+          "title": "Subtítulos a pantalla completa",
+          "desc": "Los subtítulos ocupan toda la pantalla: ideal para monitores grandes y proyectores."
+        },
+        {
+          "title": "Sesiones guardadas automáticamente",
+          "desc": "Al terminar la sesión se guarda automáticamente una transcripción bilingüe."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Qué es la interpretación presencial con IA?",
+            "a": "La interpretación presencial con IA es un servicio en el que la IA reconoce en tiempo real la voz de quien presenta y la traduce a otro idioma en forma de subtítulos. El modo presencial de InterLive se inicia con un solo botón y admite 15 idiomas."
+          },
+          {
+            "q": "¿Cuántas personas pueden usar la interpretación presencial?",
+            "a": "La interpretación presencial está pensada para una persona que habla y un público que lee los subtítulos. Quien presenta ejecuta InterLive en su dispositivo y el público lee los subtítulos en la pantalla compartida."
+          },
+          {
+            "q": "¿Qué idiomas se admiten?",
+            "a": "Coreano, inglés, japonés, chino, español, francés, alemán, portugués, italiano, ruso, vietnamita, tailandés, indonesio, árabe e hindi: 15 idiomas en total."
+          },
+          {
+            "q": "¿Necesita conexión a internet?",
+            "a": "Sí. El reconocimiento de voz y la traducción con IA funcionan en la nube y requieren una conexión a internet estable."
+          }
+        ]
+      }
+    },
+    "conversation": {
+      "meta": {
+        "title": "Modo conversación — Interpretación bidireccional con IA pulsando para hablar",
+        "description": "Interpretación bidireccional con IA al estilo walkie-talkie. Pulsa para hablar y suelta para escuchar. Ideal para negociaciones, consultas y conversaciones informales. 1 token/min."
+      },
+      "hero": {
+        "eyebrow": "Modo conversación",
+        "title": "Pulsa para hablar, suelta para escuchar",
+        "subtitle": "Conversación bidireccional natural pulsando para hablar. Ideal para negociaciones, consultas, viajes y conversaciones del día a día."
+      },
+      "definition": {
+        "title": "¿Qué es la interpretación de conversaciones?",
+        "body": "La interpretación de conversaciones es un método en el que dos personas hablan por turnos, cada una en su idioma. El modo conversación de InterLive funciona como un walkie-talkie: mantén pulsado el botón para hablar y suéltalo para escuchar. Es el modo bidireccional más eficiente en tokens, con 1 token por minuto."
+      },
+      "features": [
+        {
+          "title": "Pulsar para hablar",
+          "desc": "La voz solo se reconoce mientras mantienes pulsado el botón. Limpio, sin capturas accidentales."
+        },
+        {
+          "title": "Pares de idiomas independientes",
+          "desc": "Configura tu idioma y el de la otra persona por separado."
+        },
+        {
+          "title": "Salida de voz IA",
+          "desc": "Una voz IA lee automáticamente la traducción para que la otra persona la escuche con naturalidad."
+        },
+        {
+          "title": "Historial de la conversación",
+          "desc": "Al terminar, se guardan emparejados el original y la traducción de ambas partes."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿En qué se diferencia la conversación de la interpretación presencial?",
+            "a": "La interpretación presencial es unidireccional (de quien presenta al público), mientras que el modo conversación es bidireccional (dos personas por turnos). El modo conversación se adapta a negociaciones y consultas en las que el diálogo va y viene."
+          },
+          {
+            "q": "¿Qué pasa si las dos personas hablan a la vez?",
+            "a": "El diseño de pulsar para hablar garantiza que solo hable una persona cada vez. El habla simultánea se evita a propósito."
+          },
+          {
+            "q": "¿Cuándo es el modo conversación la mejor opción?",
+            "a": "Es ideal para negociaciones 1:1 con socios extranjeros, atención al cliente, conversaciones con gente local durante un viaje y entrevistas multilingües."
+          },
+          {
+            "q": "¿En qué se diferencia del modo cara a cara?",
+            "a": "El modo conversación usa un botón para turnarse en un solo dispositivo, mientras que el modo cara a cara permite que dos personas hablen a la vez. El modo cara a cara consume 2 tokens por minuto."
+          }
+        ]
+      }
+    },
+    "faceoff": {
+      "meta": {
+        "title": "Modo cara a cara — Interpretación bidireccional simultánea con IA",
+        "description": "Dos personas hablan a la vez, cada una en su idioma, con un solo dispositivo entre ellas. Ideal para negociaciones, contratos y entrevistas. 2 tokens por minuto."
+      },
+      "hero": {
+        "eyebrow": "Modo cara a cara",
+        "title": "Dos personas, un dispositivo, cada una en su idioma",
+        "subtitle": "Coloca un dispositivo entre dos personas y que ambas hablen a la vez. Dos sesiones en paralelo para una interpretación bidireccional sin esperas."
+      },
+      "definition": {
+        "title": "¿Qué es el modo cara a cara?",
+        "body": "El modo cara a cara es un método de interpretación con IA en el que se coloca un dispositivo entre dos personas que hablan a la vez, cada una en su idioma. InterLive reconoce y traduce ambas direcciones al mismo tiempo y muestra al instante a cada persona un subtítulo de lo que dijo la otra. Se ejecutan dos sesiones en paralelo, con un consumo de 2 tokens por minuto."
+      },
+      "features": [
+        {
+          "title": "Reconocimiento bidireccional simultáneo",
+          "desc": "Ambas voces se reconocen y traducen a la vez: la conversación nunca se detiene."
+        },
+        {
+          "title": "Un solo dispositivo",
+          "desc": "No hace falta otro dispositivo. Colócalo sobre la mesa y cada persona lee la pantalla que tiene delante."
+        },
+        {
+          "title": "Pensado para negociaciones presenciales",
+          "desc": "Ideal para firma de contratos, entrevistas y negociaciones in situ."
+        },
+        {
+          "title": "Subtítulos en pantalla dividida",
+          "desc": "La pantalla se divide arriba y abajo para que cada persona vea su traducción justo delante."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Qué es el modo cara a cara?",
+            "a": "El modo cara a cara es un modo de interpretación con IA en el que se coloca un dispositivo entre dos personas que hablan cada una en su idioma. Se ejecutan dos sesiones a la vez para una interpretación bidireccional en tiempo real."
+          },
+          {
+            "q": "¿Por qué consume 2 tokens por minuto?",
+            "a": "El modo cara a cara ejecuta dos sesiones en paralelo que procesan ambas direcciones del habla al mismo tiempo, lo que requiere el doble de procesamiento que otros modos."
+          },
+          {
+            "q": "¿Cuándo debo usar el modo cara a cara?",
+            "a": "Es ideal para firmas de contratos presenciales, entrevistas de trabajo, consultas médicas y negociaciones presenciales en las que la comunicación bidireccional inmediata es esencial."
+          },
+          {
+            "q": "¿Necesito dos dispositivos?",
+            "a": "No, basta con uno. Colócalo sobre la mesa y cada persona lo mira de frente para ver sus subtítulos."
+          }
+        ]
+      }
+    },
+    "meeting": {
+      "meta": {
+        "title": "Interpretación de reuniones — Bot IA para Zoom, Teams y más",
+        "description": "Añade un bot de interpretación con IA a Zoom, Teams, Google Meet y Webex. Pega la URL de la reunión y todos los participantes tendrán subtítulos automáticos. 1,5 tokens por minuto."
+      },
+      "hero": {
+        "eyebrow": "Interpretación de reuniones",
+        "title": "Pega la URL de la reunión y el bot interpreta automáticamente",
+        "subtitle": "Un bot IA se une a Zoom, Teams, Meet o Webex y comparte un enlace de subtítulos en el chat. Cualquier participante puede abrirlo, sin iniciar sesión."
+      },
+      "definition": {
+        "title": "¿Qué es un bot de interpretación de reuniones?",
+        "body": "Un bot de interpretación de reuniones es un servicio de IA que se une automáticamente a una videoconferencia y traduce la conversación en tiempo real. Con InterLive, introduces la URL de la reunión, el bot se une automáticamente y comparte un enlace de subtítulos en el chat. Los participantes abren el enlace sin iniciar sesión y ven subtítulos en tiempo real en su idioma."
+      },
+      "features": [
+        {
+          "title": "Basta con pegar una URL",
+          "desc": "Introduce una URL de Zoom, Teams, Meet o Webex y el bot se une automáticamente. Sin instalaciones."
+        },
+        {
+          "title": "Enlace de subtítulos compartido automáticamente",
+          "desc": "El bot publica el enlace de subtítulos en el chat de la reunión. Los participantes solo tienen que hacer clic."
+        },
+        {
+          "title": "Visor de subtítulos por idioma",
+          "desc": "Cada participante elige su idioma. Ideal para reuniones multilingües."
+        },
+        {
+          "title": "Actas automáticas",
+          "desc": "Al terminar la reunión, la IA genera automáticamente un resumen con los puntos clave y las tareas pendientes."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Cómo añado interpretación en tiempo real a una reunión de Zoom?",
+            "a": "En el modo Reunión de InterLive, pega el enlace de tu reunión de Zoom y el bot se unirá automáticamente. El bot comparte un enlace de subtítulos en el chat y los participantes pueden abrirlo sin iniciar sesión."
+          },
+          {
+            "q": "¿Los participantes tienen que instalar algo?",
+            "a": "No. Los participantes solo tienen que hacer clic en el enlace que el bot comparte en el chat. Sin inicio de sesión ni instalación."
+          },
+          {
+            "q": "¿Qué plataformas de videoconferencia se admiten?",
+            "a": "Se admiten Zoom, Microsoft Teams, Google Meet y Webex. La plataforma se detecta automáticamente a partir de la URL de la reunión."
+          },
+          {
+            "q": "¿Los participantes pueden cambiar de idioma durante la reunión?",
+            "a": "Sí. Cada participante puede cambiar su idioma en tiempo real desde el visor de subtítulos."
+          }
+        ]
+      }
+    },
+    "viewer": {
+      "meta": {
+        "title": "Visor de subtítulos — Subtítulos multilingües en tiempo real sin iniciar sesión",
+        "description": "Los participantes de la reunión ven subtítulos en tiempo real con un solo enlace. Sin iniciar sesión, eligiendo su idioma y con salida de voz IA."
+      },
+      "hero": {
+        "eyebrow": "Visor de subtítulos",
+        "title": "Subtítulos en tiempo real para cualquiera que tenga el enlace",
+        "subtitle": "Abre el enlace que compartió el bot y los subtítulos empiezan al instante. Sin iniciar sesión, en el idioma que elijas."
+      },
+      "definition": {
+        "title": "¿Qué es el visor de subtítulos?",
+        "body": "El visor de subtítulos es una página de enlace público que proporciona el bot de reuniones de InterLive para que cualquier participante vea los subtítulos de interpretación en tiempo real sin iniciar sesión. El idioma se elige manualmente o se configura automáticamente según el idioma del navegador."
+      },
+      "features": [
+        {
+          "title": "Sin iniciar sesión",
+          "desc": "Solo hay que abrir el enlace para ver los subtítulos. Los participantes no necesitan registrarse."
+        },
+        {
+          "title": "Cambio de idioma en directo",
+          "desc": "Elige un idioma en el visor y los subtítulos cambian al instante."
+        },
+        {
+          "title": "Salida de voz IA",
+          "desc": "Los subtítulos también se pueden escuchar con voz IA: útil cuando no estás mirando la pantalla."
+        },
+        {
+          "title": "Detección automática del idioma",
+          "desc": "Se detecta automáticamente el idioma del navegador para fijar el idioma predeterminado de los subtítulos."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿El visor de subtítulos requiere iniciar sesión?",
+            "a": "No. Solo tienes que hacer clic en el enlace que comparte el bot. Puedes ver los subtítulos sin una cuenta de InterLive."
+          },
+          {
+            "q": "¿En qué idiomas puedo ver los subtítulos?",
+            "a": "Puedes elegir cualquiera de los 15 idiomas que admite InterLive."
+          },
+          {
+            "q": "¿Puedo guardar el contenido de los subtítulos?",
+            "a": "Sí. El botón Guardar transcripción del visor te permite guardar los subtítulos como texto."
+          },
+          {
+            "q": "¿Solo el anfitrión de la reunión puede cerrar el visor de subtítulos?",
+            "a": "Sí. Solo el anfitrión de la reunión (con sesión iniciada en InterLive) ve el botón para terminar."
+          }
+        ]
+      }
+    }
+  },
+  "featureC2": {
+    "hub": {
+      "meta": {
+        "title": "Traducción con IA — PDF, DOCX, HWP y texto en 15 idiomas",
+        "description": "La IA traduce archivos PDF, DOCX y HWPX y texto conservando el diseño. Tres niveles de razonamiento, 15 idiomas."
+      },
+      "hero": {
+        "eyebrow": "Traducción con IA",
+        "title": "PDF, DOCX, HWP y texto en 15 idiomas",
+        "subtitle": "Motores de traducción con IA optimizados para cada formato, que mantienen intacto el diseño mientras traducen el contenido."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de documentos con IA?",
+        "body": "La traducción de documentos con IA convierte el texto de un documento a otro idioma conservando el diseño y el formato originales. InterLive admite archivos PDF, DOCX y HWPX, además de texto introducido directamente, con tres niveles de razonamiento (rápido, estándar y preciso) para equilibrar velocidad y calidad. La traducción funciona de forma independiente de la interpretación: puedes usar una, otra o ambas."
+      },
+      "types": {
+        "title": "Tipos de traducción",
+        "textTranslation": {
+          "name": "Traducción de texto",
+          "badge": "Entrada directa",
+          "desc": "Pega un texto y obtén la traducción al instante. Hasta 5.000 caracteres, 15 idiomas.",
+          "bestFor": "Frases, párrafos, mensajes"
+        },
+        "fileTranslation": {
+          "name": "Traducción de archivos",
+          "badge": "PDF · DOCX · HWP",
+          "desc": "Sube un archivo y recibe una traducción que conserva el diseño. Se admiten PDF, DOCX y HWPX.",
+          "bestFor": "Contratos, informes, documentos"
+        },
+        "pdfTranslation": {
+          "name": "Traducción de PDF",
+          "badge": "PDF",
+          "desc": "Extrae y traduce el texto del PDF y lo reconstruye con un diseño cercano al original.",
+          "bestFor": "Artículos de investigación, informes, manuales"
+        },
+        "docxTranslation": {
+          "name": "Traducción de Word",
+          "badge": "DOCX",
+          "desc": "Traduce documentos de Word conservando párrafos, tablas, encabezados y pies de página.",
+          "bestFor": "Contratos, propuestas, currículos"
+        },
+        "hwpxTranslation": {
+          "name": "Traducción de HWP",
+          "badge": "HWP/HWPX",
+          "desc": "Traduce archivos de Hangul Office con tablas, notas al pie y diseños de varias columnas.",
+          "bestFor": "Documentos oficiales, escritos judiciales"
+        }
+      },
+      "common": {
+        "learnMore": "Más información",
+        "startFree": "Empieza gratis"
+      },
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Qué es la traducción de documentos con IA?",
+            "a": "La traducción de documentos con IA convierte el texto de un documento a otro idioma conservando el diseño y el formato. InterLive admite archivos PDF, DOCX y HWPX y texto introducido directamente en 15 idiomas."
+          },
+          {
+            "q": "¿Cómo mejoro la calidad de la traducción?",
+            "a": "Elige el nivel de razonamiento \"preciso\" para obtener una mayor calidad. En este nivel el procesamiento tarda más. Elige \"rápido\" cuando necesites un borrador enseguida."
+          },
+          {
+            "q": "¿Puedo usar la traducción y la interpretación a la vez?",
+            "a": "Sí. La traducción y la interpretación son funciones independientes que se pueden usar juntas o por separado."
+          },
+          {
+            "q": "¿Hay un límite de tamaño de archivo?",
+            "a": "Hay un tamaño máximo por archivo. Para archivos muy grandes, se recomienda dividirlos. La traducción de texto admite hasta 5.000 caracteres cada vez."
+          }
+        ]
+      }
+    },
+    "textTranslation": {
+      "meta": {
+        "title": "Traducción de texto — Traducción instantánea con IA en 15 idiomas",
+        "description": "Pega un texto y la IA lo traduce al instante. Hasta 5.000 caracteres, 15 idiomas, tres niveles de razonamiento."
+      },
+      "hero": {
+        "eyebrow": "Traducción de texto",
+        "title": "Pega el texto y la IA lo traduce al instante",
+        "subtitle": "Hasta 5.000 caracteres en 15 idiomas. Elige un nivel de razonamiento para equilibrar velocidad y calidad."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de texto?",
+        "body": "La traducción de texto consiste en escribir o pegar un texto y que la IA lo traduzca al instante a otro idioma. La traducción de texto de InterLive admite traducción bidireccional entre 15 idiomas, con tres niveles de razonamiento (rápido, estándar y preciso) para equilibrar la velocidad de procesamiento y la calidad. Es la forma más rápida de traducir cuando no necesitas trabajar con un archivo."
+      },
+      "features": [
+        {
+          "title": "Hasta 5.000 caracteres",
+          "desc": "Traduce párrafos largos de una sola vez, desde mensajes cortos hasta fragmentos de informes."
+        },
+        {
+          "title": "Tres niveles de razonamiento",
+          "desc": "Rápido (borrador), Estándar (predeterminado) o Preciso (alta calidad): elige el que mejor se adapte a lo que necesitas."
+        },
+        {
+          "title": "15 idiomas",
+          "desc": "Traducción bidireccional entre coreano, inglés, japonés, chino y 11 idiomas más."
+        },
+        {
+          "title": "Copiar con un clic",
+          "desc": "Copia el resultado de la traducción al portapapeles con un solo clic."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Cómo funciona la traducción de texto con IA?",
+            "a": "Pega el texto en el campo de entrada, elige el idioma de destino y pulsa Traducir. La IA devuelve la traducción al momento."
+          },
+          {
+            "q": "¿Cuántos caracteres puedo traducir de una vez?",
+            "a": "Hasta 5.000 caracteres por solicitud. Para documentos más largos, usa la traducción de archivos o traduce por secciones."
+          },
+          {
+            "q": "¿Qué es el nivel de razonamiento?",
+            "a": "El nivel de razonamiento controla cuánto procesamiento aplica la IA a la traducción. \"Rápido\" prioriza la velocidad; \"Preciso\", la calidad. \"Estándar\" sirve para la mayoría de los casos."
+          },
+          {
+            "q": "¿Puedo guardar los resultados de la traducción?",
+            "a": "Haz clic en el botón de copiar para guardar el resultado en el portapapeles. También puedes revisar las traducciones anteriores en Mi página."
+          }
+        ]
+      }
+    },
+    "fileTranslation": {
+      "meta": {
+        "title": "Traducción de archivos — La IA traduce PDF, DOCX y HWP conservando el diseño",
+        "description": "Sube un archivo y la IA lo traduce conservando el diseño. Se admiten PDF, DOCX y HWPX, en 15 idiomas."
+      },
+      "hero": {
+        "eyebrow": "Traducción de archivos",
+        "title": "Sube un archivo y la IA lo traduce con el diseño intacto",
+        "subtitle": "Solo tienes que subir tu archivo PDF, DOCX o HWPX. Se conservan las tablas, los encabezados y los pies de página."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de archivos?",
+        "body": "La traducción de archivos consiste en subir un documento y que la IA traduzca su texto conservando el diseño original lo más fielmente posible. InterLive admite los formatos PDF, DOCX y HWPX y mantiene tablas, encabezados, pies de página y notas al pie. El archivo traducido se puede descargar en el formato original."
+      },
+      "features": [
+        {
+          "title": "Compatible con PDF, DOCX y HWPX",
+          "desc": "Se admiten los principales formatos de documento, cada uno con un motor de traducción optimizado para él."
+        },
+        {
+          "title": "Diseño y formato conservados",
+          "desc": "Las tablas, los encabezados, los pies de página, las notas al pie y las estructuras de varias columnas se mantienen tras la traducción."
+        },
+        {
+          "title": "15 idiomas",
+          "desc": "Traduce entre coreano, inglés, japonés, chino y 11 idiomas más."
+        },
+        {
+          "title": "Descarga del archivo traducido",
+          "desc": "Al terminar, descarga el documento traducido en el formato original."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Qué formatos de archivo admite la traducción de archivos?",
+            "a": "Se admiten los formatos PDF (.pdf), Microsoft Word (.docx) y Hangul Office (.hwpx)."
+          },
+          {
+            "q": "¿Se conserva el diseño original tras la traducción?",
+            "a": "InterLive está diseñado para conservar el diseño lo más fielmente posible. Los diseños complejos de varias columnas o el texto incrustado en imágenes pueden no reproducirse a la perfección."
+          },
+          {
+            "q": "¿Hay un límite de tamaño de archivo?",
+            "a": "Hay un tamaño máximo por archivo. Para archivos muy grandes, se recomienda dividirlos antes de subirlos."
+          },
+          {
+            "q": "¿Cómo recibo el archivo traducido?",
+            "a": "Al terminar la traducción aparece un botón de descarga. Los archivos traducidos anteriormente también se pueden volver a descargar desde Mi página."
+          }
+        ]
+      }
+    },
+    "pdfTranslation": {
+      "meta": {
+        "title": "Traducción de PDF — La IA traduce conservando el diseño",
+        "description": "Sube un PDF y la IA extrae el texto, lo traduce y reconstruye el diseño. 15 idiomas."
+      },
+      "hero": {
+        "eyebrow": "Traducción de PDF",
+        "title": "Sube un PDF y obtén la traducción con el formato intacto",
+        "subtitle": "La IA traduce artículos de investigación, informes y manuales conservando el diseño original del PDF."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de PDF?",
+        "body": "La traducción de PDF extrae el texto de un archivo PDF, lo traduce con IA y reconstruye el documento con un diseño cercano al original. InterLive analiza la estructura de tablas y párrafos para que el documento traducido se lea con naturalidad. Los PDF escaneados (basados en imágenes) reciben un procesamiento OCR adicional."
+      },
+      "features": [
+        {
+          "title": "Extracción de la capa de texto",
+          "desc": "Extrae con precisión el contenido de los PDF basados en texto, conservando la información de fuente y tamaño."
+        },
+        {
+          "title": "Detección de tablas y párrafos",
+          "desc": "Reconoce tablas, listas y límites de párrafo para mantener la estructura tras la traducción."
+        },
+        {
+          "title": "Descarga en el formato original",
+          "desc": "Descarga el PDF traducido. También puedes copiar el texto para seguir editándolo."
+        },
+        {
+          "title": "15 idiomas",
+          "desc": "Traduce el contenido de los PDF entre coreano, inglés, japonés, chino y 11 idiomas más."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Qué es la traducción de PDF?",
+            "a": "Un servicio en el que subes un PDF, la IA extrae y traduce el texto y te entrega un archivo traducido reconstruido con un diseño cercano al original."
+          },
+          {
+            "q": "¿Se pueden traducir PDF escaneados?",
+            "a": "Los PDF escaneados requieren procesamiento OCR. InterLive admite OCR, pero la precisión depende de la calidad del escaneo."
+          },
+          {
+            "q": "¿Se conserva a la perfección el diseño del PDF tras la traducción?",
+            "a": "Los PDF basados en texto conservan el diseño lo más fielmente posible. Los documentos muy complejos, con varias columnas o muchas imágenes, pueden no reproducirse a la perfección."
+          },
+          {
+            "q": "¿A qué idiomas puedo traducir un PDF?",
+            "a": "Cualquier PDF escrito en uno de los 15 idiomas admitidos se puede traducir a cualquier otro idioma admitido."
+          }
+        ]
+      }
+    },
+    "docxTranslation": {
+      "meta": {
+        "title": "Traducción de documentos de Word — Traducción DOCX con IA conservando el formato",
+        "description": "Sube un archivo de Word (.docx) y la IA traduce párrafos, tablas, encabezados y pies de página manteniendo intacta la estructura. 15 idiomas."
+      },
+      "hero": {
+        "eyebrow": "Traducción de documentos de Word",
+        "title": "La estructura de tu archivo de Word se mantiene intacta al traducir",
+        "subtitle": "Contratos, propuestas y currículos traducidos conservando párrafos, tablas y formato."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de DOCX?",
+        "body": "La traducción de DOCX conserva la estructura de párrafos, tablas, encabezados, pies de página y notas al pie de un documento de Microsoft Word mientras traduce el texto. El resultado se descarga como archivo DOCX, listo para seguir editándolo. Es especialmente adecuada para documentos en los que el formato es clave, como contratos, propuestas y currículos."
+      },
+      "features": [
+        {
+          "title": "Párrafos y tablas conservados",
+          "desc": "Las estructuras de párrafos, tablas y listas del documento de Word original se mantienen tras la traducción."
+        },
+        {
+          "title": "Incluye encabezados y pies de página",
+          "desc": "También se traduce el texto repetido en encabezados y pies de página (números de página, nombres de empresa, etc.)."
+        },
+        {
+          "title": "Notas al pie y notas finales",
+          "desc": "Se traducen tanto el cuerpo del texto como las notas al pie o finales: ideal para documentos académicos."
+        },
+        {
+          "title": "Descarga en DOCX",
+          "desc": "Al terminar, descárgalo como archivo de Word y edítalo enseguida."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Cómo funciona la traducción de documentos de Word?",
+            "a": "Sube un archivo DOCX, elige el idioma de destino y la IA lo traduce conservando el formato. Al terminar, descarga el DOCX traducido."
+          },
+          {
+            "q": "¿También se traduce el texto dentro de las tablas?",
+            "a": "Sí. El texto de las celdas se traduce y se conserva la estructura de la tabla."
+          },
+          {
+            "q": "¿La traducción cambia las fuentes o el formato?",
+            "a": "El formato, como la fuente, el tamaño y la negrita, se conserva lo más fielmente posible. Algunas fuentes especiales pueden sustituirse por las predeterminadas del sistema."
+          },
+          {
+            "q": "¿Se pueden traducir archivos de Word protegidos con contraseña?",
+            "a": "Los archivos protegidos con contraseña no se pueden traducir. Quita la protección del archivo antes de subirlo."
+          }
+        ]
+      }
+    },
+    "hwpxTranslation": {
+      "meta": {
+        "title": "Traducción de HWP — Archivos de Hangul Office en 15 idiomas",
+        "description": "La IA traduce archivos HWP y HWPX de Hangul Office con tablas, notas al pie y diseños de varias columnas. Ideal para documentos oficiales y escritos judiciales."
+      },
+      "hero": {
+        "eyebrow": "Traducción de archivos HWP",
+        "title": "Traduce archivos HWP y HWPX a 15 idiomas",
+        "subtitle": "Documentos oficiales, escritos judiciales e informes traducidos conservando tablas y notas al pie."
+      },
+      "definition": {
+        "title": "¿Qué es la traducción de HWPX?",
+        "body": "La traducción de HWPX convierte archivos HWP y HWPX de Hangul Office a otros idiomas. InterLive admite el formato de archivo de Hangul, muy utilizado en la administración pública, los tribunales y los informes gubernamentales de Corea, y conserva lo más fielmente posible las tablas, las notas al pie y los diseños de varias columnas durante la traducción."
+      },
+      "features": [
+        {
+          "title": "Compatible con HWP y HWPX",
+          "desc": "Se admiten tanto el formato HWP clásico como el formato HWPX más reciente de Hangul Office."
+        },
+        {
+          "title": "Tablas, notas al pie y columnas",
+          "desc": "Las estructuras de varias columnas, notas al pie y tablas propias de los archivos de Hangul se mantienen tras la traducción."
+        },
+        {
+          "title": "Optimizado para documentos oficiales",
+          "desc": "Ideal para documentos en los que el formato es clave, como cartas oficiales, contratos y escritos judiciales."
+        },
+        {
+          "title": "15 idiomas",
+          "desc": "Los documentos en coreano se pueden traducir al inglés, japonés, chino y 11 idiomas más."
+        }
+      ],
+      "faq": {
+        "title": "Preguntas frecuentes",
+        "items": [
+          {
+            "q": "¿Se puede traducir un archivo de Hangul (HWP) al inglés?",
+            "a": "Sí. Los archivos HWP y HWPX se pueden traducir al inglés y a otros 14 idiomas. Solo tienes que subir el archivo y elegir el idioma de destino."
+          },
+          {
+            "q": "¿Se admite el formato HWP clásico?",
+            "a": "Sí. Se admiten tanto el formato HWP clásico como el formato HWPX más reciente."
+          },
+          {
+            "q": "¿Puedo recibir la traducción como archivo de Hangul?",
+            "a": "El documento traducido se puede descargar como archivo HWPX o DOCX."
+          },
+          {
+            "q": "¿Es adecuado para documentos judiciales o correspondencia oficial?",
+            "a": "Sí. InterLive admite el formato de Hangul habitual en las instituciones públicas y los tribunales de Corea y está optimizado para conservar el formato. Revisa siempre el contenido traducido antes de presentarlo oficialmente."
+          }
+        ]
+      }
+    }
+  },
+  "technology": {
+    "meta": {
+      "title": "Tecnología de interpretación con IA — Cómo funciona InterLive",
+      "description": "Reconocimiento de voz OpenAI Whisper, motor de traducción GPT-4o y streaming en tiempo real por WebSocket. La tecnología detrás de la interpretación con IA de InterLive."
+    },
+    "hero": {
+      "eyebrow": "Tecnología",
+      "title": "Cómo funciona la interpretación con IA de InterLive",
+      "subtitle": "Reconocimiento de voz Whisper → traducción GPT → streaming por WebSocket. Tres pasos completados en menos de un segundo."
+    },
+    "definition": {
+      "title": "¿Qué es la tecnología de interpretación con IA en tiempo real?",
+      "body": "La interpretación con IA en tiempo real encadena el reconocimiento de voz (ASR), la traducción automática neuronal (NMT) y la síntesis de voz (TTS) en un flujo que convierte al instante lo que se dice a otro idioma. InterLive combina OpenAI Whisper (ASR), GPT-4o (traducción) y streaming por WebSocket para ofrecer interpretación en tiempo real con una latencia media inferior a un segundo."
+    },
+    "stack": {
+      "title": "Pila tecnológica",
+      "items": [
+        {
+          "name": "Reconocimiento de voz (ASR)",
+          "tech": "OpenAI Whisper",
+          "desc": "Convierte a texto el habla en 15 idiomas con gran precisión, incluso en entornos ruidosos."
+        },
+        {
+          "name": "Motor de traducción",
+          "tech": "GPT-4o / GPT-4o-mini",
+          "desc": "Traducción de alta calidad que tiene en cuenta el contexto. Equilibra velocidad y calidad con el ajuste del nivel de razonamiento."
+        },
+        {
+          "name": "Streaming en tiempo real",
+          "tech": "WebSocket",
+          "desc": "Los resultados se envían al instante en cada intervención. Subtítulos de baja latencia sin sondeo HTTP."
+        },
+        {
+          "name": "Síntesis de voz (TTS)",
+          "tech": "OpenAI TTS",
+          "desc": "El texto traducido se reproduce con una voz IA natural. Elige entre voces en 5 idiomas."
+        },
+        {
+          "name": "Bot de reuniones",
+          "tech": "Cloud Run + Playwright",
+          "desc": "Un bot sin servidor que se une automáticamente a Zoom, Teams, Meet y Webex. Funciona solo con una URL."
+        },
+        {
+          "name": "Procesamiento de archivos",
+          "tech": "PDF.js / mammoth / python-docx",
+          "desc": "Extrae el texto y la estructura de archivos PDF, DOCX y HWPX para una traducción que conserva el diseño."
+        }
+      ]
+    },
+    "pipeline": {
+      "title": "Flujo de procesamiento de la interpretación",
+      "steps": [
+        {
+          "step": "1",
+          "title": "Captura de audio",
+          "desc": "La Web Audio API del navegador captura por fragmentos la señal del micrófono."
+        },
+        {
+          "step": "2",
+          "title": "Reconocimiento de voz",
+          "desc": "La API de Whisper recibe los fragmentos de audio y los convierte en texto, con detección automática del idioma."
+        },
+        {
+          "step": "3",
+          "title": "Traducción con IA",
+          "desc": "GPT-4o traduce al idioma de destino manteniendo el contexto de las intervenciones anteriores."
+        },
+        {
+          "step": "4",
+          "title": "Entrega en tiempo real",
+          "desc": "WebSocket envía al instante los resultados de la traducción al cliente para mostrar subtítulos y reproducir TTS a la vez."
+        }
+      ]
+    },
+    "faq": {
+      "title": "Preguntas frecuentes sobre la tecnología",
+      "items": [
+        {
+          "q": "¿Qué modelos de IA usa InterLive?",
+          "a": "OpenAI Whisper para el reconocimiento de voz y GPT-4o (preciso) o GPT-4o-mini (rápido/estándar) para la traducción. El modelo se elige automáticamente según el nivel de razonamiento."
+        },
+        {
+          "q": "¿Cuánta latencia tiene la interpretación?",
+          "a": "Menos de un segundo de media. Varía según el estado de la red, la duración de la intervención y el nivel de razonamiento."
+        },
+        {
+          "q": "¿Cómo se tratan los datos de voz?",
+          "a": "Las señales de audio no se guardan en el servidor tras procesarse. Solo se guarda en la cuenta del usuario el registro del texto traducido."
+        },
+        {
+          "q": "¿Cómo funciona el bot de Zoom/Teams?",
+          "a": "Cuando introduces la URL de una reunión, se crea automáticamente un bot en un entorno sin servidor de Cloud Run que se une a la reunión. El bot recibe el audio y procesa la interpretación en tiempo real."
+        }
+      ]
+    }
+  },
+  "useCases": {
+    "meta": {
+      "title": "Casos de uso de la interpretación con IA — Negocios, educación, sanidad, derecho",
+      "description": "Reuniones con socios extranjeros, videoconferencias globales, congresos académicos, consultas médicas y traducción de documentos legales. Casos de uso de la IA de InterLive."
+    },
+    "hero": {
+      "eyebrow": "Casos de uso",
+      "title": "Rompiendo barreras lingüísticas con InterLive",
+      "subtitle": "Interpretación y traducción con IA en acción en negocios, educación, sanidad, derecho y viajes."
+    },
+    "cases": [
+      {
+        "category": "Negocios",
+        "icon": "briefcase",
+        "title": "Reuniones y negociaciones con socios extranjeros",
+        "desc": "Negocia directamente con compradores extranjeros sin intérprete. Coloca un dispositivo entre vosotros para tener interpretación cara a cara en tiempo real.",
+        "mode": "faceoff",
+        "modeLabel": "Modo cara a cara"
+      },
+      {
+        "category": "Videoconferencias",
+        "icon": "video",
+        "title": "Reuniones multilingües globales en Zoom y Teams",
+        "desc": "Solo pega la URL de la reunión y un bot de interpretación se une automáticamente. Todos los participantes ven subtítulos en tiempo real en su propio idioma.",
+        "mode": "meeting",
+        "modeLabel": "Interpretación de reuniones"
+      },
+      {
+        "category": "Educación",
+        "icon": "graduation-cap",
+        "title": "Clases magistrales y congresos académicos",
+        "desc": "Ejecuta InterLive en el dispositivo de quien presenta. El público lo sigue en su lengua materna. 15 idiomas a la vez.",
+        "mode": "live",
+        "modeLabel": "Interpretación presencial"
+      },
+      {
+        "category": "Sanidad",
+        "icon": "stethoscope",
+        "title": "Consultas médicas con pacientes extranjeros",
+        "desc": "Interpretación en tiempo real entre el médico y el paciente extranjero. Modo cara a cara o conversación para una comunicación precisa.",
+        "mode": "faceoff",
+        "modeLabel": "Modo cara a cara"
+      },
+      {
+        "category": "Derecho",
+        "icon": "scale",
+        "title": "Traducción de contratos y documentos legales",
+        "desc": "Traduce contratos DOCX, PDF y HWPX con el diseño intacto. También se admiten documentos judiciales coreanos en HWP.",
+        "mode": "docx-translation",
+        "modeLabel": "Traducción de Word y HWP"
+      },
+      {
+        "category": "Viajes y vida diaria",
+        "icon": "plane",
+        "title": "Comunicarse en el extranjero",
+        "desc": "Habla con la gente local durante tus viajes. Interpretación bidireccional pulsando para hablar, que empieza con un solo botón.",
+        "mode": "conversation",
+        "modeLabel": "Modo conversación"
+      }
+    ],
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "items": [
+        {
+          "q": "¿Pueden las startups pequeñas usar la interpretación con IA?",
+          "a": "Sí. InterLive usa un modelo de pago por uso basado en tokens, sin suscripción mensual obligatoria, lo que lo hace accesible para equipos pequeños. Cada mes se incluyen 20 minutos gratis."
+        },
+        {
+          "q": "¿Es adecuado para ámbitos en los que la precisión es crítica, como la sanidad y el derecho?",
+          "a": "La traducción con IA ofrece una precisión muy alta, pero en documentos médicos o legales recomendamos que un profesional cualificado revise el resultado final."
+        },
+        {
+          "q": "¿Se puede usar en grandes congresos internacionales?",
+          "a": "El bot de interpretación de reuniones puede ofrecer interpretación en reuniones de Zoom y Teams sea cual sea el número de participantes. Los participantes solo tienen que hacer clic en un enlace."
+        },
+        {
+          "q": "¿Funciona en eventos presenciales?",
+          "a": "Sí. Los modos presencial, conversación y cara a cara funcionan en un smartphone o una tableta en el mismo lugar del evento. Solo se necesita conexión a internet."
+        }
+      ]
+    }
+  },
+  "guide": {
+    "meta": {
+      "title": "Guía de uso de InterLive — De la configuración a los ajustes avanzados",
+      "description": "Primeros pasos con la interpretación con IA, conexión del bot de reuniones, traducción de archivos, ajustes de idioma y recarga de tokens. La guía oficial de InterLive."
+    },
+    "hero": {
+      "eyebrow": "Guía de uso",
+      "title": "De la configuración al uso completo de InterLive",
+      "subtitle": "Puedes empezar tu primera interpretación en 5 minutos. Sigue las guías paso a paso de abajo."
+    },
+    "guides": [
+      {
+        "slug": "getting-started",
+        "title": "Inicio rápido — Tu primera interpretación en 5 minutos",
+        "desc": "Pruébalo sin iniciar sesión. Cómo empezar la interpretación presencial con un solo botón de micrófono."
+      },
+      {
+        "slug": "meeting-bot",
+        "title": "Guía del bot de reuniones (Zoom, Teams, Meet)",
+        "desc": "El proceso completo para conectar un bot de interpretación pegando la URL de una reunión."
+      },
+      {
+        "slug": "file-translation",
+        "title": "Guía de traducción de archivos (PDF, DOCX, HWPX)",
+        "desc": "Recorrido paso a paso desde que subes el archivo hasta que descargas el documento traducido."
+      },
+      {
+        "slug": "language-settings",
+        "title": "Guía de ajustes de idioma",
+        "desc": "Cómo configurar pares de idiomas, usar la detección automática y elegir una voz TTS."
+      },
+      {
+        "slug": "token-topup",
+        "title": "Guía de recarga de tokens y precios",
+        "desc": "Cómo comprar tokens, consultar el uso y fijar límites de exceso."
+      },
+      {
+        "slug": "faceoff-mode",
+        "title": "Guía del modo cara a cara",
+        "desc": "Cómo usar el modo cara a cara para que dos personas tengan interpretación en tiempo real con un solo dispositivo."
+      }
+    ],
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "items": [
+        {
+          "q": "¿Qué necesito para empezar con InterLive?",
+          "a": "Solo necesitas un dispositivo con conexión a internet (smartphone, tableta u ordenador) y un micrófono. No hace falta instalar ninguna aplicación: funciona en el navegador."
+        },
+        {
+          "q": "¿Puedo probarlo gratis?",
+          "a": "Puedes probar gratis la traducción de 500 caracteres sin iniciar sesión. Tras registrarte, tienes 20 minutos de interpretación gratis al mes."
+        },
+        {
+          "q": "¿Puedo usar la interpretación y la traducción a la vez?",
+          "a": "Sí. Puedes usar la pestaña de traducción de texto por separado incluso mientras hay una sesión de interpretación en curso."
+        },
+        {
+          "q": "¿Está previsto añadir más idiomas?",
+          "a": "Actualmente se admiten 15 idiomas y está previsto añadir más. Consulta la sección de novedades para ver las últimas actualizaciones."
+        }
+      ]
+    }
+  },
+  "faqHub": {
+    "meta": {
+      "title": "Preguntas frecuentes de InterLive",
+      "description": "Preguntas frecuentes sobre la interpretación y traducción con IA de InterLive. Registro, precios, tecnología, idiomas y traducción de archivos, organizados por tema."
+    },
+    "hero": {
+      "eyebrow": "Preguntas frecuentes",
+      "title": "Preguntas frecuentes",
+      "subtitle": "Preguntas sobre el registro, la facturación, la tecnología, los idiomas y la traducción de archivos, organizadas por tema."
+    },
+    "categories": [
+      {
+        "title": "Primeros pasos",
+        "items": [
+          {
+            "q": "¿Qué es InterLive?",
+            "a": "InterLive es un servicio de interpretación y traducción en tiempo real con IA que ofrece interpretación presencial, en videollamadas y en reuniones, además de traducción de archivos PDF, DOCX y HWPX en 15 idiomas."
+          },
+          {
+            "q": "¿Puedo usarlo sin registrarme?",
+            "a": "Puedes probar gratis la traducción de texto de 500 caracteres sin iniciar sesión. Las funciones de interpretación requieren una cuenta."
+          },
+          {
+            "q": "¿Qué dispositivos se admiten?",
+            "a": "Funciona en el navegador de cualquier dispositivo con conexión a internet. No hace falta instalar ninguna aplicación."
+          }
+        ]
+      },
+      {
+        "title": "Precios y tokens",
+        "items": [
+          {
+            "q": "¿Cómo funcionan los precios?",
+            "a": "Hay dos opciones: un plan de suscripción mensual y la recarga de tokens (pago por uso). Tras registrarte, tienes 20 minutos de interpretación gratis cada mes."
+          },
+          {
+            "q": "¿Qué son los tokens?",
+            "a": "Los tokens son la unidad de uso de InterLive. La interpretación consume de 1 a 2 tokens por minuto; la traducción se cobra según el número de caracteres."
+          },
+          {
+            "q": "¿Qué pasa cuando se acaban los tokens?",
+            "a": "La interpretación y la traducción se detienen cuando se agotan los tokens. Puedes recargar tokens en cualquier momento desde el panel."
+          }
+        ]
+      },
+      {
+        "title": "Interpretación",
+        "items": [
+          {
+            "q": "¿Qué modos de interpretación hay?",
+            "a": "Hay 4 modos: Presencial (de quien presenta al público), Conversación (bidireccional pulsando para hablar), Cara a cara (bidireccional simultáneo) y Reunión (bot de Zoom/Teams)."
+          },
+          {
+            "q": "¿Cuántos idiomas se admiten a la vez?",
+            "a": "La interpretación admite 15 idiomas. La detección automática identifica el idioma de cada intervención."
+          },
+          {
+            "q": "¿Qué hago si el bot de reuniones no se une?",
+            "a": "Comprueba que la URL de la reunión es correcta y que la reunión ha empezado. Algunas plataformas pueden requerir que se active la admisión de bots."
+          }
+        ]
+      },
+      {
+        "title": "Traducción de archivos",
+        "items": [
+          {
+            "q": "¿Qué formatos de archivo se pueden traducir?",
+            "a": "Se admiten los formatos PDF (.pdf), Word (.docx) y Hangul (.hwpx)."
+          },
+          {
+            "q": "¿Se conserva el formato original tras la traducción?",
+            "a": "El diseño se conserva lo más fielmente posible. Los diseños complejos de varias columnas o el texto incrustado en imágenes pueden no reproducirse a la perfección."
+          },
+          {
+            "q": "¿Dónde recibo el archivo traducido?",
+            "a": "Al terminar la traducción aparece un botón de descarga. Los archivos traducidos anteriormente también se pueden volver a descargar desde Mi página."
+          }
+        ]
+      }
+    ]
+  },
+  "glossary": {
+    "meta": {
+      "title": "Glosario de interpretación y traducción con IA de InterLive — 50 términos clave",
+      "description": "50 términos clave sobre interpretación y traducción con IA y SEO, explicados en español. ASR, TTS, WebSocket, tokens, traducción que conserva el diseño y más."
+    },
+    "hero": {
+      "eyebrow": "Glosario",
+      "title": "Glosario de interpretación y traducción con IA",
+      "subtitle": "50 términos clave sobre interpretación y traducción con IA y SEO, explicados por orden alfabético."
+    },
+    "terms": [
+      {
+        "term": "Interpretación con IA",
+        "en": "AI Interpretation",
+        "def": "Tecnología con la que la IA reconoce la voz en tiempo real y la traduce a otro idioma. Permite convertir el idioma al instante sin un intérprete humano."
+      },
+      {
+        "term": "Traducción con IA",
+        "en": "AI Translation",
+        "def": "Tecnología con la que la inteligencia artificial convierte automáticamente textos o documentos a otro idioma. InterLive usa un motor de traducción basado en GPT-4o."
+      },
+      {
+        "term": "ASR (reconocimiento automático del habla)",
+        "en": "ASR (Automatic Speech Recognition)",
+        "def": "Convierte en texto el audio de un micrófono. InterLive usa OpenAI Whisper para el ASR."
+      },
+      {
+        "term": "TTS (texto a voz)",
+        "en": "TTS (Text-to-Speech)",
+        "def": "Tecnología que sintetiza texto en voz IA. Se usa para reproducir los resultados traducidos como audio en tiempo real."
+      },
+      {
+        "term": "NMT (traducción automática neuronal)",
+        "en": "NMT (Neural Machine Translation)",
+        "def": "Traducción automática basada en redes neuronales. Los modelos de tipo GPT son un claro ejemplo y ofrecen traducciones de alta calidad que tienen en cuenta el contexto."
+      },
+      {
+        "term": "WebSocket",
+        "en": "WebSocket",
+        "def": "Protocolo de comunicación bidireccional en tiempo real entre servidor y cliente. InterLive lo usa para entregar los subtítulos de interpretación sin retraso."
+      },
+      {
+        "term": "Interpretación presencial",
+        "en": "Live Interpretation",
+        "def": "Modo de interpretación unidireccional en el que la IA traduce en tiempo real la voz de quien habla y la muestra como subtítulos o audio. Adecuado para conferencias y presentaciones."
+      },
+      {
+        "term": "Modo conversación",
+        "en": "Conversation Mode",
+        "def": "Modo de interpretación bidireccional en el que dos personas hablan por turnos manteniendo pulsado un botón."
+      },
+      {
+        "term": "Modo cara a cara",
+        "en": "Face-to-face Mode",
+        "def": "Modo de interpretación bidireccional en tiempo real en el que dos personas colocan un dispositivo entre ellas y hablan a la vez, cada una en su idioma. Consume 2 tokens por minuto."
+      },
+      {
+        "term": "Interpretación de reuniones",
+        "en": "Meeting Interpretation",
+        "def": "Servicio en el que un bot IA se une automáticamente a una videoconferencia de Zoom, Teams, Meet o Webex y ofrece subtítulos de interpretación en tiempo real."
+      },
+      {
+        "term": "Visor de subtítulos",
+        "en": "Caption Viewer",
+        "def": "Página de enlace público que proporciona el bot de interpretación de reuniones. Los participantes ven subtítulos en tiempo real sin iniciar sesión con solo hacer clic en el enlace."
+      },
+      {
+        "term": "Nivel de razonamiento",
+        "en": "Inference Level",
+        "def": "Ajuste que controla la calidad de la traducción con IA y la velocidad de procesamiento. Tres niveles: Rápido (borrador), Estándar (predeterminado) y Preciso (alta calidad)."
+      },
+      {
+        "term": "Token",
+        "en": "Token",
+        "def": "La unidad de uso de InterLive. La interpretación consume de 1 a 2 tokens por minuto; la traducción se cobra según el número de caracteres."
+      },
+      {
+        "term": "Whisper",
+        "en": "Whisper",
+        "def": "Modelo de reconocimiento de voz de código abierto desarrollado por OpenAI. Reconoce más de 15 idiomas con gran precisión y admite la detección automática del idioma."
+      },
+      {
+        "term": "GPT-4o",
+        "en": "GPT-4o",
+        "def": "Modelo de lenguaje grande multimodal de OpenAI. InterLive lo usa para la traducción de alta calidad (modo Preciso)."
+      },
+      {
+        "term": "GPT-4o-mini",
+        "en": "GPT-4o-mini",
+        "def": "Versión ligera de GPT-4o. InterLive la usa en los modos de traducción Rápido y Estándar, con gran velocidad y eficiencia de costes."
+      },
+      {
+        "term": "Pulsar para hablar (PTT)",
+        "en": "Push-to-talk (PTT)",
+        "def": "Método en el que la voz solo se transmite mientras se mantiene pulsado un botón. Es el que usa el modo Conversación de InterLive."
+      },
+      {
+        "term": "Traducción que conserva el diseño",
+        "en": "Layout-preserving Translation",
+        "def": "Método para traducir archivos PDF, DOCX y HWPX conservando el formato, como tablas, párrafos y encabezados."
+      },
+      {
+        "term": "Traducción de PDF",
+        "en": "PDF Translation",
+        "def": "Tecnología que extrae el texto de un archivo PDF, lo traduce con IA y reconstruye el diseño original."
+      },
+      {
+        "term": "Traducción de DOCX",
+        "en": "DOCX Translation",
+        "def": "Función que traduce archivos de Microsoft Word (.docx) conservando la estructura de párrafos, tablas y notas al pie."
+      },
+      {
+        "term": "Traducción de HWPX",
+        "en": "HWPX Translation",
+        "def": "Función que traduce archivos HWP/HWPX de Hangul Office. Admite el formato habitual en los documentos oficiales y escritos judiciales de Corea."
+      },
+      {
+        "term": "OCR (reconocimiento óptico de caracteres)",
+        "en": "OCR (Optical Character Recognition)",
+        "def": "Tecnología que extrae texto de imágenes escaneadas o de PDF basados en imágenes."
+      },
+      {
+        "term": "hreflang",
+        "en": "hreflang",
+        "def": "Atributo HTML que indica a los buscadores las versiones en distintos idiomas de una misma página. Un estándar del SEO internacional."
+      },
+      {
+        "term": "SEO (optimización para buscadores)",
+        "en": "SEO (Search Engine Optimization)",
+        "def": "Práctica de mejorar el contenido y la estructura de una página web para que aparezca más arriba en los resultados de búsqueda."
+      },
+      {
+        "term": "GEO (optimización para motores generativos)",
+        "en": "GEO (Generative Engine Optimization)",
+        "def": "Optimizar el contenido para que lo citen buscadores de IA generativa como ChatGPT y Perplexity."
+      },
+      {
+        "term": "AEO (optimización para motores de respuesta)",
+        "en": "AEO (Answer Engine Optimization)",
+        "def": "Aplicar datos estructurados FAQPage y HowTo para que los motores de respuesta con IA, como los fragmentos destacados de Google, citen directamente el contenido."
+      },
+      {
+        "term": "Datos estructurados",
+        "en": "Structured Data",
+        "def": "Datos marcados en formato JSON-LD de schema.org para que los buscadores entiendan el contenido de la página."
+      },
+      {
+        "term": "JSON-LD",
+        "en": "JSON-LD",
+        "def": "Formato para expresar datos enlazados (Linked Data) en JSON. Es el formato recomendado para los datos estructurados de los resultados enriquecidos de Google."
+      },
+      {
+        "term": "Esquema FAQPage",
+        "en": "FAQPage Schema",
+        "def": "Tipo de datos estructurados de schema.org que marca el contenido de preguntas frecuentes para que aparezcan fragmentos enriquecidos en los resultados de Google."
+      },
+      {
+        "term": "BreadcrumbList",
+        "en": "BreadcrumbList",
+        "def": "Esquema que expresa como datos estructurados la ruta jerárquica de una página para que aparezca bajo la URL en los resultados de búsqueda."
+      },
+      {
+        "term": "Streaming en tiempo real",
+        "en": "Real-time Streaming",
+        "def": "Método de transmisión continua de datos sin interrupciones. Es una tecnología clave para mostrar sin retraso los subtítulos de interpretación en InterLive."
+      },
+      {
+        "term": "Cloud Run",
+        "en": "Cloud Run",
+        "def": "Entorno de ejecución de contenedores sin servidor de Google. El bot de interpretación de reuniones de InterLive se ejecuta en Cloud Run."
+      },
+      {
+        "term": "Sin servidor (serverless)",
+        "en": "Serverless",
+        "def": "Modelo de computación en la nube en el que el código se ejecuta sin gestionar servidores. Solo se paga por lo que se usa."
+      },
+      {
+        "term": "Sesión",
+        "en": "Session",
+        "def": "La unidad de una interpretación en InterLive, desde que empieza hasta que termina. El historial de sesiones muestra la transcripción original y la traducida."
+      },
+      {
+        "term": "Detección automática del idioma",
+        "en": "Automatic Language Detection",
+        "def": "Función que identifica automáticamente el idioma que se habla. Permite conversaciones multilingües sin cambiar de idioma a mano en los modos Cara a cara y Presencial."
+      },
+      {
+        "term": "Pago por uso",
+        "en": "Pay-as-you-go",
+        "def": "Modelo de facturación en el que solo pagas por lo que usas. En InterLive corresponde a recargar y gastar tokens."
+      },
+      {
+        "term": "API (interfaz de programación de aplicaciones)",
+        "en": "API (Application Programming Interface)",
+        "def": "Interfaz para intercambiar datos y funciones entre programas. InterLive usa la API de OpenAI para el reconocimiento de voz y la traducción."
+      },
+      {
+        "term": "Web Audio API",
+        "en": "Web Audio API",
+        "def": "API estándar web para procesar audio en el navegador. InterLive la usa para capturar la entrada del micrófono."
+      },
+      {
+        "term": "Soporte multilingüe",
+        "en": "Multilingual Support",
+        "def": "Capacidad de procesar varios idiomas o cambiar entre ellos. InterLive admite 15 idiomas."
+      },
+      {
+        "term": "Agotamiento de tokens",
+        "en": "Token Exhaustion",
+        "def": "Situación en la que se han usado todos los tokens recargados. La interpretación y la traducción se detienen y hay que recargar desde el panel."
+      },
+      {
+        "term": "Interpretación gratuita mensual",
+        "en": "Monthly Free Interpretation",
+        "def": "Tiempo de interpretación gratuito que se concede automáticamente cada mes tras registrarse en InterLive. Actualmente, 20 minutos al mes."
+      },
+      {
+        "term": "Mi página",
+        "en": "My Page",
+        "def": "La página de la cuenta de usuario de InterLive. Muestra el historial de sesiones, los archivos traducidos, el uso de tokens y los registros de facturación."
+      },
+      {
+        "term": "Bot de interpretación",
+        "en": "Interpretation Bot",
+        "def": "Software que se une automáticamente a una videoconferencia y hace la interpretación. El bot de reuniones de InterLive es un claro ejemplo."
+      },
+      {
+        "term": "Fragmento (chunk)",
+        "en": "Chunk",
+        "def": "Segmento de la señal de audio dividido en unidades de procesamiento. Son datos de audio cortados a una duración adecuada para que Whisper los reconozca."
+      },
+      {
+        "term": "Ventana de contexto",
+        "en": "Context Window",
+        "def": "La longitud de texto que un LLM puede procesar de una vez. En la interpretación se usa para recordar las intervenciones anteriores y mejorar la coherencia de la traducción."
+      },
+      {
+        "term": "Transcripción",
+        "en": "Transcript",
+        "def": "Documento de registro que empareja el habla original con su traducción en una sesión de interpretación. Se genera automáticamente al terminar la sesión."
+      },
+      {
+        "term": "Diseño de varias columnas",
+        "en": "Multi-column Layout",
+        "def": "Diseño de documento con dos o más columnas. Es habitual en los archivos de Hangul y difícil de conservar a la perfección tras la traducción."
+      },
+      {
+        "term": "Nota al pie",
+        "en": "Footnote",
+        "def": "Formato que añade una explicación adicional al final de la página. En la traducción de DOCX y HWPX de InterLive también se traduce el texto de las notas al pie."
+      },
+      {
+        "term": "Firebase",
+        "en": "Firebase",
+        "def": "Plataforma de desarrollo de aplicaciones de Google. InterLive la usa para la autenticación de usuarios y la base de datos en tiempo real."
+      },
+      {
+        "term": "Middleware",
+        "en": "Middleware",
+        "def": "Capa de software que se encarga del procesamiento común entre peticiones y respuestas. El middleware de Next.js de InterLive gestiona la autenticación y el idioma."
+      }
+    ]
+  },
+  "marketing": {
+    "meta": {
+      "description": "Interpretación y traducción con IA en tiempo real. Interpretación presencial, en videollamadas y reuniones, además de traducción de archivos PDF, DOCX y HWPX en 15 idiomas. Empieza gratis.",
+      "appDescription": "Interpretación y traducción con IA en tiempo real. Interpretación presencial, en videollamadas y reuniones, además de traducción de archivos PDF, DOCX y HWPX en 15 idiomas."
+    },
+    "cta": {
+      "startNow": "Empieza ahora",
+      "getStartedNow": "Empieza ahora mismo",
+      "startInterpretingNow": "Empieza a interpretar ahora",
+      "startInterpretingHub": "Empieza a interpretar ahora",
+      "translateDocNow": "Traduce tu documento ahora",
+      "stillHaveQuestions": "¿Tienes más preguntas?",
+      "tryYourself": "Pruébalo tú mismo.",
+      "experienceIt": "Compruébalo tú mismo",
+      "freeTrialShort": "Prueba 500 caracteres gratis sin iniciar sesión.",
+      "freeTrialLong": "Prueba 500 caracteres gratis sin iniciar sesión. 20 minutos gratis al mes tras registrarte.",
+      "tryFree": "Prueba gratis",
+      "seeFeatures": "Ver funciones",
+      "viewPricing": "Ver precios",
+      "signUp": "Regístrate"
+    },
+    "feature": {
+      "keyFeatures": "Funciones principales",
+      "allModes": "Todos los modos",
+      "otherModes": "Otros modos de interpretación",
+      "allTranslationTypes": "Todos los tipos de traducción",
+      "otherTranslationTypes": "Otros tipos de traducción",
+      "aiTranslation": "Traducción con IA",
+      "table": {
+        "type": "Tipo",
+        "description": "Descripción",
+        "bestFor": "Ideal para"
+      }
+    },
+    "glossary": {
+      "setName": "Glosario de interpretación y traducción con IA de InterLive",
+      "termCount": "{count} términos",
+      "indexLabel": "Índice alfabético"
+    }
+  }
+}

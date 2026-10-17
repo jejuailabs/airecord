@@ -67,9 +67,9 @@ export function languageLabel(code: SourceLangSetting): string {
   return INTERPRET_LANGUAGES.find((l) => l.code === code)?.label ?? code;
 }
 
-/** UI 로케일 — Phase 1~3는 ko/en만 완성. ja/zh-CN은 구조만 (docs/06 §4.5) */
-export const UI_LOCALES: readonly UiLocale[] = ['ko', 'en', 'ja', 'zh-CN'];
-export const ACTIVE_UI_LOCALES: readonly UiLocale[] = ['ko', 'en'];
+/** UI 로케일 — ko/en/es 완성. ja/zh-CN은 구조만 (docs/06 §4.5) */
+export const UI_LOCALES: readonly UiLocale[] = ['ko', 'en', 'es', 'ja', 'zh-CN'];
+export const ACTIVE_UI_LOCALES: readonly UiLocale[] = ['ko', 'en', 'es'];
 export const DEFAULT_UI_LOCALE: UiLocale = 'ko';
 
 /** 세그먼트 배치 저장 규칙 (docs/08 §1): 10건 또는 5초 중 먼저 도달하는 쪽 */

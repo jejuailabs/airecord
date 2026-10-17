@@ -116,17 +116,17 @@
 
 | | UI 언어 | 통역 언어 |
 |---|---|---|
-| 타입 | `UiLocale = 'ko' \| 'en' \| 'ja' \| 'zh-CN'` | `LangCode` (엔진 지원 목록) |
+| 타입 | `UiLocale = 'ko' \| 'en' \| 'es' \| 'ja' \| 'zh-CN'` | `LangCode` (엔진 지원 목록) |
 | 저장 | `users/{uid}.uiLocale` + 쿠키 | `sessions/{id}.sourceLang/targetLang` |
 | 바꾸는 곳 | 계정 메뉴 | 세션 시작 화면 |
-| 개수 | 4개 (초기) | 수십 개 |
+| 개수 | 5개 (ko·en·es 완성) | 수십 개 |
 
 ### 4.2 설정
 ```
-지원 로케일   ko(기본) · en · ja · zh-CN
+지원 로케일   ko(기본) · en · es · ja · zh-CN
 경로 방식     /[locale]/... , 기본 로케일도 접두사 표기 (as-needed 아님 — 링크 공유 시 혼란 방지)
 판정 순서     쿠키 NEXT_LOCALE → 로그인 유저의 uiLocale → Accept-Language → ko
-메시지 파일   apps/web/src/messages/{ko,en,ja,zh-CN}.json
+메시지 파일   apps/web/src/messages/{ko,en,es,ja,zh-CN}.json
 ```
 
 ### 4.3 메시지 키 규칙
@@ -153,10 +153,12 @@
 ### 4.4 지켜야 할 것
 - **하드코딩 문자열 0개.** ESLint 규칙(`no-literal-string` 계열)으로 CI에서 막는다.
 - 날짜·시간·숫자는 `next-intl`의 포매터를 쓴다. 직접 `toLocaleString` 호출 금지.
-- 언어 이름은 자기 언어로 표기한다: `한국어 / English / 日本語 / 中文(简体)`.
+- 언어 이름은 자기 언어로 표기한다: `한국어 / English / Español / 日本語 / 中文(简体)`. 표기·OG locale은 `apps/web/src/i18n/locale-meta.ts` 한 곳에서 관리한다.
 - 번역 누락 시 `ko`로 폴백하고, 개발 모드에서는 콘솔 경고를 띄운다.
 - 일본어·중국어는 같은 폰트 스택에서 글리프가 다르게 잡힐 수 있으므로 해당 로케일에서 폰트 스택을 확인한다.
 - 텍스트 확장 대비: 독일어 등 확장 언어를 나중에 추가할 수 있게 **버튼 폭을 텍스트에 딱 맞추지 않는다**(최소 폭 + 패딩).
 
 ### 4.5 초기 번역 범위
-Phase 1~3은 **`ko` + `en`만** 완성한다. `ja` / `zh-CN`은 파일 구조만 만들어 두고 Phase 5에서 채운다. 미완성 로케일은 언어 선택 목록에 노출하지 않는다.
+**`ko` + `en` + `es`** 를 완성했다(es는 2026-10-17 추가). `ja` / `zh-CN`은 파일 구조만 만들어 두고 Phase 5에서 채운다. 미완성 로케일은 언어 선택 목록에 노출하지 않는다.
+
+새 로케일을 열 때: `UiLocale` 타입 → `ACTIVE_UI_LOCALES` → `messages/{locale}.json`(en.json과 키 구조 동일) → `i18n/locale-meta.ts`의 `LOCALE_META`. hreflang·사이트맵·정적 경로·언어 선택 목록은 자동으로 따라간다.
