@@ -26,3 +26,39 @@ export function guessScript(text: string): ScriptLang | null {
   if (/[A-Za-z]/.test(t)) return 'latin';
   return null;
 }
+
+export type LatinLang = 'en' | 'es' | 'fr' | 'de' | 'pt' | 'it';
+
+/**
+ * 라틴 문자 언어를 기능어(관사·전치사·대명사)로 가른다.
+ *
+ * 'latin'만으로는 스페인어 원문을 영어와 구분하지 못해, 대면 통역에서 스페인어 화자에게
+ * 영어로 답하는 문제가 있었다(2026-10-17). 문자 체계 판정을 보완하는 용도다.
+ * 확신이 없으면(기능어가 거의 없거나 두 언어가 비슷하면) null — 틀리게 확정하지 않는다.
+ */
+const LATIN_MARKERS: Record<LatinLang, { words: string[]; chars?: RegExp }> = {
+  en: { words: ['the', 'and', 'is', 'are', 'you', 'that', 'this', 'with', 'have', 'was', 'what', 'it', 'of', 'to', 'we', 'they', 'i', 'my', 'be', 'not', 'for', 'do', 'will', 'would', 'about'] },
+  es: { words: ['el', 'la', 'los', 'las', 'y', 'es', 'que', 'de', 'en', 'un', 'una', 'por', 'para', 'con', 'no', 'muy', 'pero', 'yo', 'está', 'como', 'del', 'al', 'lo', 'se', 'su', 'hay', 'también', 'sí', 'porque', 'eso'], chars: /[ñ¿¡]/ },
+  fr: { words: ['le', 'la', 'les', 'et', 'est', 'que', 'de', 'des', 'un', 'une', 'pour', 'avec', 'pas', 'je', 'vous', 'nous', 'dans', 'sur', 'ce', 'qui', 'il', 'elle', 'mais', 'très', 'du', 'au'], chars: /[çœàèùâêîôûë]/ },
+  de: { words: ['der', 'die', 'das', 'und', 'ist', 'nicht', 'ich', 'sie', 'wir', 'ein', 'eine', 'mit', 'zu', 'auf', 'für', 'den', 'dem', 'es', 'auch', 'sehr', 'aber', 'von'], chars: /[äöüß]/ },
+  pt: { words: ['o', 'a', 'os', 'as', 'e', 'é', 'que', 'de', 'do', 'da', 'em', 'um', 'uma', 'para', 'com', 'não', 'muito', 'mas', 'eu', 'você', 'está', 'no', 'na', 'isso', 'também'], chars: /[ãõ]/ },
+  it: { words: ['il', 'la', 'gli', 'le', 'e', 'è', 'che', 'di', 'del', 'della', 'un', 'una', 'per', 'con', 'non', 'molto', 'ma', 'io', 'sono', 'questo', 'anche', 'nel', 'alla'] },
+};
+
+export function guessLatinLang(text: string): LatinLang | null {
+  if (guessScript(text) !== 'latin') return null;
+  const words = text.toLowerCase().match(/[\p{L}']+/gu) ?? [];
+  if (words.length < 3) return null;
+  const scores = (Object.keys(LATIN_MARKERS) as LatinLang[]).map((lang) => {
+    const m = LATIN_MARKERS[lang];
+    let score = words.reduce((n, w) => n + (m.words.includes(w) ? 1 : 0), 0);
+    if (m.chars?.test(text)) score += 2;
+    return { lang, score };
+  });
+  scores.sort((a, b) => b.score - a.score);
+  const [top, second] = scores;
+  if (!top || top.score < 2) return null;
+  // 1등과 2등이 붙어 있으면 판정하지 않는다
+  if (second && top.score - second.score < 1) return null;
+  return top.lang;
+}

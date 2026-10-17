@@ -43,7 +43,13 @@ import {
 } from '@sotong/shared/constants';
 import type { LangCode, SourceLangSetting } from '@sotong/shared/types';
 import type { EngineSegment, DiagSnapshot } from '@sotong/shared/engine';
-import { summarizeDiag, unsavedRows, chunkForSave, scriptOfLang } from '@sotong/shared/engine';
+import {
+  summarizeDiag,
+  unsavedRows,
+  chunkForSave,
+  scriptOfLang,
+  guessLatinLang,
+} from '@sotong/shared/engine';
 import {
   connectBrowserSession,
   type BrowserTranslationSession,
@@ -185,6 +191,21 @@ export function LiveInterpreter({
    * 듣기 상태의 입력 = 상대가 말하는 언어이므로 speakLang이 곧 원문이다.
    */
   const effectiveSourceLang: SourceLangSetting = isTalk ? speakLang : sourceLang;
+  /**
+   * 대면 통역에서 자동 감지로 들은 상대 언어 (원문 자막의 기능어로 가늠).
+   * 문자 체계만 보면 스페인어·영어가 같은 라틴 문자라 구분되지 않아,
+   * 답하기 버튼이 스페인어 화자에게 영어로 내보내던 문제를 막는다 (2026-10-17).
+   */
+  const [detectedSource, setDetectedSource] = useState<LangCode | null>(null);
+  /**
+   * 답하기(무전기) 버튼이 내보낼 언어.
+   * 대화 통역은 고른 상대 언어, 대면 통역은 원문 언어(고정값 → 자동 감지 결과 → 마지막 값 순).
+   */
+  const replyLang: LangCode = isTalk
+    ? speakLang
+    : sourceLang !== 'auto'
+      ? sourceLang
+      : (detectedSource ?? speakLang);
 
   /** 말하기 버튼을 누르고 있는 동안 true */
   const [talking, setTalking] = useState(false);
@@ -259,6 +280,14 @@ export function LiveInterpreter({
   useEffect(() => {
     sourceLangRef.current = sourceLang;
   }, [sourceLang]);
+  const replyLangRef = useRef<LangCode>('en');
+  useEffect(() => {
+    replyLangRef.current = replyLang;
+  }, [replyLang]);
+  /** 자동 감지 투표 — 최근 원문 몇 줄의 언어. 한 줄로 확정하지 않는다(짧은 발화 오판) */
+  const sourceVotesRef = useRef<LangCode[]>([]);
+  /** 최근 원문의 언어 — 짝지은 줄의 언어 배지로 붙인다 */
+  const lastSrcLangRef = useRef<string | undefined>(undefined);
 
   // 마지막 언어쌍 기억 → 다음에 미리 채움 (docs/06 §2.1)
   // 대면 통역과 대화 통역은 고르는 값이 달라 저장 칸을 따로 쓴다
@@ -506,6 +535,9 @@ export function LiveInterpreter({
 
     sessionIdRef.current = grant.sessionId;
     maxDurationRef.current = grant.maxDurationSec;
+    sourceVotesRef.current = [];
+    lastSrcLangRef.current = undefined;
+    setDetectedSource(null);
     postpaidFromRef.current = grant.postpaidFromSec ?? null;
     setInPostpaid(false);
     // 서버가 내려준 예산(월 잔여 반영)을 따른다 — 클라이언트 상수보다 우선
@@ -536,13 +568,33 @@ export function LiveInterpreter({
             if (seg.kind === 'source') {
               const src = seg.sourceText.trim();
               if (!src) return;
-              const expectLang = isTalk
-                ? talkingRef.current
-                  ? targetLangRef.current
-                  : speakLangRef.current
-                : sourceLangRef.current;
+              // 말하는 중에는 마이크에 내 언어가 들어온다 (대면 통역의 답하기 버튼도 같다)
+              const expectLang = talkingRef.current
+                ? targetLangRef.current
+                : isTalk
+                  ? speakLangRef.current
+                  : sourceLangRef.current;
               if (expectLang !== 'auto' && guessScript(src) !== scriptOfLang(expectLang)) return;
               lastSrcRef.current = src;
+
+              const script = guessScript(src);
+              const lang =
+                script === 'ABC' ? guessLatinLang(src) : script ? script.toLowerCase() : null;
+              lastSrcLangRef.current = lang ?? undefined;
+              // 대면 통역 자동 감지: 상대 언어를 투표로 정해 답하기 언어에 쓴다
+              if (
+                !isTalk &&
+                !talkingRef.current &&
+                sourceLangRef.current === 'auto' &&
+                lang &&
+                (TRANSLATE_TARGET_LANGS as readonly string[]).includes(lang)
+              ) {
+                const votes = [...sourceVotesRef.current, lang as LangCode].slice(-5);
+                sourceVotesRef.current = votes;
+                if (votes.filter((v) => v === lang).length >= 2) {
+                  setDetectedSource((prev) => (prev === lang ? prev : (lang as LangCode)));
+                }
+              }
               return;
             }
 
@@ -551,7 +603,12 @@ export function LiveInterpreter({
              * 짝 줄은 그대로 저장 큐에 들어가 하트비트가 올린다 — 별도 정렬 단계가 없다.
              */
             const row = seg.isFinal
-              ? { ...seg, kind: 'paired' as const, sourceText: lastSrcRef.current }
+              ? {
+                  ...seg,
+                  kind: 'paired' as const,
+                  sourceText: lastSrcRef.current,
+                  detectedLang: lastSrcRef.current ? lastSrcLangRef.current : seg.detectedLang,
+                }
               : seg;
             if (seg.isFinal) {
               lastSrcRef.current = ''; // 이 원문은 이 줄이 소비했다 — 다음 줄에 재사용 금지
@@ -888,7 +945,7 @@ export function LiveInterpreter({
     if (phaseRef.current !== 'live' || talkingRef.current) return;
     talkingRef.current = true;
     setTalking(true);
-    sessionRef.current?.setTargetLang(speakLangRef.current);
+    sessionRef.current?.setTargetLang(replyLangRef.current);
     // 이제 마이크로 들어오는 건 내 언어다 — 자막이 상대 언어로 받아적히지 않게 같이 돌린다
     sessionRef.current?.setSourceLang(targetLangRef.current);
     const el = audioElRef.current;
@@ -904,11 +961,15 @@ export function LiveInterpreter({
     talkingRef.current = false;
     setTalking(false);
     sessionRef.current?.setTargetLang(targetLangRef.current);
-    // 다시 상대 말을 듣는다
-    sessionRef.current?.setSourceLang(speakLangRef.current);
+    /**
+     * 다시 상대 말을 듣는다.
+     * 대면 통역은 세션의 원문 설정(자동 감지면 자동 감지)으로 되돌린다 —
+     * 예전엔 답하기 언어(기본 영어)로 고정돼 그 뒤 스페인어가 영어로 받아적혔다.
+     */
+    sessionRef.current?.setSourceLang(isTalk ? speakLangRef.current : sourceLangRef.current);
     const el = audioElRef.current;
     if (el) el.muted = !audioOutRef.current;
-  }, []);
+  }, [isTalk]);
 
   /**
    * 전체화면.
@@ -1613,7 +1674,14 @@ export function LiveInterpreter({
         <span className="flex min-w-0 items-center gap-1.5 text-[15px] text-text-muted">
           {!isTalk ? (
             <>
-              <span className="hidden sm:inline">{t('setup.autoDetect')}</span>
+              {/* 원문이 고정돼 있으면 그 언어를, 자동 감지면 지금까지 들은 언어를 함께 보여준다 */}
+              <span className="hidden sm:inline">
+                {sourceLang !== 'auto'
+                  ? languageLabel(sourceLang)
+                  : detectedSource
+                    ? `${t('setup.autoDetect')} · ${languageLabel(detectedSource)}`
+                    : t('setup.autoDetect')}
+              </span>
               <span aria-hidden className="hidden text-text-faint sm:inline">
                 →
               </span>
@@ -1754,8 +1822,8 @@ export function LiveInterpreter({
         >
           <Radio size={24} aria-hidden />
           {talking
-            ? t('running.talkingNow', { lang: languageLabel(speakLang) })
-            : t('running.pushToTalk', { lang: languageLabel(speakLang) })}
+            ? t('running.talkingNow', { lang: languageLabel(replyLang) })
+            : t('running.pushToTalk', { lang: languageLabel(replyLang) })}
         </button>
       ) : null}
 
@@ -1802,8 +1870,8 @@ export function LiveInterpreter({
               onContextMenu={(e) => e.preventDefault()}
               disabled={phase === 'wrapping' || paused}
               aria-pressed={talking}
-              aria-label={t('running.pushToTalk', { lang: languageLabel(speakLang) })}
-              title={t('running.pushToTalk', { lang: languageLabel(speakLang) })}
+              aria-label={t('running.pushToTalk', { lang: languageLabel(replyLang) })}
+              title={t('running.pushToTalk', { lang: languageLabel(replyLang) })}
               className={`flex h-12 select-none items-center gap-2 rounded-xl border px-3 text-[14px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
                 talking
                   ? 'border-transparent bg-accent-2 text-white'
@@ -1812,7 +1880,7 @@ export function LiveInterpreter({
               style={{ touchAction: 'none' }}
             >
               <Radio size={17} aria-hidden />
-              <span className="hidden sm:inline">{languageLabel(speakLang)}</span>
+              <span className="hidden sm:inline">{languageLabel(replyLang)}</span>
             </button>
           ) : null}
 

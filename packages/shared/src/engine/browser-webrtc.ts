@@ -9,7 +9,7 @@ import type { EngineError, EngineSegment, EphemeralGrant } from './types';
 import { createSegmentAssembler } from './segment-assembler';
 import { createDiagnostics, type DiagSnapshot } from './diagnostics';
 import { createSourceMux } from './source-mux';
-import { guessScript } from './lang-guess';
+import { guessLatinLang, guessScript } from './lang-guess';
 
 export interface BrowserSessionCallbacks {
   onSegment: (s: EngineSegment) => void;
@@ -69,11 +69,13 @@ export interface TranscribeLegGrant {
 /**
  * 전사 결과의 문자만 보고 언어를 가늠한다 (자동 언어 잠금용).
  * 구현은 lang-guess.ts 하나뿐 — 마주통역 방향 판정도 같은 함수를 쓴다.
- * 여기서는 라틴 문자는 잠그지 않으므로(언어가 안 갈린다) null로 되돌린다.
+ * 라틴 문자는 기능어로 언어를 가늠하고(guessLatinLang), 확신이 없으면 잠그지 않는다.
+ * 예전엔 라틴 문자를 아예 잠그지 않아 스페인어가 영어와 섞여 받아적혔다.
  */
 function guessTranscriptLang(text: string): string | null {
   const s = guessScript(text);
-  return s && s !== 'latin' ? s : null;
+  if (s === 'latin') return guessLatinLang(text);
+  return s;
 }
 
 export async function connectBrowserSession(

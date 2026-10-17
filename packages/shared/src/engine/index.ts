@@ -32,8 +32,8 @@ export {
   ENGINE_INPUT_RATE,
   MEETING_BOT_RATE,
 } from './audio';
-export { guessScript } from './lang-guess';
-export type { ScriptLang } from './lang-guess';
+export { guessScript, guessLatinLang } from './lang-guess';
+export type { ScriptLang, LatinLang } from './lang-guess';
 export { unsavedRows, chunkForSave } from './save-queue';
 export type { SaveRow } from './save-queue';
 export { buildScript, scriptPlainText } from './script';
