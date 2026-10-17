@@ -35,6 +35,8 @@ export {
 export { guessScript, guessLatinLang, matchesLang } from './lang-guess';
 export type { ScriptLang, LatinLang } from './lang-guess';
 export { unsavedRows, chunkForSave } from './save-queue';
+export { createSourcePairer } from './source-pairer';
+export type { SourcePairer, SourceFill, PairedSource } from './source-pairer';
 export type { SaveRow } from './save-queue';
 export { buildScript, scriptPlainText } from './script';
 export type { ScriptBlock, ScriptSegmentInput } from './script';

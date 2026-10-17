@@ -49,6 +49,8 @@ import {
   chunkForSave,
   scriptOfLang,
   guessLatinLang,
+  createSourcePairer,
+  type SourceFill,
 } from '@sotong/shared/engine';
 import {
   connectBrowserSession,
@@ -254,11 +256,10 @@ export function LiveInterpreter({
   /** 마지막으로 세그먼트가 갱신된 시각 — 종료 시 남은 번역을 기다리는 판단에 쓴다 */
   const lastSegmentAtRef = useRef(0);
   /**
-   * 마주통역 방식의 느슨한 원문 짝짓기 (2026-08-02, AI 정렬 대체).
-   * 최근에 확정된 원문 문장을 들고 있다가, 번역 줄이 확정되는 순간 그 줄에 붙인다.
-   * 붙인 뒤 비우므로 원문이 늦으면 그 줄은 번역만 나간다 — 틀린 원문을 붙이느니 비워 둔다.
+   * 원문 짝짓기 — 원문 문장과 번역 줄을 순서대로 맞춘다 (source-pairer.ts).
+   * 예전의 "최근 원문 한 칸" 방식은 원문이 먼저 오면 덮어써져 한 줄씩 밀렸다(2026-10-17 실측).
    */
-  const lastSrcRef = useRef('');
+  const pairerRef = useRef(createSourcePairer());
   /** 서버가 받았다고 확인해 준 줄 번호 — 종료 시 중복해서 다시 보내지 않는다 */
   const sentSeqsRef = useRef(new Set<number>());
   /** 타이머 콜백에서 최신 자막 목록을 보기 위한 ref */
@@ -286,8 +287,34 @@ export function LiveInterpreter({
   }, [replyLang]);
   /** 자동 감지 투표 — 최근 원문 몇 줄의 언어. 한 줄로 확정하지 않는다(짧은 발화 오판) */
   const sourceVotesRef = useRef<LangCode[]>([]);
-  /** 최근 원문의 언어 — 짝지은 줄의 언어 배지로 붙인다 */
-  const lastSrcLangRef = useRef<string | undefined>(undefined);
+  const detectedSourceRef = useRef<LangCode | null>(null);
+  useEffect(() => {
+    detectedSourceRef.current = detectedSource;
+  }, [detectedSource]);
+
+  /**
+   * 원문이 번역보다 늦게 와서 뒤늦게 채워진 줄을 화면·저장 양쪽에 반영한다.
+   * 이미 서버로 보낸 줄이면 다시 보낸다 — 서버는 seq로 덮어쓴다(saveSegments).
+   */
+  const applySourceFills = useCallback((fills: SourceFill[]) => {
+    if (fills.length === 0) return;
+    const bySeq = new Map(fills.map((f) => [f.seq, f]));
+    const next = segmentsRef.current.map((row) => {
+      const f = bySeq.get(row.seq);
+      if (!f) return row;
+      const updated = {
+        ...row,
+        sourceText: f.sourceText,
+        detectedLang: f.lang?.toUpperCase() ?? row.detectedLang,
+      };
+      if (sentSeqsRef.current.delete(row.seq) || pendingFinalsRef.current.has(row.seq)) {
+        pendingFinalsRef.current.set(row.seq, updated);
+      }
+      return updated;
+    });
+    segmentsRef.current = next;
+    setSegments(next);
+  }, []);
 
   // 마지막 언어쌍 기억 → 다음에 미리 채움 (docs/06 §2.1)
   // 대면 통역과 대화 통역은 고르는 값이 달라 저장 칸을 따로 쓴다
@@ -396,6 +423,8 @@ export function LiveInterpreter({
 
       sessionRef.current?.close();
       sessionRef.current = null;
+      // 닫으면서 쏟아진 마지막 원문까지 받은 뒤, 문장부호 없이 남은 꼬리를 기다리던 줄에 붙인다
+      applySourceFills(pairerRef.current.flush());
 
       // 마이크를 끄기 전에 녹음을 마무리해 blob을 확보한다 (트랙이 멈추면 못 받는다)
       const recording = recorderRef.current ? await recorderRef.current.stop() : null;
@@ -536,7 +565,7 @@ export function LiveInterpreter({
     sessionIdRef.current = grant.sessionId;
     maxDurationRef.current = grant.maxDurationSec;
     sourceVotesRef.current = [];
-    lastSrcLangRef.current = undefined;
+    pairerRef.current.reset();
     setDetectedSource(null);
     postpaidFromRef.current = grant.postpaidFromSec ?? null;
     setInPostpaid(false);
@@ -575,12 +604,19 @@ export function LiveInterpreter({
                   ? speakLangRef.current
                   : sourceLangRef.current;
               if (expectLang !== 'auto' && guessScript(src) !== scriptOfLang(expectLang)) return;
-              lastSrcRef.current = src;
 
               const script = guessScript(src);
               const lang =
                 script === 'ABC' ? guessLatinLang(src) : script ? script.toLowerCase() : null;
-              lastSrcLangRef.current = lang ?? undefined;
+              // 라틴 문자인데 언어를 못 가렸으면 지정·감지된 원문 언어를 배지로 쓴다 ('ABC' 대신)
+              const badgeLang =
+                lang ??
+                (script === 'ABC'
+                  ? expectLang !== 'auto'
+                    ? expectLang
+                    : (detectedSourceRef.current ?? undefined)
+                  : undefined);
+              applySourceFills(pairerRef.current.pushSource(src, badgeLang ?? undefined));
               // 대면 통역 자동 감지: 상대 언어를 투표로 정해 답하기 언어에 쓴다
               if (
                 !isTalk &&
@@ -599,19 +635,19 @@ export function LiveInterpreter({
             }
 
             /**
-             * 번역 줄이 확정되는 순간 최근 원문을 붙여 즉시 짝을 완성한다.
+             * 번역 줄이 확정되는 순간 차례가 된 원문 문장을 붙인다(source-pairer).
+             * 원문이 아직 안 왔으면 비워 두고, 도착하면 applySourceFills가 채운다.
              * 짝 줄은 그대로 저장 큐에 들어가 하트비트가 올린다 — 별도 정렬 단계가 없다.
              */
-            const row = seg.isFinal
-              ? {
-                  ...seg,
-                  kind: 'paired' as const,
-                  sourceText: lastSrcRef.current,
-                  detectedLang: lastSrcRef.current ? lastSrcLangRef.current : seg.detectedLang,
-                }
-              : seg;
+            let row: EngineSegment = seg;
             if (seg.isFinal) {
-              lastSrcRef.current = ''; // 이 원문은 이 줄이 소비했다 — 다음 줄에 재사용 금지
+              const paired = pairerRef.current.takeForTarget(seg.seq, seg.targetText);
+              row = {
+                ...seg,
+                kind: 'paired' as const,
+                sourceText: paired.sourceText,
+                detectedLang: paired.lang?.toUpperCase() ?? seg.detectedLang,
+              };
               pendingFinalsRef.current.set(row.seq, row);
             }
             setSegments((prev) => {
@@ -674,7 +710,6 @@ export function LiveInterpreter({
      * 저장이 "이미 보냈다"로 판정된다 — 통째로 기록이 안 남는다.
      */
     sentSeqsRef.current = new Set();
-    lastSrcRef.current = '';
     pendingFinalsRef.current.clear();
     segmentsLenRef.current = 0;
     lastSegmentAtRef.current = Date.now();
