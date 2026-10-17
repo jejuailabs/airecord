@@ -32,7 +32,7 @@ export {
   ENGINE_INPUT_RATE,
   MEETING_BOT_RATE,
 } from './audio';
-export { guessScript, guessLatinLang } from './lang-guess';
+export { guessScript, guessLatinLang, matchesLang } from './lang-guess';
 export type { ScriptLang, LatinLang } from './lang-guess';
 export { unsavedRows, chunkForSave } from './save-queue';
 export type { SaveRow } from './save-queue';

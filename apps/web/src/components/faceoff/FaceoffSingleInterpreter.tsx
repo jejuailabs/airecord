@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, Mic, Square } from 'lucide-react';
 import { connectBrowserSession, type BrowserTranslationSession } from '@sotong/shared/engine/browser';
-import { scriptOfLang, type EngineSegment } from '@sotong/shared/engine';
-import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS, guessScript } from '@sotong/shared/constants';
+import { matchesLang, type EngineSegment } from '@sotong/shared/engine';
+import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS } from '@sotong/shared/constants';
 import type { LangCode } from '@sotong/shared/types';
 import { HEARTBEAT_STALE_MS, sendEndBeacon } from '@/lib/session-exit';
 
@@ -263,9 +263,14 @@ export function FaceoffSingleInterpreter() {
    */
   const pushSegment = useCallback((speaker: Speaker, seg: EngineSegment) => {
     const speakerLang = speaker === 'A' ? langARef.current : langBRef.current;
-    const speakerScript = scriptOfLang(speakerLang);
-    const srcScript = guessScript(seg.sourceText);
-    if (srcScript && srcScript !== speakerScript) return; // 반대 언어 통과분 — 버린다
+    const listenerLang = speaker === 'A' ? langBRef.current : langARef.current;
+    // 반대 언어 통과분 — 듣는 쪽 언어로 확신할 때만 버린다 (라틴 쌍은 기능어로 가른다)
+    if (
+      matchesLang(seg.sourceText, listenerLang) === true &&
+      matchesLang(seg.sourceText, speakerLang) !== true
+    ) {
+      return;
+    }
 
     const text = seg.targetText.trim();
     if (!text) return;

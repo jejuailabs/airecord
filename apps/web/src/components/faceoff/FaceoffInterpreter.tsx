@@ -3,12 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Loader2, Mic } from 'lucide-react';
 import { connectBrowserSession, type BrowserTranslationSession } from '@sotong/shared/engine/browser';
-import { scriptOfLang, type EngineSegment } from '@sotong/shared/engine';
-import {
-  INTERPRET_LANGUAGES,
-  TRANSLATE_TARGET_LANGS,
-  guessScript,
-} from '@sotong/shared/constants';
+import { matchesLang, type EngineSegment } from '@sotong/shared/engine';
+import { INTERPRET_LANGUAGES, TRANSLATE_TARGET_LANGS } from '@sotong/shared/constants';
 import type { LangCode } from '@sotong/shared/types';
 import { HEARTBEAT_STALE_MS, sendEndBeacon } from '@/lib/session-exit';
 
@@ -20,8 +16,8 @@ import { HEARTBEAT_STALE_MS, sendEndBeacon } from '@/lib/session-exit';
  *   · 각 세션은 들리는 모든 말을 자기 출력 언어로 번역한다. 그중 "같은 언어 통과분"은 버린다.
  *     예) toB(출력=영어)에 영어가 들어오면 영어→영어 통과 → 버림.
  *          toB에 한국어가 들어오면 한국어→영어 → 진짜 결과 → 영어 면에 표시.
- *   · 판정은 원문 글자의 문자 체계로 한다(guessScript). 한 면은 한국어, 한 면은 영어처럼
- *     문자가 다른 쌍에서 동작한다.
+ *   · 판정은 원문 글자로 한다(matchesLang). 문자 체계가 다르면 문자로, 영어↔스페인어처럼
+ *     둘 다 라틴 문자면 기능어로 가른다. 확신이 없으면 버리지 않는다.
  *
  * 화면은 정확히 반으로 갈리고, 한 면(A)은 180° 회전해 마주 앉은 사람이 정방향으로 본다.
  *
@@ -203,8 +199,8 @@ export function FaceoffInterpreter() {
    * 늦게 오는 원문 때문에 진짜 번역을 놓치는 게 더 나쁘다.
    */
   const pushSegment = useCallback((dir: 'toB' | 'toA', seg: EngineSegment) => {
-    const speakerScript = scriptOfLang(dir === 'toB' ? langARef.current : langBRef.current);
-    const otherScript = scriptOfLang(dir === 'toB' ? langBRef.current : langARef.current);
+    const speakerLang = dir === 'toB' ? langARef.current : langBRef.current;
+    const otherLang = dir === 'toB' ? langBRef.current : langARef.current;
 
     /**
      * 원문(전사) 세그먼트 — 화면엔 번역 줄에 붙여서 보여주므로 여기선 저장·판정만 한다.
@@ -214,11 +210,12 @@ export function FaceoffInterpreter() {
     if (seg.kind === 'source') {
       const src = seg.sourceText.trim();
       if (!src) return;
-      const sc = guessScript(src);
-      if (sc && sc === otherScript) {
+      // 언어 단위로 비교한다 — 문자 체계만 보면 영어↔스페인어 같은 라틴 쌍이 전부 통과분으로 버려졌다
+      const isSpeaker = matchesLang(src, speakerLang);
+      if (matchesLang(src, otherLang) === true && isSpeaker !== true) {
         suppressUntilRef.current[dir] = Date.now() + 2_500; // 통과분 구간 억제
       } else {
-        if (sc && sc === speakerScript) suppressUntilRef.current[dir] = 0; // 올바른 입력 — 억제 해제
+        if (isSpeaker === true) suppressUntilRef.current[dir] = 0; // 올바른 입력 — 억제 해제
         lastSrcRef.current[dir] = src; // 번역 줄에 붙일 원문
       }
       return;

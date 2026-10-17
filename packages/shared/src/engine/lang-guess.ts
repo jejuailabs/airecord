@@ -62,3 +62,30 @@ export function guessLatinLang(text: string): LatinLang | null {
   if (second && top.score - second.score < 1) return null;
   return top.lang;
 }
+
+const SCRIPT_OF_LANG: Record<string, ScriptLang> = {
+  ko: 'ko',
+  ja: 'ja',
+  zh: 'zh',
+  ru: 'ru',
+  th: 'th',
+  ar: 'ar',
+};
+
+/**
+ * 이 글이 이 언어로 쓰였는가. true/false는 확신할 때만, 모르면 null.
+ *
+ * 마주통역의 "반대편 통과분" 판정용. 문자 체계만 비교하면 영어↔스페인어처럼
+ * 둘 다 라틴 문자인 쌍에서 모든 발화가 통과분으로 보여 번역이 통째로 버려졌다(2026-10-17).
+ * 라틴 문자끼리는 기능어로 한 번 더 가르고, 그래도 모르면 null(아무것도 버리지 않는다).
+ */
+export function matchesLang(text: string, lang: string): boolean | null {
+  const s = guessScript(text);
+  if (!s) return null;
+  if (lang === 'hi') return s === 'latin' ? false : null; // 데바나가리는 판정하지 않는다
+  const expected = SCRIPT_OF_LANG[lang] ?? 'latin';
+  if (s !== 'latin' || expected !== 'latin') return s === expected;
+  if (!(lang in LATIN_MARKERS)) return null; // vi·id 등 — 라틴이지만 기능어로 못 가른다
+  const g = guessLatinLang(text);
+  return g ? g === lang : null;
+}
